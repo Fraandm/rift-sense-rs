@@ -18,7 +18,7 @@ Mapa de los componentes del proyecto Python y su estado en `riftsense-rs`.
 | `lolanalyzer/lcu/mapper.py` | `src/lcu/mapper.rs` | ✅ portado |
 | `desktop/main.js` (ventana + servidor) | `src/bin/riftsense-desktop.rs` | ✅ Rust + WebView2 |
 | `desktop/main.js` (updater) | — | ⏳ |
-| `web/` | embebido desde `../web` | ⚠️ reutilizado |
+| `web/` | incluido en `web/` | ⚠️ SPA compartida, pendiente de portar |
 
 ## Fase 2 — Interfaz (pendiente)
 
@@ -30,7 +30,7 @@ en Rust hay dos opciones:
 2. **UI nativa** con `egui`/`iced`. Más trabajo de rediseño.
 
 Recomendación: Leptos + `trunk`, sirviendo la app desde Axum y sustituyendo los
-assets de `../web` por un frontend Rust.
+assets de `web/` por un frontend Rust.
 
 ## Fase 3 — Actualizador (pendiente)
 
