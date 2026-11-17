@@ -1,0 +1,115 @@
+/* Bootstrap de la SPA: navegación, estado global y carga inicial. */
+
+import { api } from "./api.js";
+import { hydrateMeta, meta, state } from "./state.js";
+import { $, $$, num, toast } from "./ui.js";
+import * as draft from "./draft.js";
+import * as live from "./live.js";
+import * as client from "./client.js";
+import * as model from "./model.js";
+import * as data from "./data.js";
+
+const TABS = ["draft", "live", "client", "model", "data"];
+let booted = false;
+
+function updateStatus(payload, health) {
+  const dot = $("#status-dot");
+  const text = $("#status-text");
+  const patch = $("#status-patch");
+  const games = $("#status-games");
+  const models = $("#status-models");
+  const dataset = payload?.dataset || health?.dataset || {};
+  const draftReady = payload?.models?.draft ?? false;
+  const buildReady = payload?.models?.build ?? false;
+  const count = Number(draftReady) + Number(buildReady);
+
+  if (patch) patch.textContent = payload?.patch || "—";
+  if (games) games.textContent = dataset.games ? num(dataset.games) : "—";
+  if (models) models.textContent = `${count}/2`;
+  if (dot) dot.className = "status-dot ok";
+  if (text) text.textContent = count === 2 ? "Motor neuronal listo" : count === 1 ? "Modelo parcial" : "Modo datos pro";
+}
+
+function setTab(tab, updateHash = true) {
+  if (!TABS.includes(tab)) tab = "draft";
+  state.activeTab = tab;
+  for (const name of TABS) {
+    $(`#view-${name}`)?.classList.toggle("hidden", name !== tab);
+  }
+  $$(".nav-item").forEach((button) => {
+    const active = button.dataset.tab === tab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-current", active ? "page" : "false");
+  });
+  if (updateHash && location.hash !== `#${tab}`) {
+    history.replaceState(null, "", `#${tab}`);
+  }
+  if (tab === "model") model.load();
+  if (tab === "data") data.load();
+  client.setActive(tab === "client");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function bindNav() {
+  $$(".nav-item").forEach((button) => {
+    button.addEventListener("click", () => setTab(button.dataset.tab));
+  });
+  window.addEventListener("hashchange", () => {
+    setTab(location.hash.replace("#", "") || "draft", false);
+  });
+}
+
+function fatal(err) {
+  const dot = $("#status-dot");
+  const text = $("#status-text");
+  if (dot) dot.className = "status-dot bad";
+  if (text) text.textContent = "Motor no disponible";
+  const main = $("#main");
+  if (main) {
+    const banner = document.createElement("div");
+    banner.className = "card";
+    banner.style.borderColor = "rgba(255, 95, 109, .4)";
+    banner.innerHTML = `<div class="card-head"><div><h2>El motor aún no está listo</h2>
+      <p>${String(err.message || err).replace(/</g, "&lt;")}</p></div></div>
+      <p class="fineprint">Genera los datos y modelos desde la carpeta del proyecto:</p>
+      <div class="pipeline">
+        <code>python -m lolanalyzer.scraper.leaguepedia --since 2024-01-01</code>
+        <code>python -m lolanalyzer.data.build_dataset</code>
+        <code>python -m lolanalyzer.models.train_draft</code>
+        <code>python -m lolanalyzer.models.train_build</code>
+      </div>
+      <p class="fineprint">Después recarga esta página.</p>`;
+    main.prepend(banner);
+  }
+  toast("No se pudo conectar con el motor de RiftSense.", "error", 8000);
+}
+
+async function boot() {
+  if (booted) return;
+  booted = true;
+  window.addEventListener("unhandledrejection", (event) => {
+    console.error(event.reason);
+    toast(event.reason?.message || "Error inesperado en la interfaz.", "error");
+  });
+  bindNav();
+  try {
+    const [metaPayload, health] = await Promise.all([
+      api.get("/api/meta"),
+      api.get("/api/health").catch(() => null),
+    ]);
+    hydrateMeta(metaPayload);
+    updateStatus(metaPayload, health);
+    draft.init();
+    live.init();
+    data.initEvents();
+    client.init();
+    setTab(location.hash.replace("#", "") || "draft", false);
+    if (!metaPayload.models?.draft || !metaPayload.models?.build) {
+      toast("Algún modelo no está disponible: se usarán estadísticas pro.", "info", 6000);
+    }
+  } catch (err) {
+    fatal(err);
+  }
+}
+
+boot();

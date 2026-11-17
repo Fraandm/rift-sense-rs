@@ -1,0 +1,10 @@
+target/
+.python-export/
+.python-bench/
+__pycache__/
+*.pyc
+*.py
+perf_results.json
+startup_results.json
+parity_rust.json
+parity_python.json

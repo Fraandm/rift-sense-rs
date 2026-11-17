@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#060a12" />
+  <meta name="description" content="RiftSense: análisis de draft y builds de League of Legends con datos de high elo y partidas profesionales." />
+  <title>RiftSense · Analizador de draft y build</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+</head>
+<body>
+  <div class="bg-layer" aria-hidden="true"></div>
+
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-logo" viewBox="0 0 32 32">
+      <path d="M16 2.5 27.5 9v14L16 29.5 4.5 23V9L16 2.5Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M16 8.2 22.4 12v8L16 23.8 9.6 20v-8L16 8.2Z" fill="currentColor" opacity=".9"/>
+      <path d="M16 11.6 19.4 14v4L16 20.4 12.6 18v-4L16 11.6Z" fill="#060a12"/>
+    </symbol>
+    <symbol id="i-draft" viewBox="0 0 24 24">
+      <path d="M4 4l5.2 5.2M14.8 14.8 20 20M4 20l5.2-5.2m5.6-5.6L20 4M9.2 9.2 6.8 6.8M14.8 9.2l2.4-2.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M15.5 4H20v4.5M4 15.5V20h4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-live" viewBox="0 0 24 24">
+      <path d="M3 12h4l2.2-5.5 3.4 11L15 12h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-brain" viewBox="0 0 24 24">
+      <path d="M9.3 4.5A3.2 3.2 0 0 0 6 7.7c0 .4.1.8.2 1.2A3 3 0 0 0 4.5 14a3 3 0 0 0 2.1 4.2 3 3 0 0 0 5.4 1.2V4.9a2 2 0 0 0-2.7-.4ZM14.7 4.5A3.2 3.2 0 0 1 18 7.7c0 .4-.1.8-.2 1.2A3 3 0 0 1 19.5 14a3 3 0 0 1-2.1 4.2 3 3 0 0 1-5.4 1.2V4.9a2 2 0 0 1 2.7-.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-data" viewBox="0 0 24 24">
+      <ellipse cx="12" cy="6" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="i-search" viewBox="0 0 24 24">
+      <circle cx="10.8" cy="10.8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="m15.5 15.5 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Zm0 1H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4m-4 3v5m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-gold" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5v9M14.6 9.2c-.6-.8-1.6-1.2-2.6-1.2-1.6 0-2.6.8-2.6 2s1.1 1.8 2.6 2.1c1.8.4 2.8 1 2.8 2.3 0 1.3-1.2 2.1-2.8 2.1-1.2 0-2.3-.5-2.9-1.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 24 24">
+      <path d="M9 3v5M15 3v5M7.5 8h9v3.5a4.5 4.5 0 0 1-9 0V8ZM12 16v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+        <span class="brand-text">
+          <strong>RiftSense</strong>
+          <small>Draft · Build · Datos</small>
+        </span>
+      </div>
+
+      <nav class="nav" aria-label="Navegación principal">
+        <button class="nav-item active" data-tab="draft" type="button" aria-label="Draft">
+          <svg class="icon"><use href="#i-draft"/></svg><span>Draft</span>
+        </button>
+        <button class="nav-item" data-tab="live" type="button" aria-label="En vivo">
+          <svg class="icon"><use href="#i-live"/></svg><span>En vivo</span>
+        </button>
+        <button class="nav-item" data-tab="client" type="button" aria-label="Cliente local">
+          <svg class="icon"><use href="#i-plug"/></svg><span>Cliente</span>
+          <i class="client-dot" id="client-nav-dot" aria-hidden="true"></i>
+        </button>
+        <button class="nav-item" data-tab="model" type="button" aria-label="Modelo">
+          <svg class="icon"><use href="#i-brain"/></svg><span>Modelo</span>
+        </button>
+        <button class="nav-item" data-tab="data" type="button" aria-label="Datos">
+          <svg class="icon"><use href="#i-data"/></svg><span>Datos</span>
+        </button>
+      </nav>
+
+      <div class="side-status">
+        <div class="status-row">
+          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+          <span id="status-text">Conectando…</span>
+        </div>
+        <dl class="status-facts">
+          <div><dt>Parche</dt><dd id="status-patch">—</dd></div>
+          <div><dt>Partidas</dt><dd id="status-games">—</dd></div>
+          <div><dt>Modelos</dt><dd id="status-models">—</dd></div>
+        </dl>
+      </div>
+
+      <p class="side-foot">Datos pro de Leaguepedia · No afiliado a Riot Games</p>
+    </aside>
+
+    <main class="main" id="main">
+      <!-- ===================== DRAFT ===================== -->
+      <section class="view" id="view-draft" aria-labelledby="draft-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">Sala de draft</p>
+            <h1 id="draft-title">Elige con ventaja</h1>
+            <p class="lead">Valora tu composición y encuentra el pick que más suma. Entrena con partidas profesionales reales.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost" id="draft-import" type="button"><svg class="icon"><use href="#i-plug"/></svg>Importar cliente</button>
+            <button class="btn ghost" id="draft-example" type="button"><svg class="icon"><use href="#i-bolt"/></svg>Ejemplo</button>
+            <button class="btn ghost" id="draft-clear" type="button">Limpiar</button>
+          </div>
+        </div>
+
+        <div class="card controls">
+          <div class="control">
+            <span class="label">Tu lado</span>
+            <div class="segmented" id="side-toggle" role="group" aria-label="Elige tu lado">
+              <button type="button" data-side="blue" class="active">Azul</button>
+              <button type="button" data-side="red">Rojo</button>
+            </div>
+          </div>
+          <div class="control grow">
+            <span class="label">Tu rol</span>
+            <div class="chips" id="role-chips" role="group" aria-label="Elige tu rol"></div>
+          </div>
+          <div class="verdict-mini" id="draft-verdict">
+            <span class="verdict-label">Prob. estimada</span>
+            <strong class="verdict-value">—</strong>
+            <span class="verdict-note">Completa el draft</span>
+          </div>
+        </div>
+
+        <div class="draft-grid">
+          <div class="card team-card" id="ally-card">
+            <header class="card-head">
+              <div><h2>Tu equipo</h2><p>Marca tu rol y deja libre tu slot</p></div>
+              <span class="badge blue" id="ally-side-badge">Azul</span>
+            </header>
+            <div class="team-slots" id="ally-slots"></div>
+          </div>
+
+          <div class="card team-card" id="enemy-card">
+            <header class="card-head">
+              <div><h2>Rival</h2><p>Añade lo que ya viste en el draft</p></div>
+              <span class="badge red" id="enemy-side-badge">Rojo</span>
+            </header>
+            <div class="team-slots" id="enemy-slots"></div>
+          </div>
+
+          <div class="card reco-card">
+            <header class="card-head">
+              <div><h2>Mejores picks</h2><p id="reco-subtitle">Calculando con el meta actual</p></div>
+              <span class="mode-badge" id="reco-mode">—</span>
+            </header>
+            <div class="reco-list" id="draft-reco" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="card ban-card">
+          <header class="card-head">
+            <div><h2>Bans de la partida</h2><p>Hasta 10 campeones fuera del draft</p></div>
+            <button class="btn tiny" id="add-ban" type="button"><svg class="icon"><use href="#i-plus"/></svg>Ban</button>
+          </header>
+          <div class="ban-chips" id="ban-chips"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <header class="card-head">
+              <div><h2>Prioridad de ban</h2><p>Presencia y winrate en el meta reciente</p></div>
+            </header>
+            <div class="ban-priority" id="ban-priority"></div>
+          </div>
+          <div class="card insight-card">
+            <header class="card-head">
+              <div><h2>Como leer la recomendación</h2><p>Sin cajas negras</p></div>
+            </header>
+            <ul class="insight-list">
+              <li><span class="dot gold"></span><div><strong>Modelo</strong><p>DraftNet valora la composición completa y los huecos desconocidos. La probabilidad es una estimacion, no una garantia.</p></div></li>
+              <li><span class="dot teal"></span><div><strong>Datos pro</strong><p>Winrates y sinergias suavizadas con partidas de ligas profesionales. Filtra por rol y revisa el tamaño de muestra.</p></div></li>
+              <li><span class="dot red"></span><div><strong>Contexto</strong><p>El draft importa, pero la ejecución pesa más. Usa la herramienta como segunda opinión, no como oráculo.</p></div></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== LIVE ===================== -->
+      <section class="view hidden" id="view-live" aria-labelledby="live-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">Asistente en partida</p>
+            <h1 id="live-title">Build en vivo</h1>
+            <p class="lead">Dinos que tienes y cuanto oro llevas. RiftSense prioriza la siguiente compra y el plan completo.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost" id="live-sync" type="button"><svg class="icon"><use href="#i-plug"/></svg>Leer cliente</button>
+            <button class="btn ghost" id="live-auto" type="button">Auto: off</button>
+            <button class="btn ghost" id="live-example" type="button"><svg class="icon"><use href="#i-bolt"/></svg>Ejemplo</button>
+            <button class="btn ghost" id="live-reset" type="button"><svg class="icon"><use href="#i-refresh"/></svg>Reiniciar</button>
+          </div>
+        </div>
+
+        <div class="live-layout">
+          <aside class="card live-setup">
+            <header class="card-head"><div><h2>Estado</h2><p>Campeón, rol y economía</p></div></header>
+
+            <button class="champ-select" id="live-champ" type="button">
+              <span class="champ-select-avatar" id="live-champ-avatar"></span>
+              <span class="champ-select-text">
+                <small>Tu campeón</small>
+                <strong id="live-champ-name">Elegir campeón</strong>
+              </span>
+              <svg class="icon"><use href="#i-arrow"/></svg>
+            </button>
+
+            <div class="field">
+              <span class="label">Rol</span>
+              <div class="chips compact" id="live-roles" role="group" aria-label="Rol"></div>
+            </div>
+
+            <div class="field">
+              <span class="label">Lado</span>
+              <div class="segmented" id="live-side" role="group" aria-label="Lado">
+                <button type="button" data-side="blue" class="active">Azul</button>
+                <button type="button" data-side="red">Rojo</button>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <label class="field">
+                <span class="label">Oro disponible</span>
+                <span class="gold-input">
+                  <svg class="icon"><use href="#i-gold"/></svg>
+                  <input id="live-gold" type="number" min="0" max="100000" step="50" value="0" inputmode="numeric" />
+                </span>
+                <span class="gold-quick-row">
+                  <button type="button" class="gold-quick" data-gold-add="500">+500</button>
+                  <button type="button" class="gold-quick" data-gold-add="1000">+1k</button>
+                  <button type="button" class="gold-quick" data-gold-reset>0</button>
+                </span>
+              </label>
+              <label class="field">
+                <span class="label">Minuto <b id="live-minute-label">6</b></span>
+                <input id="live-minute" type="range" min="0" max="45" step="1" value="6" />
+              </label>
+            </div>
+
+            <div class="field">
+              <span class="label">Rivales conocidos <small id="live-enemy-count">0/5</small></span>
+              <div class="mini-slots" id="live-enemies"></div>
+            </div>
+            <div class="field">
+              <span class="label">Aliados <small id="live-ally-count">1/5</small></span>
+              <div class="mini-slots" id="live-allies"></div>
+            </div>
+            <p class="client-source" id="live-source">Fuente manual · introduce los datos</p>
+          </aside>
+
+          <section class="card live-main">
+            <div class="live-hero">
+              <div class="gauge" id="live-gauge" aria-label="Probabilidad estimada de victoria">
+                <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
+                  <circle class="gauge-track" cx="60" cy="60" r="52"/>
+                  <circle class="gauge-value" cx="60" cy="60" r="52"/>
+                </svg>
+                <div class="gauge-label"><strong>—</strong><span>prob. draft</span></div>
+              </div>
+              <div class="live-hero-copy">
+                <p class="eyebrow" id="live-champ-role">Sin campeón</p>
+                <h2 id="live-verdict-title">Configura tu partida</h2>
+                <p id="live-verdict-text">Elige un campeón y añade rivales para recibir recomendaciones de build con contexto.</p>
+                <div class="pill-row" id="live-pills"></div>
+              </div>
+              <div class="damage-profile" id="live-damage-profile">
+                <span class="label">Perfil rival</span>
+                <div class="damage-bar"><i class="ad" style="width:50%"></i><i class="ap" style="width:50%"></i></div>
+                <div class="damage-legend"><span>AD</span><span>AP</span></div>
+              </div>
+            </div>
+
+            <div class="build-head">
+              <div>
+                <h2>Tu inventario</h2>
+                <p id="live-inventory-hint">Haz clic en un hueco para añadir objetos en orden de compra.</p>
+              </div>
+              <span class="badge" id="live-slot-count">0 / 6</span>
+            </div>
+            <div class="inventory" id="live-inventory"></div>
+
+            <div class="reco-head">
+              <div><h2>Siguiente compra</h2><p id="live-reco-subtitle">Recomendaciones contextualizadas</p></div>
+              <span class="mode-badge" id="live-mode">—</span>
+            </div>
+            <div class="item-list" id="live-items" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <div class="grid-2 live-bottom">
+          <section class="card">
+            <header class="card-head"><div><h2>Plan de build</h2><p>Ruta completa sugerida desde tu estado actual</p></div></header>
+            <div class="build-plan" id="build-plan"></div>
+          </section>
+          <section class="card">
+            <header class="card-head"><div><h2>Lectura de la partida</h2><p>Perfil de daño, spikes y notas</p></div></header>
+            <div id="live-notes" class="live-notes"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===================== CLIENTE ===================== -->
+      <section class="view hidden" id="view-client" aria-labelledby="client-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">LCU · Live Client Data</p>
+            <h1 id="client-title">Cliente local</h1>
+            <p class="lead">Lee el champ select y la partida en curso desde tu League of Legends. Solo lectura, sin automatizar picks ni compras.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost" id="client-refresh" type="button"><svg class="icon"><use href="#i-refresh"/></svg>Actualizar</button>
+          </div>
+        </div>
+
+        <div class="card client-hero">
+          <div class="client-state">
+            <span class="status-dot" id="client-dot" aria-hidden="true"></span>
+            <div>
+              <p class="eyebrow">Conexión</p>
+              <h2 id="client-state-title">Buscando cliente…</h2>
+              <p id="client-state-desc">Leyendo el lockfile de League of Legends.</p>
+            </div>
+          </div>
+          <div class="pill-row" id="client-pills"></div>
+        </div>
+
+        <div class="card client-locate" id="client-locate">
+          <div class="client-locate-main">
+            <div class="client-state">
+              <span class="status-dot" id="client-locate-dot" aria-hidden="true"></span>
+              <div>
+                <p class="eyebrow">Ubicación del cliente</p>
+                <h2 id="client-locate-title">Buscando en los discos…</h2>
+                <p id="client-locate-desc">Analizando unidades, registro de Windows y metadata de Riot.</p>
+              </div>
+            </div>
+            <code id="client-locate-path">—</code>
+          </div>
+          <div class="client-locate-actions">
+            <button class="btn tiny" id="client-search" type="button"><svg class="icon"><use href="#i-refresh"/></svg>Buscar de nuevo</button>
+          </div>
+          <div class="client-locate-manual">
+            <input id="client-path" type="text" placeholder="D:\Riot Games\League of Legends" aria-label="Ruta de League of Legends" autocomplete="off" />
+            <button class="btn tiny" id="client-path-save" type="button">Usar ruta</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <section class="card">
+            <header class="card-head">
+              <div><h2>Champ select</h2><p>Picks, bans y rol en tiempo real</p></div>
+              <span class="badge" id="client-draft-badge">—</span>
+            </header>
+            <div class="client-panel" id="client-draft"></div>
+            <div class="client-actions">
+              <button class="btn" id="client-use-draft" type="button" disabled>Usar este draft</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <div><h2>Partida en curso</h2><p>Live Client Data API · puerto 2999</p></div>
+              <span class="badge" id="client-live-badge">—</span>
+            </header>
+            <div class="client-panel" id="client-live"></div>
+            <div class="client-actions">
+              <button class="btn" id="client-use-live" type="button" disabled>Analizar en vivo</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="grid-2">
+          <section class="card">
+            <header class="card-head">
+              <div><h2>Sincronización</h2><p>Aplicar los datos del cliente a Draft y En vivo</p></div>
+            </header>
+            <label class="switch">
+              <input type="checkbox" id="client-auto" />
+              <span class="track" aria-hidden="true"></span>
+              <span class="switch-text">Sincronizar automáticamente</span>
+            </label>
+            <p class="fineprint" id="client-auto-note">Cada 3 segundos mientras la aplicación esté visible. No envía inputs al juego.</p>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <div><h2>Conexión</h2><p>Requisitos y diagnóstico</p></div>
+            </header>
+            <div class="client-help">
+              <p>Abre League of Legends en este mismo PC. RiftSense lee el archivo <code>lockfile</code> del cliente y el Live Client Data API durante la partida.</p>
+              <p>Al importar un draft, el slot de tu rol se deja libre para comparar alternativas. Tu campeón hover aparece en el panel de champ select.</p>
+              <p>Si tu instalación está en una ruta personalizada:</p>
+              <code class="code-block">LOL_LOCKFILE=D:\Riot Games\League of Legends\lockfile</code>
+              <p>La contraseña efímera del lockfile nunca sale del servidor local y no se muestra en la interfaz. Esto no automatiza el juego: solo lee datos.</p>
+              <p class="fineprint">El LCU no es una API oficial de Riot; puede cambiar con un parche. Si falla, la app sigue funcionando con la entrada manual.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===================== MODEL ===================== -->
+      <section class="view hidden" id="view-model" aria-labelledby="model-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">Bajo el capo</p>
+            <h1 id="model-title">Modelo neuronal</h1>
+            <p class="lead">Dos redes entrenadas con partidas profesionales: valoracion de draft y prediccion de la siguiente compra.</p>
+          </div>
+          <span class="badge teal" id="model-device">—</span>
+        </div>
+
+        <div class="metric-grid" id="model-metrics"></div>
+
+        <div class="grid-2">
+          <section class="card chart-card">
+            <header class="card-head"><div><h2>DraftNet · aprendizaje</h2><p>Loss de validacion y AUC por epoch</p></div></header>
+            <div id="chart-draft" class="chart"></div>
+            <div class="chart-legend"><span><i class="swatch gold"></i>Val loss</span><span><i class="swatch teal"></i>AUC</span></div>
+          </section>
+          <section class="card chart-card">
+            <header class="card-head"><div><h2>BuildNet · acierto</h2><p>Top-1 y Top-3 del siguiente objeto</p></div></header>
+            <div id="chart-build" class="chart"></div>
+            <div class="chart-legend"><span><i class="swatch gold"></i>Top-1</span><span><i class="swatch teal"></i>Top-3</span></div>
+          </section>
+        </div>
+
+        <div class="grid-2">
+          <section class="card chart-card">
+            <header class="card-head"><div><h2>Calibración</h2><p>Probabilidad estimada vs. frecuencia real (test)</p></div></header>
+            <div id="chart-calibration" class="chart"></div>
+            <div class="chart-legend"><span><i class="swatch gold"></i>Predicho</span><span><i class="swatch teal"></i>Real</span></div>
+          </section>
+          <section class="card">
+            <header class="card-head"><div><h2>Arquitectura</h2><p>Que entra y que sale</p></div></header>
+            <div class="arch">
+              <div class="arch-step"><span class="arch-tag">DraftNet</span><strong>10 picks + 10 bans</strong><p>Embeddings de campeón, rol, lado y tipo. Transformer con atención sobre todo el draft.</p></div>
+              <div class="arch-arrow" aria-hidden="true">→</div>
+              <div class="arch-step"><span class="arch-tag">Salida</span><strong>P(gana el lado azul)</strong><p>Pooling por equipo y cabeza MLP. AUC y calibración en test cronologico.</p></div>
+              <div class="arch-step"><span class="arch-tag">BuildNet</span><strong>Contexto + historial</strong><p>Campeón, rol, composiciones y objetos ya comprados. GRU sobre el orden de compra.</p></div>
+              <div class="arch-arrow" aria-hidden="true">→</div>
+              <div class="arch-step"><span class="arch-tag">Salida</span><strong>Siguiente objeto</strong><p>Softmax sobre el catalogo comprable. Top-1/Top-3 medidos contra el orden real de las builds pro.</p></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="card">
+          <header class="card-head"><div><h2>Detalle de evaluación</h2><p>Split cronologico: nunca se entrena con partidas futuras</p></div></header>
+          <div class="table-wrap">
+            <table class="data-table" id="model-table">
+              <thead><tr><th>Modelo</th><th>Split</th><th>Métrica</th><th>Valor</th><th>Muestra</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="fineprint" id="model-fineprint"></p>
+        </section>
+      </section>
+
+      <!-- ===================== DATA ===================== -->
+      <section class="view hidden" id="view-data" aria-labelledby="data-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">Dataset</p>
+            <h1 id="data-title">Datos que sostienen las decisiones</h1>
+            <p class="lead">Partidas profesionales de Leaguepedia, enriquecidas con Data Dragon y filtradas por parche.</p>
+          </div>
+          <span class="badge" id="data-patch">—</span>
+        </div>
+
+        <div class="metric-grid" id="data-metrics"></div>
+
+        <div class="grid-2">
+          <section class="card">
+            <header class="card-head"><div><h2>Meta por campeón</h2><p>Presencia, pick y winrate en el split de entrenamiento</p></div></header>
+            <div class="table-tools">
+              <label class="search-field"><svg class="icon"><use href="#i-search"/></svg><input id="meta-search" type="search" placeholder="Buscar campeón…" aria-label="Buscar campeón" /></label>
+              <div class="chips compact" id="meta-role-filter" role="group" aria-label="Filtrar por rol"></div>
+            </div>
+            <div class="table-wrap table-tall">
+              <table class="data-table sortable" id="meta-table">
+                <thead>
+                  <tr>
+                    <th>Campeón</th>
+                    <th class="hide-sm">Roles</th>
+                    <th><button type="button" data-sort="pickRate">Pick</button></th>
+                    <th><button type="button" data-sort="banRate">Ban</button></th>
+                    <th><button type="button" data-sort="winrate">WR</button></th>
+                    <th><button type="button" data-sort="presence">Presencia</button></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <button class="btn tiny center" id="meta-more" type="button">Mostrar más</button>
+          </section>
+
+          <div class="stack">
+            <section class="card">
+              <header class="card-head"><div><h2>Composición del dataset</h2><p>Cobertura y calidad</p></div></header>
+              <div id="data-coverage" class="coverage"></div>
+            </section>
+            <section class="card">
+              <header class="card-head"><div><h2>Torneos con más partidas</h2><p>Top del rango descargado</p></div></header>
+              <ol class="tournament-list" id="data-tournaments"></ol>
+            </section>
+            <section class="card">
+              <header class="card-head"><div><h2>Pipeline</h2><p>Reproducible de principio a fin</p></div></header>
+              <div class="pipeline" id="data-pipeline"></div>
+            </section>
+          </div>
+        </div>
+
+        <section class="card source-card">
+          <header class="card-head"><div><h2>Fuentes y limites</h2><p>Transparencia antes que humo</p></div></header>
+          <div class="source-grid">
+            <div><h3>Leaguepedia</h3><p>API Cargo de lol.fandom.com: picks, bans, ganador, duracion, KDA e inventarios finales por jugador. Los nombres se cruzan con Data Dragon.</p></div>
+            <div><h3>Riot Data Dragon</h3><p>Catalogo oficial de campeones, objetos, runas y hechizos del parche. Los iconos se sirven desde el CDN de Riot.</p></div>
+            <div><h3>Riot API (opcional)</h3><p>Adaptador incluido para descargar high elo y timelines de compra con tu clave. El dataset pro funciona sin clave y sin límite de 24 h.</p></div>
+            <div><h3>Limites honestos</h3><p>El dataset son partidas profesionales, no tu elo. Las builds no incluyen el orden exacto de compra en todos los casos. Nada de esto garantiza victorias.</p></div>
+          </div>
+        </section>
+      </section>
+
+      <footer class="app-footer">
+        <span>RiftSense · Análisis experimental</span>
+        <span>No afiliado a Riot Games. League of Legends es una marca de Riot Games, Inc.</span>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Champion picker -->
+  <dialog class="modal" id="champ-picker" aria-labelledby="champ-picker-title">
+    <div class="modal-panel">
+      <header class="modal-head">
+        <div><p class="eyebrow" id="champ-picker-kicker">Campeones</p><h2 id="champ-picker-title">Elegir campeón</h2></div>
+        <button class="icon-btn" data-close type="button" aria-label="Cerrar"><svg class="icon"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="modal-tools">
+        <label class="search-field big"><svg class="icon"><use href="#i-search"/></svg><input id="champ-search" type="search" placeholder="Buscar por nombre o tag…" autocomplete="off" /></label>
+        <div class="chips compact" id="champ-role-filter" role="group" aria-label="Filtrar por rol"></div>
+      </div>
+      <p class="modal-hint" id="champ-picker-hint">Elige un campeón disponible.</p>
+      <div class="champ-grid" id="champ-grid"></div>
+      <p class="modal-empty hidden" id="champ-empty">No hay campeones que coincidan.</p>
+    </div>
+  </dialog>
+
+  <!-- Item picker -->
+  <dialog class="modal" id="item-picker" aria-labelledby="item-picker-title">
+    <div class="modal-panel">
+      <header class="modal-head">
+        <div><p class="eyebrow">Objetos</p><h2 id="item-picker-title">Añadir objeto</h2></div>
+        <button class="icon-btn" data-close type="button" aria-label="Cerrar"><svg class="icon"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="modal-tools">
+        <label class="search-field big"><svg class="icon"><use href="#i-search"/></svg><input id="item-search" type="search" placeholder="Buscar objeto…" autocomplete="off" /></label>
+        <div class="chips compact" id="item-tag-filter" role="group" aria-label="Filtrar por tipo"></div>
+      </div>
+      <p class="modal-hint" id="item-picker-hint">Objetos comprables en la Grieta del Invocador.</p>
+      <div class="item-grid" id="item-grid"></div>
+      <p class="modal-empty hidden" id="item-empty">No hay objetos que coincidan.</p>
+    </div>
+  </dialog>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+  <noscript><div class="noscript">RiftSense necesita JavaScript para funcionar.</div></noscript>
+  <script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>
