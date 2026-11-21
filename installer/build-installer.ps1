@@ -73,6 +73,7 @@ New-Item -ItemType Directory -Path (Join-Path $payload "artifacts") -Force | Out
 Copy-Item (Join-Path $target "riftsense.exe") $payload -Force
 Copy-Item (Join-Path $target "riftsense-desktop.exe") $payload -Force
 Copy-Item (Join-Path $target "WebView2Loader.dll") $payload -Force
+Copy-Item (Join-Path $root "assets\RiftSense.ico") $payload -Force
 Copy-Item (Join-Path $root "models\*") (Join-Path $payload "models") -Recurse -Force
 Copy-Item (Join-Path $DataRoot "data\processed\*") (Join-Path $payload "data\processed") -Force
 foreach ($file in @("meta.json", "draft_report.json", "build_report.json")) {

@@ -48,7 +48,10 @@ impl LcuClient {
             .timeout(timeout)
             .send()
             .await
-            .map_err(|error| format!("Cliente no accesible: {error}"))?;
+            .map_err(|error| {
+                tracing::warn!("LCU {path} fallo: {error:#}");
+                format!("Cliente no accesible: {error}")
+            })?;
         let status = response.status();
         if status == reqwest::StatusCode::NOT_FOUND {
             return Ok(None);
@@ -80,7 +83,7 @@ impl LcuClient {
             .ok()
             .flatten()
             .and_then(|value| value.as_str().map(str::to_string))
-            .filter(|value| value != "None")
+        // "None" es una fase válida: el cliente está abierto pero en el lobby.
     }
 
     pub async fn current_summoner(&self) -> Option<Value> {

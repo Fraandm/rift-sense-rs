@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -26,6 +27,10 @@ fn main() {
         return;
     };
 
+    if let Err(error) = embed_icon(&out_dir) {
+        println!("cargo:warning=No se pudo incrustar el icono de RiftSense: {error}");
+    }
+
     let cargo_home = env::var_os("CARGO_HOME")
         .map(PathBuf::from)
         .or_else(|| {
@@ -38,6 +43,30 @@ fn main() {
     if let Some(dll) = find_loader(&registry) {
         let _ = fs::copy(dll, profile_dir.join("WebView2Loader.dll"));
     }
+}
+
+fn embed_icon(out_dir: &Path) -> std::io::Result<()> {
+    let rc = Path::new("assets/app.rc");
+    if !rc.is_file() {
+        return Ok(());
+    }
+    let object = out_dir.join("riftsense-resource.o");
+    let status = Command::new("windres")
+        .arg(rc)
+        .arg("-O")
+        .arg("coff")
+        .arg("-o")
+        .arg(&object)
+        .status()?;
+    if !status.success() {
+        return Err(std::io::Error::other(format!(
+            "windres termino con codigo {status}"
+        )));
+    }
+    println!("cargo:rustc-link-arg={}", object.display());
+    println!("cargo:rerun-if-changed=assets/app.rc");
+    println!("cargo:rerun-if-changed=assets/RiftSense.ico");
+    Ok(())
 }
 
 fn find_loader(root: &Path) -> Option<PathBuf> {

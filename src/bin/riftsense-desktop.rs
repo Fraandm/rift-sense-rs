@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use anyhow::{Context, Result};
 use riftsense::{api, config::Paths, engine::Engine, lcu::LcuService};
 use std::sync::Arc;
@@ -7,7 +9,7 @@ use tao::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Icon, WindowBuilder},
 };
 use tokio::{net::TcpListener, sync::RwLock};
 use wry::{PageLoadEvent, WebViewBuilder};
@@ -75,8 +77,11 @@ fn main() -> Result<()> {
     );
 
     let event_loop = EventLoop::new();
+    const ICON_RGBA: &[u8] = include_bytes!("../../assets/RiftSense-64.rgba");
+    let window_icon = Icon::from_rgba(ICON_RGBA.to_vec(), 64, 64).ok();
     let window = WindowBuilder::new()
         .with_title("RiftSense · Analizador de draft y build")
+        .with_window_icon(window_icon)
         .with_inner_size(LogicalSize::new(1440.0, 900.0))
         .with_min_inner_size(LogicalSize::new(1000.0, 680.0))
         .build(&event_loop)
