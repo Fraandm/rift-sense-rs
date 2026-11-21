@@ -280,10 +280,7 @@ async fn client_search_status(State(state): State<SharedState>) -> Json<Value> {
 }
 
 async fn client_search(State(state): State<SharedState>) -> Json<Value> {
-    let locator = state.lcu.locator.clone();
-    let search = tokio::task::spawn_blocking(move || locator.scan())
-        .await
-        .unwrap_or_else(|error| json!({ "error": error.to_string() }));
+    let search = state.lcu.locator.start(true);
     Json(json!({ "started": true, "search": search }))
 }
 

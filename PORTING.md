@@ -71,7 +71,10 @@ Opciones para el entrenamiento en Rust:
 ## Verificación
 
 - `cargo check --all-targets`
+- `cargo test --lib` (lockfile, ruta manual y escaneo con progreso)
 - `cargo run --bin riftsense -- --port 8100`
 - `cargo run --bin riftsense-desktop`
 - Prueba manual de `riftsense-desktop.exe`.
 - La paridad con Python se verificó durante el portado; el arnés no está incluido.
+- La búsqueda LCU replica el hilo en segundo plano de Python: 45 s de límite,
+  progreso por unidad y cancelación al fijar una ruta manual.

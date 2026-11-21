@@ -121,6 +121,10 @@ arnés de comparación y el proyecto Python no forman parte de este repositorio.
   para recomendar.
 - El cliente LCU es de solo lectura y usa el lockfile local; no envía acciones
   al juego.
+- La búsqueda del cliente corre en segundo plano (hasta 45 s) y expone
+  `searching`, `scannedDirs`, `currentDrive`, `startedAt`/`finishedAt` e
+  `incomplete`, igual que el localizador Python. Fijar una ruta manual cancela
+  la búsqueda en curso.
 - La UI es la misma SPA compartida del proyecto original, incluida en `web/`
   para que el binario sea autocontenido. La reescritura de la UI a Rust queda
   pendiente.
