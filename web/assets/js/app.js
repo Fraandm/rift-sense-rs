@@ -87,8 +87,7 @@ async function checkForUpdates() {
           button.textContent = `Actualizar a ${info.latest}`;
           toast(err.message || "No se pudo instalar la actualización.", "error", 8000);
         }
-      },
-      { once: true }
+      }
     );
     dismiss?.addEventListener("click", () => banner.classList.add("hidden"), { once: true });
     banner.classList.remove("hidden");

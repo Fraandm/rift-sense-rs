@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
@@ -18,7 +19,7 @@ struct GithubRelease {
     assets: Vec<GithubAsset>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct GithubAsset {
     name: String,
     browser_download_url: String,
@@ -42,6 +43,7 @@ pub struct UpdateStatus {
 struct ReleaseInfo {
     status: UpdateStatus,
     asset: Option<GithubAsset>,
+    checksum: Option<GithubAsset>,
 }
 
 pub fn current_version() -> String {
@@ -95,6 +97,7 @@ async fn fetch_release() -> Result<ReleaseInfo> {
                 error: Some("Todavía no hay releases publicadas.".to_string()),
             },
             asset: None,
+            checksum: None,
         });
     }
     if !response.status().is_success() {
@@ -106,9 +109,17 @@ async fn fetch_release() -> Result<ReleaseInfo> {
         .await
         .context("GitHub devolvió una respuesta inválida")?;
     let latest = normalize_tag(&release.tag_name);
-    let asset = release.assets.into_iter().find(|asset| {
-        let name = asset.name.to_ascii_lowercase();
-        name.contains("setup") && name.ends_with(".exe")
+    let assets = release.assets;
+    let asset = assets
+        .iter()
+        .find(|asset| {
+            let name = asset.name.to_ascii_lowercase();
+            name.contains("setup") && name.ends_with(".exe")
+        })
+        .cloned();
+    let checksum = asset.as_ref().and_then(|installer| {
+        let expected = format!("{}.sha256", installer.name);
+        assets.iter().find(|asset| asset.name == expected).cloned()
     });
     let asset_name = asset.as_ref().map(|asset| asset.name.clone());
     let asset_size = asset.as_ref().and_then(|asset| asset.size);
@@ -131,6 +142,7 @@ async fn fetch_release() -> Result<ReleaseInfo> {
             error,
         },
         asset,
+        checksum,
     })
 }
 
@@ -179,6 +191,36 @@ pub async fn install() -> Result<PathBuf> {
         .bytes()
         .await
         .context("No se pudo leer el instalador")?;
+
+    let checksum_asset = release
+        .checksum
+        .context("La release no incluye checksum SHA-256")?;
+    let checksum_text = client
+        .get(&checksum_asset.browser_download_url)
+        .send()
+        .await
+        .context("No se pudo descargar el checksum")?
+        .error_for_status()
+        .context("El checksum devolvió un error HTTP")?
+        .text()
+        .await
+        .context("No se pudo leer el checksum")?;
+    let expected = checksum_text
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if expected.len() != 64 || !expected.chars().all(|c| c.is_ascii_hexdigit()) {
+        bail!("El checksum SHA-256 de la release no es válido");
+    }
+    let actual = Sha256::digest(&bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    if actual != expected {
+        bail!("El checksum del instalador no coincide; se cancela la actualización");
+    }
+
     tokio::fs::write(&target, &bytes)
         .await
         .with_context(|| format!("No se pudo guardar {}", target.display()))?;

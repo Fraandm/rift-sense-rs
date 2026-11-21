@@ -50,8 +50,12 @@ if (-not $iscc) { throw "No se encontro ISCC.exe (Inno Setup 6)" }
 Write-Host "Compilando RiftSense $Version..." -ForegroundColor Cyan
 Push-Location $root
 try {
+  $previous = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
   & $cargo build --release --bin riftsense --bin riftsense-desktop
-  if ($LASTEXITCODE -ne 0) { throw "cargo build fallo" }
+  $cargoExit = $LASTEXITCODE
+  $ErrorActionPreference = $previous
+  if ($cargoExit -ne 0) { throw "cargo build fallo" }
 } finally {
   Pop-Location
 }

@@ -17,7 +17,7 @@ Mapa de los componentes del proyecto Python y su estado en `riftsense-rs`.
 | `lolanalyzer/lcu/client.py` | `src/lcu/client.rs` | ✅ |
 | `lolanalyzer/lcu/mapper.py` | `src/lcu/mapper.rs` | ✅ portado |
 | `desktop/main.js` (ventana + servidor) | `src/bin/riftsense-desktop.rs` | ✅ Rust + WebView2 |
-| `desktop/main.js` (updater) | — | ⏳ |
+| `desktop/main.js` (updater) | `src/update.rs` + `installer/` | ✅ GitHub Releases + SHA-256 |
 | `web/` | incluido en `web/` | ⚠️ SPA compartida, pendiente de portar |
 
 ## Fase 2 — Interfaz (pendiente)
@@ -32,15 +32,13 @@ en Rust hay dos opciones:
 Recomendación: Leptos + `trunk`, sirviendo la app desde Axum y sustituyendo los
 assets de `web/` por un frontend Rust.
 
-## Fase 3 — Actualizador (pendiente)
+## Fase 3 — Actualizador (completada)
 
-El actualizador actual descarga releases de GitHub y reemplaza el `.exe`.
-Cuando exista una release Rust:
-
-- `reqwest` contra la API de GitHub (el repo ya es público).
-- Verificación SHA-256 de los assets.
-- `self-replace` para sustituir el ejecutable en Windows.
-- Relanzar `riftsense-desktop.exe`.
+- `reqwest` consulta la última release pública de GitHub.
+- Descarga el instalador y verifica su SHA-256.
+- Ejecuta Inno Setup en modo silencioso y termina el proceso.
+- El instalador reemplaza los binarios y relanza `riftsense-desktop.exe`.
+- Endpoints `/api/update/check` y `/api/update/install`; aviso en la SPA.
 
 ## Fase 4 — Datos y entrenamiento (pendiente)
 
@@ -62,11 +60,11 @@ Opciones para el entrenamiento en Rust:
 
 ## Fase 5 — Empaquetado
 
-- Instalador MSI/NSIS con WebView2 fijo.
-- Empaquetar `data/processed` y `artifacts`, o documentar cómo copiarlos.
-- Firma de código.
-- Release `v0.1.0-rs` con assets propios.
-- CI de GitHub Actions (Windows + Rust + tests de paridad).
+- ✅ Instalador Inno Setup por usuario (`installer/build-installer.ps1`).
+- ✅ `data/processed`, `artifacts`, modelos y binarios incluidos en el instalador.
+- ⏳ Firma de código (el instalador es unsigned).
+- ✅ Release `v0.2.0` con instalador y checksum.
+- ⏳ CI de GitHub Actions (Windows + Rust + tests de paridad).
 
 ## Verificación
 

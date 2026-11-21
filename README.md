@@ -44,8 +44,8 @@ por usuario en `%LOCALAPPDATA%\Programs\RiftSense` e incluye binarios, modelos,
 
 Al arrancar, la app consulta la última release pública. Si hay una versión
 nueva, muestra un aviso con el botón **Actualizar**: descarga el instalador,
-lo ejecuta en modo silencioso y se reinicia. El instalador también se puede
-usar manualmente.
+verifica su SHA-256, lo ejecuta en modo silencioso y se reinicia. El
+instalador también se puede usar manualmente.
 
 Para compilar el instalador:
 
