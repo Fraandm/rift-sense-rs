@@ -44,9 +44,7 @@ impl Paths {
 }
 
 fn is_project_root(path: &Path) -> bool {
-    path.join("data/processed/vocab.json").is_file()
-        && path.join("artifacts/meta.json").is_file()
-        && path.join("web/index.html").is_file()
+    path.join("data/processed/vocab.json").is_file() && path.join("artifacts/meta.json").is_file()
 }
 
 fn find_root() -> Result<PathBuf> {

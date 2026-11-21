@@ -53,6 +53,18 @@
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </svg>
 
+  <div class="update-banner hidden" id="update-banner" role="status" aria-live="polite">
+    <span class="update-icon"><svg class="icon"><use href="#i-refresh"/></svg></span>
+    <div class="update-copy">
+      <strong id="update-title">Actualización disponible</strong>
+      <span id="update-detail">Hay una versión nueva de RiftSense.</span>
+    </div>
+    <button class="btn tiny" id="update-install" type="button">Actualizar</button>
+    <button class="icon-btn" id="update-dismiss" type="button" aria-label="Cerrar aviso">
+      <svg class="icon"><use href="#i-close"/></svg>
+    </button>
+  </div>
+
   <div class="shell">
     <aside class="sidebar">
       <div class="brand">

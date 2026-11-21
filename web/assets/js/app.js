@@ -59,6 +59,44 @@ function bindNav() {
   });
 }
 
+async function checkForUpdates() {
+  try {
+    const info = await api.get("/api/update/check", { timeout: 15000 });
+    if (!info?.available) return;
+    const banner = $("#update-banner");
+    const title = $("#update-title");
+    const detail = $("#update-detail");
+    const button = $("#update-install");
+    const dismiss = $("#update-dismiss");
+    if (!banner || !button) return;
+    if (title) title.textContent = `RiftSense ${info.latest} disponible`;
+    if (detail) {
+      detail.textContent = `Tienes la ${info.current}. Pulsa actualizar para descargar e instalar.`;
+    }
+    button.textContent = `Actualizar a ${info.latest}`;
+    button.addEventListener(
+      "click",
+      async () => {
+        button.disabled = true;
+        button.textContent = "Descargando…";
+        try {
+          await api.post("/api/update/install", {}, { timeout: 300000 });
+          toast("Instalando actualización. RiftSense se reiniciará.", "info", 12000);
+        } catch (err) {
+          button.disabled = false;
+          button.textContent = `Actualizar a ${info.latest}`;
+          toast(err.message || "No se pudo instalar la actualización.", "error", 8000);
+        }
+      },
+      { once: true }
+    );
+    dismiss?.addEventListener("click", () => banner.classList.add("hidden"), { once: true });
+    banner.classList.remove("hidden");
+  } catch (err) {
+    console.debug("Comprobación de actualizaciones no disponible:", err?.message || err);
+  }
+}
+
 function fatal(err) {
   const dot = $("#status-dot");
   const text = $("#status-text");
@@ -107,6 +145,7 @@ async function boot() {
     if (!metaPayload.models?.draft || !metaPayload.models?.build) {
       toast("Algún modelo no está disponible: se usarán estadísticas pro.", "info", 6000);
     }
+    checkForUpdates();
   } catch (err) {
     fatal(err);
   }

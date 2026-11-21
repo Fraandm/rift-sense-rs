@@ -8,3 +8,5 @@ perf_results.json
 startup_results.json
 parity_rust.json
 parity_python.json
+installer/payload/
+dist/

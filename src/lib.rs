@@ -9,3 +9,4 @@ pub mod data;
 pub mod engine;
 pub mod lcu;
 pub mod model;
+pub mod update;

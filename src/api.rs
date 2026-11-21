@@ -41,6 +41,8 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/dataset", get(dataset))
         .route("/api/model", get(model))
         .route("/api/reload", post(reload))
+        .route("/api/update/check", get(update_check))
+        .route("/api/update/install", post(update_install))
         .route("/api/client/status", get(client_status))
         .route("/api/client/draft", get(client_draft))
         .route("/api/client/live", get(client_live))
@@ -211,6 +213,30 @@ async fn reload(State(state): State<SharedState>) -> Response {
         }
         Ok(Err(error_value)) => error(StatusCode::INTERNAL_SERVER_ERROR, error_value.to_string()),
         Err(error_value) => error(StatusCode::INTERNAL_SERVER_ERROR, error_value.to_string()),
+    }
+}
+
+async fn update_check() -> Json<Value> {
+    match crate::update::check().await {
+        Ok(status) => {
+            Json(serde_json::to_value(status).unwrap_or_else(|_| json!({ "available": false })))
+        }
+        Err(error) => Json(json!({
+            "current": crate::update::current_version(),
+            "available": false,
+            "error": error.to_string(),
+        })),
+    }
+}
+
+async fn update_install() -> Response {
+    match crate::update::install().await {
+        Ok(path) => Json(json!({
+            "started": true,
+            "installer": path.display().to_string(),
+        }))
+        .into_response(),
+        Err(err) => error(StatusCode::BAD_GATEWAY, err.to_string()),
     }
 }
 

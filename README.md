@@ -11,14 +11,14 @@ ejecutarla.
 
 | Componente | Estado |
 | --- | --- |
-| API HTTP (`/api/health`, meta, draft, bans, build, live, dataset, model, reload) | ✅ Rust, paridad 0 diferencias con Python |
+| API HTTP (`/api/health`, meta, draft, bans, build, live, dataset, model, reload, update) | ✅ Rust, paridad 0 diferencias con Python |
 | Motor de draft y build | ✅ Rust, misma lógica y pesos que `engine.py` |
 | Modelos ML | ✅ ONNX + `tract-onnx` (sin Python en runtime) |
 | Cliente LCU (estado, lockfile, localizador) | ✅ Rust; estado verificado contra Python |
 | Mapper de champ select / partida en vivo | ✅ Portado; pendiente de probar con el cliente LoL abierto |
 | Lanzador de escritorio | ✅ Rust + `tao`/`wry` (WebView2 en Windows) |
 | Interfaz web | ⚠️ SPA compartida incluida en `web/`; pendiente reescritura en Rust |
-| Actualizador | ⏳ Pendiente |
+| Actualizador | ✅ GitHub Releases + instalador Inno Setup |
 | Pipeline de datos, scrapers y entrenamiento | ⏳ Pendiente; sigue en el proyecto original |
 
 La paridad comprobada cubre un draft de ejemplo y una build de ejemplo:
@@ -34,6 +34,24 @@ frente a la API Python (incluidos textos y orden).
   173 campeones y 205 objetos.
 
 Resultados de rendimiento frente a la app original: [`PERFORMANCE.md`](PERFORMANCE.md).
+
+## Instalación y actualizaciones
+
+El instalador se publica en
+[GitHub Releases](https://github.com/Fraandm/rift-sense-rs/releases). Instala
+por usuario en `%LOCALAPPDATA%\Programs\RiftSense` e incluye binarios, modelos,
+`data/processed` y `artifacts/meta.json`, así que no requiere Python.
+
+Al arrancar, la app consulta la última release pública. Si hay una versión
+nueva, muestra un aviso con el botón **Actualizar**: descarga el instalador,
+lo ejecuta en modo silencioso y se reinicia. El instalador también se puede
+usar manualmente.
+
+Para compilar el instalador:
+
+```powershell
+.\installer\build-installer.ps1
+```
 
 ## Estructura
 
