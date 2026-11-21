@@ -9,12 +9,16 @@ proyecto original:
 
 El runtime Rust usa `tract-onnx`, así que **no necesita PyTorch ni Python**.
 
-La validación realizada contra PyTorch dio una diferencia máxima de:
+Validación actual (2026-11-21, Data Dragon 16.23.1):
 
-- Draft: `5.96e-08`
-- Build: `2.86e-06`
+- Draft: diferencia máxima `0.0`
+- Build: diferencia máxima `3.81e-06`, mismo argmax
+
+La API Rust contra la API Python también se verificó con **0 diferencias** en
+draft, build y live.
 
 Para regenerarlos desde los checkpoints `.pt` hay que usar el proyecto
 original (no incluido en este repositorio) y exportar con el mismo script de
 migración empleado durante el portado. Los modelos de este repositorio
-corresponden al vocabulario de 173 campeones y 205 objetos.
+corresponden al vocabulario de 173 campeones y 205 objetos y al parche 26.23
+(16.23.1).

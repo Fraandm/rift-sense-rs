@@ -25,6 +25,14 @@ La paridad comprobada cubre un draft de ejemplo y una build de ejemplo:
 12 recomendaciones, 10 objetos y análisis en vivo, con **0 diferencias**
 frente a la API Python (incluidos textos y orden).
 
+## Datos actuales
+
+- Data Dragon **16.23.1** (parche **26.23**).
+- **41.171** partidas válidas; **366** del parche actual (8 profesionales y
+  358 Flex high elo de EUW1, KR, NA1 y LA1).
+- Modelos reentrenados y exportados el **2026-11-21** con vocabulario de
+  173 campeones y 205 objetos.
+
 Resultados de rendimiento frente a la app original: [`PERFORMANCE.md`](PERFORMANCE.md).
 
 ## Estructura
