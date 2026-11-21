@@ -1,6 +1,6 @@
 #define MyAppName "RiftSense"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.1"
+  #define MyAppVersion "0.2.2"
 #endif
 #define MyAppPublisher "RiftSense"
 #define MyAppURL "https://github.com/Fraandm/rift-sense-rs"

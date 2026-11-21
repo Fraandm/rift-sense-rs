@@ -225,13 +225,25 @@ pub async fn install() -> Result<PathBuf> {
         .await
         .with_context(|| format!("No se pudo guardar {}", target.display()))?;
 
+    let install_dir = std::env::current_exe()
+        .context("No se pudo obtener la ruta de la aplicación")?
+        .parent()
+        .context("La aplicación no tiene carpeta de instalación")?
+        .to_path_buf();
     let mut command = Command::new(&target);
-    command.args([
-        "/VERYSILENT",
-        "/SUPPRESSMSGBOXES",
-        "/NORESTART",
-        "/CLOSEAPPLICATIONS",
-    ]);
+    command
+        .args([
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/CLOSEAPPLICATIONS",
+        ])
+        // Actualiza esta instalación, no la última ruta usada por Inno Setup.
+        .arg(format!("/DIR={}", install_dir.display()))
+        .arg(format!(
+            "/LOG={}",
+            std::env::temp_dir().join("RiftSense-update.log").display()
+        ));
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
