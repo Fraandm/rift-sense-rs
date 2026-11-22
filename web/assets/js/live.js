@@ -658,9 +658,15 @@ function renderNotes(build, draft) {
   if (build?.recommendationMode === "model_first") {
     const source =
       build.recommendationSource === "antiheal"
-        ? " Ahora manda el antiheal porque hay curación enemiga y aún no lo llevas."
+        ? " La compra principal es antiheal porque coincide con la mejor opción del modelo."
         : "";
-    rows.push(`<div class="note-box"><strong>Prioridad de compra</strong>BuildNet y el winrate histórico pesan más que el contexto. El estado de la partida solo ajusta alternativas.${source}</div>`);
+    rows.push(`<div class="note-box"><strong>Prioridad de compra</strong>BuildNet y el winrate histórico deciden la compra principal; el contexto solo ajusta alternativas.${source}</div>`);
+  }
+  if (build?.antihealSuggestion) {
+    const suggestion = build.antihealSuggestion;
+    rows.push(`<div class="note-box warn"><strong>Antiheal disponible</strong>${esc(
+      suggestion.name
+    )} cuesta ${num(suggestion.gold)}. Es una sugerencia situacional para la curación enemiga; no sustituye la compra principal.</div>`);
   }
   const confidence = confidenceFor(build);
   rows.push(`<div class="note-box"><strong>Confianza de la recomendación: ${confidence.label} (${Math.round(

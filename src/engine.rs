@@ -2385,21 +2385,7 @@ impl Engine {
             .map(|candidate| self.format_item(candidate, gold, slot, &role, mode))
             .collect();
         let focus: Vec<&ItemCandidate> = if stable {
-            let mut preferred = if analysis.as_ref().is_some_and(|analysis| {
-                !analysis.healers.is_empty()
-                    && !owned_items.iter().any(|item| is_grievous_item(item))
-            }) {
-                candidates
-                    .iter()
-                    .filter(|candidate| is_grievous_for_champion(candidate.item, champ))
-                    .collect::<Vec<_>>()
-            } else {
-                candidates.iter().collect::<Vec<_>>()
-            };
-            if preferred.is_empty() {
-                preferred = candidates.iter().collect();
-            }
-            preferred
+            candidates.iter().collect()
         } else if let Some(analysis) = analysis.as_ref() {
             let mut preferred = if !analysis.healers.is_empty()
                 && !owned_items.iter().any(|item| is_grievous_item(item))
@@ -2561,6 +2547,25 @@ impl Engine {
             output["recommendationMode"] = json!("model_first");
             output["recommendationSource"] =
                 json!(if antiheal_source { "antiheal" } else { "model" });
+            let needs_antiheal = analysis.as_ref().is_some_and(|analysis| {
+                !analysis.healers.is_empty()
+                    && !owned_items.iter().any(|item| is_grievous_item(item))
+            });
+            if needs_antiheal {
+                if let Some(candidate) = candidates
+                    .iter()
+                    .filter(|candidate| is_grievous_for_champion(candidate.item, champ))
+                    .find(|candidate| gold >= candidate.price)
+                    .or_else(|| {
+                        candidates
+                            .iter()
+                            .find(|candidate| is_grievous_for_champion(candidate.item, champ))
+                    })
+                {
+                    output["antihealSuggestion"] =
+                        self.format_item(candidate, gold, slot, &role, mode);
+                }
+            }
         }
         if !mode.is_classic() {
             output["gameMode"] = json!(mode.key());
