@@ -1,7 +1,8 @@
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{Query, Request, State},
     http::{HeaderValue, StatusCode, Uri, header},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
 };
@@ -10,7 +11,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::trace::TraceLayer;
 
 use crate::config::Paths;
 use crate::engine::{BansRequest, BuildRequest, ChampionRef, DraftRequest, Engine, LiveRequest};
@@ -56,8 +57,77 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/client/path", post(client_path))
         .fallback(static_asset)
         .with_state(state)
-        .layer(CorsLayer::permissive())
+        .layer(middleware::from_fn(same_origin))
         .layer(TraceLayer::new_for_http())
+}
+
+fn split_host_port(value: &str) -> (&str, Option<&str>) {
+    if let Some(rest) = value.strip_prefix('[') {
+        if let Some((host, port)) = rest.split_once(']') {
+            return (host, port.strip_prefix(':').filter(|port| !port.is_empty()));
+        }
+    }
+    match value.rsplit_once(':') {
+        Some((host, port)) if !host.contains(':') => (host, Some(port)),
+        _ => (value, None),
+    }
+}
+
+fn is_local_host(host: &str) -> bool {
+    let (name, _) = split_host_port(host);
+    name.eq_ignore_ascii_case("localhost") || name == "127.0.0.1" || name == "::1"
+}
+
+fn origin_matches_host(origin: &str, host: &str) -> bool {
+    let value = origin.trim();
+    let Some(rest) = value
+        .strip_prefix("http://")
+        .or_else(|| value.strip_prefix("https://"))
+    else {
+        return false;
+    };
+    let origin_host = rest.split('/').next().unwrap_or("");
+    if origin_host.eq_ignore_ascii_case(host) {
+        return true;
+    }
+    let (origin_name, origin_port) = split_host_port(origin_host);
+    let (host_name, host_port) = split_host_port(host);
+    origin_port == host_port
+        && is_local_host(origin_name)
+        && is_local_host(host_name)
+        && ((origin_name == "127.0.0.1" && host_name == "localhost")
+            || (origin_name == "localhost" && host_name == "127.0.0.1"))
+}
+
+async fn same_origin(request: Request, next: Next) -> Response {
+    if request.uri().path().starts_with("/api/") {
+        let host = request
+            .headers()
+            .get(header::HOST)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("");
+        if !host.is_empty() && !is_local_host(host) {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(json!({ "detail": "Host no permitido." })),
+            )
+                .into_response();
+        }
+        if let Some(origin) = request
+            .headers()
+            .get(header::ORIGIN)
+            .and_then(|value| value.to_str().ok())
+        {
+            if !origin_matches_host(origin, host) {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(json!({ "detail": "Origen no permitido." })),
+                )
+                    .into_response();
+            }
+        }
+    }
+    next.run(request).await
 }
 
 async fn engine(state: &SharedState) -> Arc<Engine> {
@@ -434,14 +504,70 @@ async fn static_asset(uri: Uri) -> Response {
         content.data.into_owned(),
     )
         .into_response();
+    let headers = response.headers_mut();
+    headers.insert(
+        header::HeaderName::from_static("content-security-policy"),
+        HeaderValue::from_static(
+            "default-src 'self'; img-src 'self' https://ddragon.leagueoflegends.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        ),
+    );
+    headers.insert(
+        header::HeaderName::from_static("x-content-type-options"),
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("x-frame-options"),
+        HeaderValue::from_static("DENY"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("permissions-policy"),
+        HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+    );
     if path.starts_with("assets/") || path == "index.html" {
-        response.headers_mut().insert(
+        headers.insert(
             header::CACHE_CONTROL,
             HeaderValue::from_static("no-store, must-revalidate"),
         );
-        response
-            .headers_mut()
-            .insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
+        headers.insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
     }
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_hosts_are_detected() {
+        assert!(is_local_host("127.0.0.1:8000"));
+        assert!(is_local_host("localhost:8000"));
+        assert!(is_local_host("[::1]:8000"));
+        assert!(!is_local_host("evil.example:8000"));
+        assert!(!is_local_host("192.168.1.10:8000"));
+    }
+
+    #[test]
+    fn same_origin_is_enforced() {
+        assert!(origin_matches_host(
+            "http://127.0.0.1:8000",
+            "127.0.0.1:8000"
+        ));
+        assert!(origin_matches_host(
+            "http://localhost:8000",
+            "localhost:8000"
+        ));
+        assert!(origin_matches_host(
+            "http://localhost:8000",
+            "127.0.0.1:8000"
+        ));
+        assert!(!origin_matches_host(
+            "http://evil.example:8000",
+            "127.0.0.1:8000"
+        ));
+        assert!(!origin_matches_host("null", "127.0.0.1:8000"));
+    }
 }
