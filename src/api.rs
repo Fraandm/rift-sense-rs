@@ -16,6 +16,7 @@ use crate::config::Paths;
 use crate::engine::{BansRequest, BuildRequest, ChampionRef, DraftRequest, Engine, LiveRequest};
 use crate::lcu::LcuService;
 use crate::lcu::mapper::{map_champ_select, map_live_gamedata};
+use crate::settings::{self, Settings, SettingsHandle};
 
 #[derive(RustEmbed)]
 #[folder = "web"]
@@ -25,6 +26,7 @@ pub struct AppState {
     pub engine: RwLock<Arc<Engine>>,
     pub paths: Paths,
     pub lcu: LcuService,
+    pub settings: SettingsHandle,
 }
 
 type SharedState = Arc<AppState>;
@@ -43,6 +45,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/reload", post(reload))
         .route("/api/update/check", get(update_check))
         .route("/api/update/install", post(update_install))
+        .route("/api/settings", get(settings_get).post(settings_update))
         .route("/api/client/status", get(client_status))
         .route("/api/client/draft", get(client_draft))
         .route("/api/client/live", get(client_live))
@@ -238,6 +241,74 @@ async fn update_install() -> Response {
         .into_response(),
         Err(err) => error(StatusCode::BAD_GATEWAY, err.to_string()),
     }
+}
+
+fn settings_payload(settings: &Settings) -> Value {
+    json!({
+        "showAdvanced": settings.show_advanced,
+        "startWithWindows": settings.start_with_windows,
+        "minimizeToTray": settings.minimize_to_tray,
+        "startupSupported": crate::settings::startup_supported(),
+        "version": crate::update::current_version(),
+    })
+}
+
+async fn settings_get(State(state): State<SharedState>) -> Json<Value> {
+    let settings = state
+        .settings
+        .read()
+        .map(|settings| settings.clone())
+        .unwrap_or_default();
+    Json(settings_payload(&settings))
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default, rename_all = "camelCase")]
+struct SettingsPatch {
+    show_advanced: Option<bool>,
+    start_with_windows: Option<bool>,
+    minimize_to_tray: Option<bool>,
+}
+
+async fn settings_update(
+    State(state): State<SharedState>,
+    Json(patch): Json<SettingsPatch>,
+) -> Response {
+    let mut next = state
+        .settings
+        .read()
+        .map(|settings| settings.clone())
+        .unwrap_or_default();
+
+    if let Some(enabled) = patch.start_with_windows {
+        match settings::apply_startup(enabled) {
+            Ok(true) => next.start_with_windows = enabled,
+            Ok(false) if enabled => {
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "El arranque con Windows solo esta disponible desde la app de escritorio.",
+                );
+            }
+            Ok(false) => next.start_with_windows = false,
+            Err(error_value) => {
+                return error(StatusCode::INTERNAL_SERVER_ERROR, error_value.to_string());
+            }
+        }
+    }
+    if let Some(value) = patch.show_advanced {
+        next.show_advanced = value;
+    }
+    if let Some(value) = patch.minimize_to_tray {
+        next.minimize_to_tray = value;
+    }
+
+    if let Err(error_value) = next.save(&state.paths) {
+        return error(StatusCode::INTERNAL_SERVER_ERROR, error_value.to_string());
+    }
+    if let Ok(mut current) = state.settings.write() {
+        *current = next.clone();
+    }
+    Json(settings_payload(&next)).into_response()
 }
 
 async fn client_status(State(state): State<SharedState>) -> Json<Value> {

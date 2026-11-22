@@ -1,6 +1,6 @@
 #define MyAppName "RiftSense"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.3.1"
+  #define MyAppVersion "0.4.0"
 #endif
 #define MyAppPublisher "RiftSense"
 #define MyAppURL "https://github.com/Fraandm/rift-sense-rs"
@@ -48,6 +48,9 @@ Source: "payload\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ig
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\RiftSense.ico"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\RiftSense.ico"; Tasks: desktopicon
+
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "RiftSense"; Flags: uninsdeletevalue
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall

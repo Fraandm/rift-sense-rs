@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
+use riftsense::settings::Settings;
 use riftsense::{api, config::Paths, engine::Engine};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock as StdRwLock};
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
@@ -46,10 +47,12 @@ async fn main() -> Result<()> {
     }
 
     let lcu = riftsense::lcu::LcuService::new(&paths.root)?;
+    let settings = StdRwLock::new(Settings::load(&paths));
     let state = Arc::new(api::AppState {
         engine: RwLock::new(Arc::new(engine)),
         paths,
         lcu,
+        settings: Arc::new(settings),
     });
 
     let mut bound = None;

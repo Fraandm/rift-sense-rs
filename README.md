@@ -51,6 +51,25 @@ Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni
 envía inputs al juego.
 
+## Ajustes y bandeja del sistema
+
+La pestaña **Ajustes** guarda las preferencias en
+`%APPDATA%\RiftSense\settings.json`:
+
+- **Mostrar pestañas avanzadas**: oculta **Modelo** y **Datos** por defecto y
+  las activa solo cuando quieres revisar métricas del motor.
+- **Iniciar con Windows**: registra `RiftSense` en
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` con el argumento
+  `--minimized`, de modo que arranca directamente en la bandeja.
+- **Minimizar a la bandeja**: al cerrar o minimizar la ventana, la app sigue
+  activa en la bandeja. El icono abre la ventana y su menú permite **Salir**.
+  Si está desactivado, cerrar la ventana termina el proceso.
+
+El lanzador acepta `--minimized` (o `--tray`) para empezar oculto. Si el icono
+de bandeja no se puede crear, la ventana se muestra igualmente para no dejar la
+app inaccesible. La entrada de arranque se elimina al desactivar la opción o al
+desinstalar.
+
 ## Instalación y actualizaciones
 
 El instalador se publica en
@@ -79,6 +98,7 @@ riftsense-rs/
 │   ├── main.rs                servidor CLI
 │   ├── api.rs                 Axum + assets embebidos
 │   ├── config.rs              detección de raíz y rutas
+│   ├── settings.rs            preferencias, arranque y bandeja
 │   ├── data.rs                vocabulario, priors, meta
 │   ├── engine.rs              draft, bans, build, meta
 │   ├── model.rs               DraftNet/BuildNet vía tract
@@ -128,8 +148,10 @@ cargo run --bin riftsense-desktop
 ```
 
 `build.rs` copia automáticamente `WebView2Loader.dll` (x64) junto al ejecutable.
-El servidor de escritorio elige un puerto libre y abre la ventana; al cerrar la
-ventana termina el proceso y el servidor.
+El servidor de escritorio elige un puerto libre y abre la ventana. Con
+**Minimizar a la bandeja** activo, cerrar la ventana solo la oculta; para
+terminar el proceso usa **Salir** en el menú del icono de la bandeja o
+desactiva esa opción en **Ajustes**.
 
 ## Compilar release
 

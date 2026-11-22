@@ -1,6 +1,6 @@
 [package]
 name = "riftsense-rs"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.85"
 description = "RiftSense reescrito en Rust"
@@ -54,6 +54,7 @@ unicode-normalization = "0.1"
 winreg = "0.56"
 wry = "0.57"
 tao = "0.37"
+tray-icon = { version = "0.24.2", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

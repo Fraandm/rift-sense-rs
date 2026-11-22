@@ -8,8 +8,9 @@ import * as live from "./live.js";
 import * as client from "./client.js";
 import * as model from "./model.js";
 import * as data from "./data.js";
+import * as settings from "./settings.js";
 
-const TABS = ["draft", "live", "client", "model", "data"];
+const TABS = ["draft", "live", "client", "model", "data", "settings"];
 let booted = false;
 
 function updateStatus(payload, health) {
@@ -31,7 +32,8 @@ function updateStatus(payload, health) {
 }
 
 function setTab(tab, updateHash = true) {
-  if (!TABS.includes(tab)) tab = "draft";
+  const requested = TABS.includes(tab) ? tab : "draft";
+  tab = settings.tabVisible(requested) ? requested : "settings";
   state.activeTab = tab;
   for (const name of TABS) {
     $(`#view-${name}`)?.classList.toggle("hidden", name !== tab);
@@ -41,11 +43,12 @@ function setTab(tab, updateHash = true) {
     button.classList.toggle("active", active);
     button.setAttribute("aria-current", active ? "page" : "false");
   });
-  if (updateHash && location.hash !== `#${tab}`) {
+  if ((updateHash || requested !== tab) && location.hash !== `#${tab}`) {
     history.replaceState(null, "", `#${tab}`);
   }
   if (tab === "model") model.load();
   if (tab === "data") data.load();
+  if (tab === "settings") settings.refresh();
   client.setActive(tab === "client");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -59,10 +62,19 @@ function bindNav() {
   });
 }
 
-async function checkForUpdates() {
+async function checkForUpdates(manual = false) {
   try {
     const info = await api.get("/api/update/check", { timeout: 15000 });
-    if (!info?.available) return;
+    if (!info?.available) {
+      if (manual) {
+        if (info?.error) {
+          toast(`No se pudo comprobar: ${info.error}`, "error", 7000);
+        } else {
+          toast(`Tienes la última versión (${info?.current || "actual"}).`, "info");
+        }
+      }
+      return;
+    }
     const banner = $("#update-banner");
     const title = $("#update-title");
     const detail = $("#update-detail");
@@ -74,25 +86,26 @@ async function checkForUpdates() {
       detail.textContent = `Tienes la ${info.current}. Pulsa actualizar para descargar e instalar.`;
     }
     button.textContent = `Actualizar a ${info.latest}`;
-    button.addEventListener(
-      "click",
-      async () => {
-        button.disabled = true;
-        button.textContent = "Descargando…";
-        try {
-          await api.post("/api/update/install", {}, { timeout: 300000 });
-          toast("Instalando actualización. RiftSense se reiniciará.", "info", 12000);
-        } catch (err) {
-          button.disabled = false;
-          button.textContent = `Actualizar a ${info.latest}`;
-          toast(err.message || "No se pudo instalar la actualización.", "error", 8000);
-        }
+    button.onclick = async () => {
+      button.disabled = true;
+      button.textContent = "Descargando…";
+      try {
+        await api.post("/api/update/install", {}, { timeout: 300000 });
+        toast("Instalando actualización. RiftSense se reiniciará.", "info", 12000);
+      } catch (err) {
+        button.disabled = false;
+        button.textContent = `Actualizar a ${info.latest}`;
+        toast(err.message || "No se pudo instalar la actualización.", "error", 8000);
       }
-    );
-    dismiss?.addEventListener("click", () => banner.classList.add("hidden"), { once: true });
+    };
+    if (dismiss) dismiss.onclick = () => banner.classList.add("hidden");
     banner.classList.remove("hidden");
   } catch (err) {
-    console.debug("Comprobación de actualizaciones no disponible:", err?.message || err);
+    if (manual) {
+      toast(err?.message || "No se pudo comprobar si hay actualizaciones.", "error", 7000);
+    } else {
+      console.debug("Comprobación de actualizaciones no disponible:", err?.message || err);
+    }
   }
 }
 
@@ -129,6 +142,11 @@ async function boot() {
     toast(event.reason?.message || "Error inesperado en la interfaz.", "error");
   });
   bindNav();
+  window.addEventListener("riftsense:advanced", (event) => {
+    if (!event.detail?.visible && ["model", "data"].includes(state.activeTab)) {
+      setTab("draft");
+    }
+  });
   try {
     const [metaPayload, health] = await Promise.all([
       api.get("/api/meta"),
@@ -140,6 +158,8 @@ async function boot() {
     live.init();
     data.initEvents();
     client.init();
+    await settings.init();
+    $("#settings-update")?.addEventListener("click", () => checkForUpdates(true));
     setTab(location.hash.replace("#", "") || "draft", false);
     if (!metaPayload.models?.draft || !metaPayload.models?.build) {
       toast("Algún modelo no está disponible: se usarán estadísticas pro.", "info", 6000);
