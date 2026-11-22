@@ -11,20 +11,23 @@ ejecutarla.
 
 | Componente | Estado |
 | --- | --- |
-| API HTTP (`/api/health`, meta, draft, bans, build, live, dataset, model, reload, update) | ✅ Rust, paridad 0 diferencias con Python |
-| Motor de draft y build | ✅ Rust, misma lógica y pesos que `engine.py` |
+| API HTTP (`/api/health`, meta, draft, bans, build, live, dataset, model, reload, update, settings, diagnostics) | ✅ Rust, paridad base 0 diferencias con Python |
+| Motor de draft y build | ✅ Rust; compra principal estable por BuildNet + winrate |
 | Modelos ML | ✅ ONNX + `tract-onnx` (sin Python en runtime) |
 | Cliente LCU (estado, lockfile, localizador) | ✅ Rust; estado verificado contra Python |
 | Mapper de champ select / partida en vivo | ✅ Portado y probado con datos sintéticos de Grieta, ARAM, Mayhem y Arena |
 | Modos de juego | ✅ ARAM, ARAM: Mayhem (KIWI) y Arena (CHERRY) con objetos y precios propios |
-| Lanzador de escritorio | ✅ Rust + `tao`/`wry` (WebView2 en Windows) |
-| Interfaz web | ⚠️ SPA compartida incluida en `web/`; pendiente reescritura en Rust |
-| Actualizador | ✅ GitHub Releases + instalador Inno Setup |
-| Pipeline de datos, scrapers y entrenamiento | ⏳ Pendiente; sigue en el proyecto original |
+| Lanzador de escritorio | ✅ Rust + `tao`/`wry`, instancia única, bandeja y arranque con Windows |
+| Seguridad y soporte | ✅ API local con Host/Origin/CSP, logs, diagnóstico y guía de inicio |
+| Interfaz web | ✅ SPA incluida en `web/` |
+| Actualizador | ✅ GitHub Releases + instalador Inno Setup, checksum y firma opcional |
+| CI | ✅ GitHub Actions: fmt, clippy, tests, build y sintaxis JS |
+| Pipeline de datos, scrapers y entrenamiento | ⏳ Manual; la automatización completa sigue pendiente |
 
 La paridad comprobada cubre un draft de ejemplo y una build de ejemplo:
 12 recomendaciones, 10 objetos y análisis en vivo, con **0 diferencias**
-frente a la API Python (incluidos textos y orden).
+frente a la API Python en el contrato base. La 1.0 añade recomendaciones
+estables y funciones locales sin cambiar ese contrato.
 
 ## Datos actuales
 
@@ -40,13 +43,14 @@ Resultados de rendimiento frente a la app original: [`PERFORMANCE.md`](PERFORMAN
 
 La pestaña **En vivo** lee el Live Client Data durante la partida y analiza
 KDA, CS, nivel, diferencia de kills/CS/niveles entre equipos, campeones
-enemigos fuertes y amenazas de curación. La siguiente compra se ajusta con ese
-contexto:
+enemigos fuertes y amenazas de curación. La **compra principal** se elige por
+la probabilidad de BuildNet y el winrate histórico del objeto, no por pequeñas
+variaciones de contexto:
 
-- prioriza defensas si vas por detrás;
-- recomienda antiheal si el rival tiene curación y aún no lo llevas;
-- acelera objetos ofensivos si vas por delante;
-- sugiere un componente asequible cuando el objeto completo no entra en oro.
+- la lista muestra `BuildNet %` y `WR %` de cada candidato;
+- el contexto solo ajusta alternativas;
+- el antiheal aparece como sugerencia situacional separada;
+- si el objeto completo no entra en oro, se sugiere el componente asequible.
 
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni
