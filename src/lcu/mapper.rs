@@ -526,7 +526,13 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         .cloned()
         .unwrap_or_default()
         .into_iter()
-        .filter(|item| item.get("itemID").and_then(Value::as_i64).unwrap_or(0) > 0)
+        .filter(|item| {
+            let id = item.get("itemID").and_then(Value::as_i64).unwrap_or(0);
+            id > 0
+                && engine
+                    .resolve_item(&ItemRef::Int(id))
+                    .is_some_and(|item| engine.is_tracked_item(item))
+        })
         .collect();
     raw_items.sort_by_key(|item| item.get("slot").and_then(Value::as_i64).unwrap_or(0));
     let items: Vec<Value> = raw_items

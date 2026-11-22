@@ -1336,9 +1336,32 @@ impl Engine {
             .collect()
     }
 
+    /// Indica si un objeto ocupa una ranura de build real.
+    ///
+    /// Excluye consumibles, trinkets, Poro-Snax y vales de anvil que el Live
+    /// Client incluye en `items` pero no son parte de la build.
+    pub fn is_tracked_item(&self, item: &Item) -> bool {
+        if item.gold <= 0 {
+            return false;
+        }
+        let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
+        if tags.contains("Consumable") || tags.contains("Trinket") {
+            return false;
+        }
+        let name = compact_name(&item.name);
+        !(name.contains("poro")
+            || name.contains("anvil")
+            || name.contains("voucher")
+            || name.contains("statbonus"))
+    }
+
     fn mode_item_legal(&self, item: &Item, mode: GameMode, slot: usize) -> bool {
         if mode == GameMode::Classic {
             return true;
+        }
+        let name = compact_name(&item.name);
+        if name.starts_with("doran") {
+            return false;
         }
         if is_mayhem_item(item.id) {
             return mode == GameMode::Mayhem;
@@ -2283,7 +2306,7 @@ impl Engine {
         let mut seen = HashSet::new();
         for value in req.owned.iter().take(8) {
             if let Some(item) = self.resolve_item(value) {
-                if seen.insert(item.id) {
+                if self.is_tracked_item(item) && seen.insert(item.id) {
                     owned_items.push(item);
                 }
             }
