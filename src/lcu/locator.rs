@@ -545,9 +545,7 @@ fn valid_install(path: &Path, source: &str) -> Option<Location> {
     if path.is_file() {
         let name = path.file_name()?.to_string_lossy().to_lowercase();
         if name == "lockfile" {
-            if read_lockfile(&path).is_none() {
-                return None;
-            }
+            read_lockfile(&path)?;
             let install = path.parent()?.to_path_buf();
             return Some(Location {
                 install_dir: Some(install),
@@ -866,7 +864,7 @@ mod tests {
             let mut search = locator.shared.search.lock().unwrap();
             search.generation = 1;
         }
-        let found = locator.scan_roots(1, &[root.clone()]);
+        let found = locator.scan_roots(1, std::slice::from_ref(&root));
         assert!(found.is_some());
         let status = locator.status_json(false);
         assert!(status["scannedDirs"].as_u64().unwrap() >= 1);

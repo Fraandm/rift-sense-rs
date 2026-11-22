@@ -103,32 +103,6 @@ fn rotate_if_large(path: &std::path::Path) {
     let _ = std::fs::rename(path, backup);
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn writes_log_file() {
-        let directory = std::env::temp_dir().join(format!(
-            "riftsense-log-test-{}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&directory);
-        unsafe {
-            std::env::set_var("RIFTSENSE_LOG_DIR", &directory);
-        }
-        let guard = init("test").expect("log init");
-        tracing::info!("diagnostic marker");
-        let path = guard.directory.join("test.log");
-        let text = std::fs::read_to_string(&path).unwrap_or_default();
-        unsafe {
-            std::env::remove_var("RIFTSENSE_LOG_DIR");
-        }
-        let _ = std::fs::remove_dir_all(&directory);
-        assert!(text.contains("diagnostic marker"), "log text: {text:?}");
-    }
-}
-
 fn cleanup_old_logs(directory: &std::path::Path) {
     let Ok(entries) = std::fs::read_dir(directory) else {
         return;
@@ -156,5 +130,29 @@ fn cleanup_old_logs(directory: &std::path::Path) {
         if old {
             let _ = std::fs::remove_file(path);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn writes_log_file() {
+        let directory =
+            std::env::temp_dir().join(format!("riftsense-log-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        unsafe {
+            std::env::set_var("RIFTSENSE_LOG_DIR", &directory);
+        }
+        let guard = init("test").expect("log init");
+        tracing::info!("diagnostic marker");
+        let path = guard.directory.join("test.log");
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        unsafe {
+            std::env::remove_var("RIFTSENSE_LOG_DIR");
+        }
+        let _ = std::fs::remove_dir_all(&directory);
+        assert!(text.contains("diagnostic marker"), "log text: {text:?}");
     }
 }

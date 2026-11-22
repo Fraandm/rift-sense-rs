@@ -81,6 +81,7 @@ impl BuildModel {
     }
 
     /// Devuelve la probabilidad softmax de cada objeto (incluido el indice 0).
+    #[allow(clippy::too_many_arguments)]
     pub fn predict(
         &self,
         champ: i64,

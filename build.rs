@@ -27,15 +27,15 @@ fn main() {
         return;
     };
 
-    if let Err(error) = embed_icon(&out_dir) {
-        println!("cargo:warning=No se pudo incrustar el icono de RiftSense: {error}");
+    if env::var_os("RIFTSENSE_SKIP_ICON").is_none() {
+        if let Err(error) = embed_icon(&out_dir) {
+            println!("cargo:warning=No se pudo incrustar el icono de RiftSense: {error}");
+        }
     }
 
     let cargo_home = env::var_os("CARGO_HOME")
         .map(PathBuf::from)
-        .or_else(|| {
-            env::var_os("USERPROFILE").map(|home| PathBuf::from(home).join(".cargo"))
-        });
+        .or_else(|| env::var_os("USERPROFILE").map(|home| PathBuf::from(home).join(".cargo")));
     let Some(cargo_home) = cargo_home else {
         return;
     };

@@ -278,10 +278,11 @@ fn main() -> Result<()> {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                if size.width == 0 || size.height == 0 {
-                    if tray.is_some() && minimize_to_tray(&settings) {
-                        window.set_visible(false);
-                    }
+                if (size.width == 0 || size.height == 0)
+                    && tray.is_some()
+                    && minimize_to_tray(&settings)
+                {
+                    window.set_visible(false);
                 }
             }
             Event::UserEvent(UserEvent::Menu(event)) => match event.id().as_ref() {

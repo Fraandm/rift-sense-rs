@@ -11,7 +11,7 @@ pub type SettingsHandle = Arc<RwLock<Settings>>;
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 const RUN_VALUE: &str = "RiftSense";
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Settings {
     /// Muestra las pestañas técnicas Modelo y Datos.
@@ -20,16 +20,6 @@ pub struct Settings {
     pub start_with_windows: bool,
     /// Al cerrar o minimizar, mantiene la app en la bandeja del sistema.
     pub minimize_to_tray: bool,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            show_advanced: false,
-            start_with_windows: false,
-            minimize_to_tray: false,
-        }
-    }
 }
 
 impl Settings {

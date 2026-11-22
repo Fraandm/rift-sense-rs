@@ -767,7 +767,7 @@ impl Engine {
         }
         let wr = w_total / n_total as f64;
         let confidence = n_total as f64 / (n_total as f64 + 80.0);
-        notes.sort_by(|a, b| b.n.cmp(&a.n));
+        notes.sort_by_key(|note| std::cmp::Reverse(note.n));
         notes.truncate(4);
         MatchupEdge {
             winrate: wr,
@@ -814,7 +814,7 @@ impl Engine {
         }
         let wr = w_total / n_total as f64;
         let confidence = n_total as f64 / (n_total as f64 + 80.0);
-        notes.sort_by(|a, b| b.n.cmp(&a.n));
+        notes.sort_by_key(|note| std::cmp::Reverse(note.n));
         notes.truncate(4);
         MatchupEdge {
             winrate: wr,
@@ -1502,7 +1502,7 @@ impl Engine {
         }
         let ally_ids = [
             ally_team
-                .get(0)
+                .first()
                 .and_then(|c| *c)
                 .map(|c| c.idx)
                 .unwrap_or(0),
@@ -1529,7 +1529,7 @@ impl Engine {
         ];
         let enemy_ids = [
             enemy_team
-                .get(0)
+                .first()
                 .and_then(|c| *c)
                 .map(|c| c.idx)
                 .unwrap_or(0),
