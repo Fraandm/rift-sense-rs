@@ -631,6 +631,7 @@
               <button class="btn tiny" id="settings-update" type="button"><svg class="icon"><use href="#i-refresh"/></svg>Buscar actualizaciones</button>
               <button class="btn tiny" id="settings-diagnostics" type="button"><svg class="icon"><use href="#i-info"/></svg>Copiar diagnóstico</button>
               <button class="btn tiny" id="settings-logs" type="button"><svg class="icon"><use href="#i-data"/></svg>Abrir logs</button>
+              <button class="btn tiny" id="settings-help" type="button"><svg class="icon"><use href="#i-bolt"/></svg>Guía rápida</button>
             </div>
             <p class="fineprint">No afiliado a Riot Games. League of Legends es una marca de Riot Games, Inc.</p>
           </section>
@@ -675,6 +676,38 @@
       <p class="modal-hint" id="item-picker-hint">Objetos comprables en la Grieta del Invocador.</p>
       <div class="item-grid" id="item-grid"></div>
       <p class="modal-empty hidden" id="item-empty">No hay objetos que coincidan.</p>
+    </div>
+  </dialog>
+
+  <dialog class="modal onboarding" id="onboarding" aria-labelledby="onboarding-title">
+    <div class="modal-panel onboarding-panel">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow">Guía rápida</p>
+          <h2 id="onboarding-title">Bienvenido a RiftSense</h2>
+        </div>
+        <button class="icon-btn" data-close type="button" aria-label="Cerrar guía"><svg class="icon"><use href="#i-close"/></svg></button>
+      </header>
+      <p class="onboarding-lead">Tres formas de usarlo, sin cajas negras:</p>
+      <div class="onboarding-steps">
+        <div class="onboarding-step">
+          <span class="onboarding-num">01</span>
+          <div><strong>Draft</strong><p>Marca tu rol, añade picks y bans y compara la composición antes de jugar.</p></div>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-num">02</span>
+          <div><strong>En vivo</strong><p>Con Auto activo, la app lee KDA, oro, inventario y rivales cada 3 segundos y recomienda la siguiente compra.</p></div>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-num">03</span>
+          <div><strong>Cliente y modos</strong><p>Grieta, ARAM, Mayhem y Arena se detectan desde el cliente. En modos con datos limitados verás la confianza y las limitaciones.</p></div>
+        </div>
+      </div>
+      <div class="onboarding-note">RiftSense solo lee datos. No compra, no envía inputs y no automatiza el juego.</div>
+      <div class="onboarding-actions">
+        <button class="btn ghost" id="onboarding-settings" type="button">Ir a Ajustes</button>
+        <button class="btn" id="onboarding-start" type="button">Empezar</button>
+      </div>
     </div>
   </dialog>
 

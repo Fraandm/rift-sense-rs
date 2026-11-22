@@ -11,7 +11,27 @@ import * as data from "./data.js";
 import * as settings from "./settings.js";
 
 const TABS = ["draft", "live", "client", "model", "data", "settings"];
+const ONBOARDING_KEY = "riftsense.onboarding.v1";
 let booted = false;
+
+function rememberOnboarding() {
+  try {
+    localStorage.setItem(ONBOARDING_KEY, "done");
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
+
+function openOnboarding(force = false) {
+  const dialog = $("#onboarding");
+  if (!dialog) return;
+  try {
+    if (!force && localStorage.getItem(ONBOARDING_KEY)) return;
+  } catch {
+    /* sin almacenamiento: se muestra igualmente */
+  }
+  if (!dialog.open) dialog.showModal();
+}
 
 function updateStatus(payload, health) {
   const dot = $("#status-dot");
@@ -167,7 +187,21 @@ async function boot() {
     client.init();
     await settings.init();
     $("#settings-update")?.addEventListener("click", () => checkForUpdates(true));
+    $("#settings-help")?.addEventListener("click", () => openOnboarding(true));
+    $("#onboarding")?.addEventListener("close", rememberOnboarding);
+    $("#onboarding-start")?.addEventListener("click", () => {
+      rememberOnboarding();
+      $("#onboarding")?.close();
+    });
+    $("#onboarding-settings")?.addEventListener("click", () => {
+      rememberOnboarding();
+      $("#onboarding")?.close();
+      setTab("settings");
+    });
     setTab(location.hash.replace("#", "") || "draft", false);
+    if (!localStorage.getItem(ONBOARDING_KEY)) {
+      setTimeout(() => openOnboarding(false), 900);
+    }
     if (!metaPayload.models?.draft || !metaPayload.models?.build) {
       toast("Algún modelo no está disponible: se usarán estadísticas pro.", "info", 6000);
     }
