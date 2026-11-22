@@ -24,6 +24,79 @@ enum UserEvent {
     Menu(MenuEvent),
 }
 
+const WINDOW_TITLE: &str = "RiftSense — Analizador de draft y build";
+
+#[cfg(windows)]
+struct InstanceGuard(windows_sys::Win32::Foundation::HANDLE);
+
+#[cfg(windows)]
+impl Drop for InstanceGuard {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.0);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn single_instance() -> Result<Option<InstanceGuard>> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::{ERROR_ALREADY_EXISTS, GetLastError};
+    use windows_sys::Win32::System::Threading::CreateMutexW;
+
+    let name: Vec<u16> = std::ffi::OsStr::new("Local\\RiftSenseDesktop")
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let handle = unsafe { CreateMutexW(std::ptr::null(), 1, name.as_ptr()) };
+    if handle.is_null() {
+        anyhow::bail!("No se pudo crear el mutex de instancia única");
+    }
+    if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(handle);
+        }
+        return Ok(None);
+    }
+    Ok(Some(InstanceGuard(handle)))
+}
+
+#[cfg(windows)]
+fn focus_existing_window() -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        FindWindowW, SW_RESTORE, SW_SHOW, SetForegroundWindow, ShowWindow,
+    };
+
+    let title: Vec<u16> = std::ffi::OsStr::new(WINDOW_TITLE)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    for _ in 0..20 {
+        let hwnd = unsafe { FindWindowW(std::ptr::null(), title.as_ptr()) };
+        if !hwnd.is_null() {
+            unsafe {
+                ShowWindow(hwnd, SW_SHOW);
+                ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+            }
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
+
+#[cfg(not(windows))]
+fn single_instance() -> Result<Option<()>> {
+    Ok(Some(()))
+}
+
+#[cfg(not(windows))]
+fn focus_existing_window() -> bool {
+    false
+}
+
 fn start_server(preferred_port: u16, paths: Paths, settings: SettingsHandle) -> Result<u16> {
     let (sender, receiver) = mpsc::channel::<Result<u16, String>>();
     std::thread::spawn(move || {
@@ -82,6 +155,14 @@ fn minimize_to_tray(settings: &SettingsHandle) -> bool {
 }
 
 fn main() -> Result<()> {
+    let _instance = match single_instance()? {
+        Some(guard) => guard,
+        None => {
+            focus_existing_window();
+            return Ok(());
+        }
+    };
+
     let startup = Instant::now();
     let mut preferred_port = 0u16;
     let mut start_minimized = false;
@@ -122,7 +203,7 @@ fn main() -> Result<()> {
     const ICON_RGBA: &[u8] = include_bytes!("../../assets/RiftSense-64.rgba");
     let window_icon = Icon::from_rgba(ICON_RGBA.to_vec(), 64, 64).ok();
     let window = WindowBuilder::new()
-        .with_title("RiftSense — Analizador de draft y build")
+        .with_title(WINDOW_TITLE)
         .with_window_icon(window_icon)
         .with_inner_size(LogicalSize::new(1440.0, 900.0))
         .with_min_inner_size(LogicalSize::new(1000.0, 680.0))
