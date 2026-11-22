@@ -80,6 +80,52 @@ function ownIndex() {
   return live.mode === "classic" ? roleIndex(live.role) : 0;
 }
 
+const ARENA_STARTER_IDS = new Set([2051, 3112, 3177, 3184]);
+
+function isArenaStarter(id) {
+  return ARENA_STARTER_IDS.has(Number(id));
+}
+
+function confidenceFor(build) {
+  let score = 0.38;
+  const reasons = [];
+  if (build?.mode === "model") {
+    score += 0.16;
+    reasons.push("modelo ONNX disponible");
+  } else {
+    reasons.push("sin modelo: se usan priors");
+  }
+  const known = Number(build?.enemyProfile?.known) || 0;
+  if (known >= 5) {
+    score += 0.1;
+    reasons.push(`${known} rivales identificados`);
+  } else if (known > 0) {
+    score += 0.04;
+    reasons.push(`solo ${known} rivales identificados`);
+  }
+  if (build?.gameAnalysis) {
+    score += 0.1;
+    reasons.push("contexto de partida en vivo");
+  }
+  const prior = Number(build?.items?.[0]?.priorGames) || 0;
+  if (prior >= 50) {
+    score += 0.12;
+    reasons.push("muestra amplia para el objeto principal");
+  } else if (prior >= 10) {
+    score += 0.06;
+    reasons.push("muestra moderada para el objeto principal");
+  }
+  if (build?.gameMode && build.gameMode !== "classic") {
+    score -= 0.08;
+    reasons.push("modo con datos específicos limitados");
+  }
+  if (!live.champion) score = 0.1;
+  score = Math.max(0.1, Math.min(0.92, score));
+  const label = score >= 0.72 ? "Alta" : score >= 0.5 ? "Media" : "Baja";
+  const tone = score >= 0.72 ? "teal" : score >= 0.5 ? "gold" : "bad";
+  return { score, label, tone, reasons };
+}
+
 /* ------------------------------------------------------------------ */
 /* Estado                                                              */
 /* ------------------------------------------------------------------ */
@@ -483,6 +529,7 @@ function renderVerdict(draft, build) {
       pills.innerHTML = [
         `<span class="pill gold">${esc(build?.modeLabel || modeLabel(mode))}</span>`,
         `<span class="pill">${live.owned.length}/6 objetos</span>`,
+        `<span class="pill ${confidenceFor(build).tone}">Confianza ${confidenceFor(build).label}</span>`,
         analysis
           ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
               analysis.label
@@ -518,6 +565,7 @@ function renderVerdict(draft, build) {
     pills.innerHTML = [
       `<span class="pill">${esc(roleLabel(live.role))}</span>`,
       `<span class="pill gold">${live.owned.length}/6 objetos</span>`,
+      `<span class="pill ${confidenceFor(build).tone}">Confianza ${confidenceFor(build).label}</span>`,
       analysis
         ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
             analysis.label
@@ -596,10 +644,24 @@ function renderNotes(build, draft) {
   const entries = Object.entries(nearby)
     .map(([slot, value]) => [Number(slot), value])
     .sort((a, b) => a[0] - b[0]);
+  const confidence = confidenceFor(build);
+  rows.push(`<div class="note-box"><strong>Confianza de la recomendación: ${confidence.label} (${Math.round(
+    confidence.score * 100
+  )}%)</strong>${confidence.reasons.map((reason) => esc(reason)).join("<br>")}</div>`);
   if (build?.modeNotes?.length) {
     rows.push(`<div class="note-box mode-note"><strong>${esc(build.modeLabel || modeLabel(mode))}</strong>${build.modeNotes
       .map((note) => esc(note))
       .join("<br>")}</div>`);
+  }
+  if (live.owned.length >= 6 && mode !== "classic") {
+    const starter = live.owned
+      .map((id) => itemById(id))
+      .find((item) => item && (isArenaStarter(item.id) || (item.tags || []).includes("Lane") && item.gold <= 1000));
+    if (starter) {
+      rows.push(`<div class="note-box warn"><strong>Slot completo</strong>Puedes vender ${esc(
+        starter.name
+      )} para liberar un slot y comprar un objeto completo.</div>`);
+    }
   }
   if (classic && entries.length) {
     rows.push(`<div class="note-box"><strong>Winrate por número de objetos</strong>
