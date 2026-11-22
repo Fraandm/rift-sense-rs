@@ -144,6 +144,21 @@ riftsense-rs/
 └── PORTING.md
 ```
 
+## Licencia y legal
+
+El código, los binarios, los modelos y los datos empaquetados son propiedad de
+RiftSense y se distribuyen para uso personal no comercial. Consulta
+[`LICENSE`](LICENSE).
+
+- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md): Riot Games, Leaguepedia,
+  ONNX, WebView2, Inno Setup, fuentes y crates.
+- [`PRIVACY.md`](PRIVACY.md): qué se guarda, qué se lee y qué sale a la red.
+- [`SECURITY.md`](SECURITY.md): cómo reportar vulnerabilidades y el modelo de
+  seguridad de la API local.
+
+RiftSense no está afiliado a Riot Games. No lee memoria del juego, no inyecta
+código, no automatiza compras ni envía inputs.
+
 ## Requisitos
 
 - `data/processed` y `artifacts/` del proyecto original (no incluidos).
