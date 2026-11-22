@@ -1,6 +1,7 @@
 #![windows_subsystem = "windows"]
 
 use anyhow::{Context, Result};
+use riftsense::logging;
 use riftsense::settings::{Settings, SettingsHandle};
 use riftsense::{api, config::Paths, engine::Engine, lcu::LcuService};
 use std::sync::mpsc;
@@ -162,6 +163,10 @@ fn main() -> Result<()> {
             return Ok(());
         }
     };
+
+    let log = logging::init("riftsense-desktop")?;
+    logging::install_panic_hook();
+    tracing::info!("logs: {}", log.directory.display());
 
     let startup = Instant::now();
     let mut preferred_port = 0u16;

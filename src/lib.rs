@@ -8,6 +8,7 @@ pub mod config;
 pub mod data;
 pub mod engine;
 pub mod lcu;
+pub mod logging;
 pub mod mode;
 pub mod model;
 pub mod settings;

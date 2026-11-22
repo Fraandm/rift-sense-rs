@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
 use clap::Parser;
+use riftsense::logging;
 use riftsense::settings::Settings;
 use riftsense::{api, config::Paths, engine::Engine};
 use std::sync::{Arc, RwLock as StdRwLock};
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
-use tracing_subscriber::EnvFilter;
 
 #[derive(Parser, Debug)]
 #[command(name = "riftsense", about = "RiftSense reescrito en Rust")]
@@ -21,11 +21,9 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .init();
+    let log = logging::init("riftsense")?;
+    logging::install_panic_hook();
+    tracing::info!("logs: {}", log.directory.display());
 
     let args = Args::parse();
     let paths = Paths::discover()?;

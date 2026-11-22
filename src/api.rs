@@ -47,6 +47,8 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/update/check", get(update_check))
         .route("/api/update/install", post(update_install))
         .route("/api/settings", get(settings_get).post(settings_update))
+        .route("/api/diagnostics", get(diagnostics))
+        .route("/api/diagnostics/open-logs", post(open_logs))
         .route("/api/client/status", get(client_status))
         .route("/api/client/draft", get(client_draft))
         .route("/api/client/live", get(client_live))
@@ -379,6 +381,57 @@ async fn settings_update(
         *current = next.clone();
     }
     Json(settings_payload(&next)).into_response()
+}
+
+async fn diagnostics(State(state): State<SharedState>) -> Json<Value> {
+    let engine = engine(&state).await;
+    let settings = state
+        .settings
+        .read()
+        .map(|settings| settings.clone())
+        .unwrap_or_default();
+    let client = state.lcu.client.status().await;
+    Json(json!({
+        "version": crate::update::current_version(),
+        "patch": engine.patch,
+        "dataset": {
+            "games": engine.summary.get("games").cloned().unwrap_or(json!(0)),
+            "dateRange": engine.summary.get("dateRange").cloned().unwrap_or(json!([])),
+        },
+        "models": {
+            "draft": engine.draft_model.is_some(),
+            "build": engine.build_model.is_some(),
+            "notes": engine.model_notes,
+        },
+        "paths": {
+            "root": state.paths.root.display().to_string(),
+            "models": state.paths.models.display().to_string(),
+            "logs": crate::logging::log_dir().display().to_string(),
+        },
+        "settings": settings_payload(&settings),
+        "processId": std::process::id(),
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "client": client,
+    }))
+}
+
+async fn open_logs() -> Response {
+    let directory = crate::logging::log_dir();
+    if let Err(error_value) = std::fs::create_dir_all(&directory) {
+        return error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("No se pudo crear {}: {error_value}", directory.display()),
+        );
+    }
+    match open::that(&directory) {
+        Ok(()) => Json(json!({
+            "opened": true,
+            "directory": directory.display().to_string(),
+        }))
+        .into_response(),
+        Err(error_value) => error(StatusCode::INTERNAL_SERVER_ERROR, error_value.to_string()),
+    }
 }
 
 async fn client_status(State(state): State<SharedState>) -> Json<Value> {

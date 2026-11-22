@@ -105,6 +105,29 @@ async function update(patch) {
 }
 
 function bind() {
+  $("#settings-diagnostics")?.addEventListener("click", async () => {
+    try {
+      const data = await api.get("/api/diagnostics", { timeout: 15000 });
+      const text = JSON.stringify(data, null, 2);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        toast("Diagnóstico copiado al portapapeles.", "success");
+      } else {
+        console.info(text);
+        toast("Diagnóstico escrito en la consola.", "info");
+      }
+    } catch (err) {
+      toast(err?.message || "No se pudo generar el diagnóstico.", "error", 7000);
+    }
+  });
+  $("#settings-logs")?.addEventListener("click", async () => {
+    try {
+      const result = await api.post("/api/diagnostics/open-logs", {}, { timeout: 15000 });
+      toast(result?.directory ? `Logs: ${result.directory}` : "Carpeta de logs abierta.", "success", 7000);
+    } catch (err) {
+      toast(err?.message || "No se pudo abrir la carpeta de logs.", "error", 7000);
+    }
+  });
   $("#settings-advanced")?.addEventListener("change", (event) => {
     update({ showAdvanced: event.target.checked });
   });
