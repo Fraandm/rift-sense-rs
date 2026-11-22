@@ -43,6 +43,7 @@ fn main() -> Result<()> {
         minute: 14.0,
         game: None,
         mode: None,
+        stable: false,
         limit: 10,
         simulate: true,
     };

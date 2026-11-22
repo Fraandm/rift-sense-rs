@@ -1784,3 +1784,6 @@ input[type="range"]::-moz-range-thumb {
 .onboarding-step p { margin-top: 2px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
 .onboarding-note { margin-top: 13px; padding: 9px 11px; border-left: 2px solid var(--teal); color: var(--muted); background: var(--teal-dim); font-size: 11.5px; }
 .onboarding-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px; }
+
+.item-signals { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.item-signals span { padding: 2px 6px; border: 1px solid rgba(255,255,255,.08); border-radius: 5px; color: var(--muted-2); font-size: 9.5px; }

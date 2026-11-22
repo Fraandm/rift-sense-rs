@@ -135,6 +135,11 @@ pub struct BuildRequest {
     /// Modo explicito (`classic`, `aram`, `mayhem` o `arena`).
     #[serde(default)]
     pub mode: Option<String>,
+    /// Prioriza la salida de BuildNet y el winrate historico; el contexto
+    /// solo ajusta el orden. Desactivado por defecto para mantener el
+    /// contrato base de `/api/build`.
+    #[serde(default)]
+    pub stable: bool,
     #[serde(default = "default_draft_limit")]
     pub limit: usize,
     #[serde(default = "default_true")]
@@ -1501,6 +1506,7 @@ impl Engine {
         _minute: f64,
         analysis: Option<&GameAnalysis>,
         mode: GameMode,
+        stable: bool,
         use_model: bool,
     ) -> Result<Vec<ItemCandidate<'a>>> {
         let owned_ids: HashSet<i64> = owned.iter().map(|item| item.id).collect();
@@ -1652,27 +1658,41 @@ impl Engine {
         }
 
         let model_weight = if use_model && self.build_model.is_some() {
-            match mode {
-                GameMode::Classic => 0.50,
-                GameMode::Arena => 0.22,
-                _ => 0.38,
+            match (stable, mode) {
+                (true, GameMode::Classic) => 0.55,
+                (true, GameMode::Arena) => 0.32,
+                (true, _) => 0.45,
+                (false, GameMode::Classic) => 0.50,
+                (false, GameMode::Arena) => 0.22,
+                (false, _) => 0.38,
             }
         } else {
             0.0
         };
-        let mut weights = vec![
-            ("model", model_weight),
-            (
-                "popularity",
-                if mode == GameMode::Arena { 0.22 } else { 0.20 },
-            ),
-            ("slot", if mode == GameMode::Arena { 0.05 } else { 0.15 }),
-            ("winrate", 0.05),
-            ("defense", if mode == GameMode::Arena { 0.18 } else { 0.10 }),
-            ("mode", if mode.is_classic() { 0.0 } else { 0.10 }),
-        ];
+        let mut weights = if stable {
+            vec![
+                ("model", model_weight),
+                ("popularity", 0.10),
+                ("slot", if mode == GameMode::Arena { 0.05 } else { 0.10 }),
+                ("winrate", 0.15),
+                ("defense", if mode == GameMode::Arena { 0.12 } else { 0.06 }),
+                ("mode", if mode.is_classic() { 0.0 } else { 0.07 }),
+            ]
+        } else {
+            vec![
+                ("model", model_weight),
+                (
+                    "popularity",
+                    if mode == GameMode::Arena { 0.22 } else { 0.20 },
+                ),
+                ("slot", if mode == GameMode::Arena { 0.05 } else { 0.15 }),
+                ("winrate", 0.05),
+                ("defense", if mode == GameMode::Arena { 0.18 } else { 0.10 }),
+                ("mode", if mode.is_classic() { 0.0 } else { 0.10 }),
+            ]
+        };
         if analysis.is_some() {
-            weights.push(("context", 0.12));
+            weights.push(("context", if stable { 0.04 } else { 0.12 }));
         }
         let total_w: f64 = weights.iter().map(|(_, value)| *value).sum();
         for (_, value) in &mut weights {
@@ -2301,6 +2321,7 @@ impl Engine {
         let gold = req.gold.clamp(0, 100_000);
         let minute = req.minute.clamp(0.0, 120.0);
         let limit = req.limit.clamp(1, 25);
+        let stable = req.stable;
 
         let mut owned_items: Vec<&Item> = Vec::new();
         let mut seen = HashSet::new();
@@ -2355,6 +2376,7 @@ impl Engine {
             minute,
             analysis.as_ref(),
             mode,
+            stable,
             true,
         )?;
         let items_out: Vec<Value> = candidates
@@ -2362,7 +2384,23 @@ impl Engine {
             .take(limit)
             .map(|candidate| self.format_item(candidate, gold, slot, &role, mode))
             .collect();
-        let focus: Vec<&ItemCandidate> = if let Some(analysis) = analysis.as_ref() {
+        let focus: Vec<&ItemCandidate> = if stable {
+            let mut preferred = if analysis.as_ref().is_some_and(|analysis| {
+                !analysis.healers.is_empty()
+                    && !owned_items.iter().any(|item| is_grievous_item(item))
+            }) {
+                candidates
+                    .iter()
+                    .filter(|candidate| is_grievous_for_champion(candidate.item, champ))
+                    .collect::<Vec<_>>()
+            } else {
+                candidates.iter().collect::<Vec<_>>()
+            };
+            if preferred.is_empty() {
+                preferred = candidates.iter().collect();
+            }
+            preferred
+        } else if let Some(analysis) = analysis.as_ref() {
             let mut preferred = if !analysis.healers.is_empty()
                 && !owned_items.iter().any(|item| is_grievous_item(item))
             {
@@ -2402,12 +2440,15 @@ impl Engine {
         } else {
             candidates.iter().collect()
         };
-        let next_purchase = focus
+        let next_candidate = focus
             .iter()
             .copied()
             .find(|candidate| gold >= candidate.price)
-            .or_else(|| candidates.iter().find(|candidate| gold >= candidate.price))
-            .map(|candidate| self.format_item(candidate, gold, slot, &role, mode));
+            .or_else(|| candidates.iter().find(|candidate| gold >= candidate.price));
+        let next_purchase =
+            next_candidate.map(|candidate| self.format_item(candidate, gold, slot, &role, mode));
+        let antiheal_source =
+            next_candidate.is_some_and(|candidate| is_grievous_for_champion(candidate.item, champ));
 
         let mut build_plan = Vec::new();
         if req.simulate {
@@ -2425,6 +2466,7 @@ impl Engine {
                     minute,
                     analysis.as_ref(),
                     mode,
+                    stable,
                     true,
                 )?;
                 let best = if mode == GameMode::Arena {
@@ -2515,6 +2557,11 @@ impl Engine {
             },
             "notes": notes,
         });
+        if stable {
+            output["recommendationMode"] = json!("model_first");
+            output["recommendationSource"] =
+                json!(if antiheal_source { "antiheal" } else { "model" });
+        }
         if !mode.is_classic() {
             output["gameMode"] = json!(mode.key());
             output["modeLabel"] = json!(mode.label());

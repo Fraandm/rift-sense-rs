@@ -367,6 +367,10 @@ function renderItemCard(item, isNext = false) {
   const disabled = !item.affordable || live.owned.length >= 6;
   const label = live.owned.length >= 6 ? "Lleno" : item.affordable ? "Comprar" : "Sin oro";
   const actionNote = item.affordable ? "disponible" : `faltan ${num(item.missingGold)}`;
+  const signals = [
+    item.modelProb ? `BuildNet ${pct(item.modelProb, 1)}` : "",
+    item.winrate ? `WR ${pct(item.winrate, 1)}` : "",
+  ].filter(Boolean);
   return `<article class="item-reco ${isNext ? "next-buy" : ""}">
     ${avatarHTML(item, "", "item")}
     <div class="item-reco-main">
@@ -376,11 +380,12 @@ function renderItemCard(item, isNext = false) {
         ${isNext ? `<span class="reason" style="color:var(--teal);border-color:rgba(10,200,185,.3)">Compra ahora</span>` : ""}
       </div>
       <div class="item-reasons">${itemReasons(item.reasons, [`Score ${Math.round(item.score)}`])}</div>
+      ${signals.length ? `<div class="item-signals">${signals.map((signal) => `<span>${esc(signal)}</span>`).join("")}</div>` : ""}
       ${componentsHTML(item.components)}
     </div>
     <div class="item-side">
       <strong>${Math.round(item.score)}</strong>
-      <small>ajuste</small>
+      <small>prioridad</small>
       <div class="score-bar"><i style="width:${Math.max(3, Math.min(100, item.score))}%"></i></div>
     </div>
     <div class="item-action">
@@ -424,9 +429,15 @@ function renderItems(build) {
       ? ` · componente: ${build.nextComponent.name}`
       : "";
     const modeText = build?.modeLabel ? `${build.modeLabel} · ` : "";
-    subtitle.textContent = `${modeText}Slot ${build.slot} de 6 · ${items.length} candidatos · ${
-      build.mode === "model" ? "modelo + datos" : "datos pro"
-    }${component}`;
+    const strategy =
+      build.recommendationSource === "antiheal"
+        ? "antiheal + BuildNet"
+        : build.recommendationMode === "model_first"
+          ? "BuildNet + winrate histórico"
+          : build.mode === "model"
+            ? "modelo + datos"
+            : "datos pro";
+    subtitle.textContent = `${modeText}Slot ${build.slot} de 6 · ${items.length} candidatos · ${strategy}${component}`;
   }
 
   const nextId = build?.nextPurchase?.id;
@@ -644,6 +655,13 @@ function renderNotes(build, draft) {
   const entries = Object.entries(nearby)
     .map(([slot, value]) => [Number(slot), value])
     .sort((a, b) => a[0] - b[0]);
+  if (build?.recommendationMode === "model_first") {
+    const source =
+      build.recommendationSource === "antiheal"
+        ? " Ahora manda el antiheal porque hay curación enemiga y aún no lo llevas."
+        : "";
+    rows.push(`<div class="note-box"><strong>Prioridad de compra</strong>BuildNet y el winrate histórico pesan más que el contexto. El estado de la partida solo ajusta alternativas.${source}</div>`);
+  }
   const confidence = confidenceFor(build);
   rows.push(`<div class="note-box"><strong>Confianza de la recomendación: ${confidence.label} (${Math.round(
     confidence.score * 100
@@ -740,6 +758,7 @@ function payload() {
     owned: live.owned,
     gold: Number(live.gold) || 0,
     minute: Number(live.minute) || 0,
+    stable: true,
     game: live.game,
     bans: state.draft.bans,
     limit: 10,
