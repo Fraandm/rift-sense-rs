@@ -1,5 +1,60 @@
 # Changelog
 
+## 1.1.0
+
+Reconocimiento de modo en Draft, resumen post-partida y correcciones manuales.
+
+### Draft inteligente
+
+- Selector de modo **Grieta / ARAM / Mayhem / Arena** con detección automática
+  desde el LCU (`queueId`, `gameMode` y mapa).
+- En ARAM, Mayhem y Arena desaparecen los roles, el lado y los bans: la
+  composición se muestra como `A1–A5` / `R1–R5` sin intentar encajar campeones
+  en roles de Grieta.
+- Arena muestra **Tu trío** con 3 huecos.
+- Importar un champ select no clásico ya no está bloqueado; se importa la
+  composición tal cual.
+
+### Resumen post-partida
+
+- Nueva pestaña **Resumen** con build real, objetos comprados, seguimiento de
+  la recomendación, KDA, duración, augments/anviles manuales y resultado.
+- Seguimiento en vivo: cada objeto nuevo se compara con la compra recomendada
+  y con el plan; se guarda en `localStorage` (máximo 20 partidas).
+- Al terminar la partida se consulta el historial local del LCU
+  (`/api/client/postgame`) para obtener resultado, inventario final, KDA y
+  augments detectados.
+- Si la app no siguió la partida, el resumen importa la última partida del
+  historial del cliente y evita duplicados por `gameId`.
+- La sesión en vivo se reanuda tras recargar la app y conserva las compras ya
+  registradas.
+- Resultado manual **Victoria / Derrota** si el LCU no lo devuelve.
+- Borrar el historial no vuelve a importar la misma partida; las partidas
+  nuevas siguen entrando.
+
+### Correcciones manuales Arena / Mayhem
+
+- **Arena:** elegir trío (3 huecos), augments y anviles usados.
+- **Mayhem:** registrar hasta 4 augments manuales.
+- Los augments/anviles se muestran en las notas de partida y se guardan en el
+  resumen. La API local sigue sin exponerlos.
+
+### Backend
+
+- Nuevo endpoint `GET /api/client/postgame` con parser tolerante del historial
+  de partidas del LCU (identidad por PUUID/summonerId, items, KDA, augments).
+- `map_champ_select` coloca el pick propio primero y no usa roles en modos no
+  clásicos.
+- Tests nuevos para el parser postgame y el orden de equipos.
+
+### Instalador
+
+- `RiftSense-Setup-1.1.0.exe`, 27.508.758 bytes, SHA-256
+  `3d4fb8986af4c19335de38425cb604065c0ade43124561ca9b570befa0e489f5`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.1.0`, health `ok` y LCU
+  conectado.
+
 ## 1.0.2
 
 Mejora de interfaz, accesibilidad y experiencia en vivo.

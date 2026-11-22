@@ -7,6 +7,7 @@ export const state = {
   meta: null,
   activeTab: "draft",
   draft: {
+    mode: "classic",
     side: "blue",
     role: "MID",
     allies: [null, null, null, null, null],
@@ -45,6 +46,10 @@ export const state = {
     },
     arenaEnemies: [],
     arenaTeamKnown: false,
+    gameId: null,
+    augments: [],
+    anvils: [],
+    tracking: false,
   },
 };
 

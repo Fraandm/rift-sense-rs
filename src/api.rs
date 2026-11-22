@@ -52,6 +52,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/client/status", get(client_status))
         .route("/api/client/draft", get(client_draft))
         .route("/api/client/live", get(client_live))
+        .route("/api/client/postgame", get(client_postgame))
         .route(
             "/api/client/search",
             get(client_search_status).post(client_search),
@@ -488,14 +489,20 @@ async fn client_live(State(state): State<SharedState>) -> Json<Value> {
         }));
     };
     if let Some(session) = state.lcu.client.gameflow_session().await {
-        if let (Some(game), Some(queue_id)) = (
+        if let (Some(game), Some(session_data)) = (
             data.get_mut("gameData").and_then(Value::as_object_mut),
-            session
-                .get("gameData")
-                .and_then(|value| value.get("queue"))
-                .and_then(|value| value.get("queueId")),
+            session.get("gameData"),
         ) {
-            game.insert("queueId".to_string(), queue_id.clone());
+            if let Some(queue_id) = session_data
+                .get("queue")
+                .and_then(|value| value.get("queueId"))
+                .or_else(|| session_data.get("queueId"))
+            {
+                game.insert("queueId".to_string(), queue_id.clone());
+            }
+            if let Some(game_id) = session_data.get("gameId") {
+                game.insert("gameId".to_string(), game_id.clone());
+            }
         }
     }
     let engine = engine(&state).await;
@@ -505,6 +512,16 @@ async fn client_live(State(state): State<SharedState>) -> Json<Value> {
         .and_then(Value::as_bool)
         .unwrap_or(false);
     Json(json!({ "available": available, "state": mapped }))
+}
+
+async fn client_postgame(State(state): State<SharedState>) -> Json<Value> {
+    match state.lcu.client.postgame_summary().await {
+        Some(value) => Json(value),
+        None => Json(json!({
+            "available": false,
+            "message": "Todavia no hay una partida terminada en el historial local del cliente.",
+        })),
+    }
 }
 
 async fn client_search_status(State(state): State<SharedState>) -> Json<Value> {

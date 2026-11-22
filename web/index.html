@@ -86,6 +86,9 @@
         <button class="nav-item" data-tab="live" type="button" aria-label="En vivo">
           <svg class="icon"><use href="#i-live"/></svg><span>En vivo</span>
         </button>
+        <button class="nav-item" data-tab="summary" type="button" aria-label="Resumen post-partida">
+          <svg class="icon"><use href="#i-trophy"/></svg><span>Resumen</span>
+        </button>
         <button class="nav-item" data-tab="client" type="button" aria-label="Cliente local">
           <svg class="icon"><use href="#i-plug"/></svg><span>Cliente</span>
           <i class="client-dot" id="client-nav-dot" aria-hidden="true"></i>
@@ -135,13 +138,17 @@
 
         <div class="card controls">
           <div class="control">
+            <span class="label">Modo</span>
+            <div class="chips compact" id="draft-modes" role="group" aria-label="Modo de partida"></div>
+          </div>
+          <div class="control" id="draft-side-control">
             <span class="label">Tu lado</span>
             <div class="segmented" id="side-toggle" role="group" aria-label="Elige tu lado">
               <button type="button" data-side="blue" class="active">Azul</button>
               <button type="button" data-side="red">Rojo</button>
             </div>
           </div>
-          <div class="control grow">
+          <div class="control grow" id="draft-role-control">
             <span class="label">Tu rol</span>
             <div class="chips" id="role-chips" role="group" aria-label="Elige tu rol"></div>
           </div>
@@ -151,6 +158,8 @@
             <span class="verdict-note">Completa el draft</span>
           </div>
         </div>
+
+        <div class="mode-notice hidden" id="draft-mode-notice" role="status"></div>
 
         <div class="draft-grid">
           <div class="card team-card" id="ally-card">
@@ -169,16 +178,16 @@
             <div class="team-slots" id="enemy-slots"></div>
           </div>
 
-          <div class="card reco-card">
+          <div class="card reco-card" id="draft-reco-card">
             <header class="card-head">
-              <div><h2>Mejores picks</h2><p id="reco-subtitle">Calculando con el meta actual</p></div>
+              <div><h2 id="draft-reco-title">Mejores picks</h2><p id="reco-subtitle">Calculando con el meta actual</p></div>
               <span class="mode-badge" id="reco-mode">—</span>
             </header>
             <div class="reco-list" id="draft-reco" aria-live="polite"></div>
           </div>
         </div>
 
-        <div class="card ban-card">
+        <div class="card ban-card" id="draft-ban-card">
           <header class="card-head">
             <div><h2>Bans de la partida</h2><p>Hasta 10 campeones fuera del draft</p></div>
             <button class="btn tiny" id="add-ban" type="button"><svg class="icon"><use href="#i-plus"/></svg>Ban</button>
@@ -186,7 +195,7 @@
           <div class="ban-chips" id="ban-chips"></div>
         </div>
 
-        <div class="grid-2">
+        <div class="grid-2" id="draft-extra">
           <div class="card">
             <header class="card-head">
               <div><h2>Prioridad de ban</h2><p>Presencia y winrate en el meta reciente</p></div>
@@ -277,9 +286,44 @@
               <div class="mini-slots" id="live-enemies"></div>
             </div>
             <div class="field">
-              <span class="label">Aliados <small id="live-ally-count">1/5</small></span>
+              <span class="label"><span id="live-allies-label">Aliados</span> <small id="live-ally-count">1/5</small></span>
               <div class="mini-slots" id="live-allies"></div>
             </div>
+
+            <div class="field hidden" id="live-augments-field">
+              <span class="label">Augments elegidos <small id="live-augment-count">0/4</small></span>
+              <div class="manual-input-row">
+                <input id="live-augment-input" type="text" list="live-augment-list" placeholder="Nombre del augment" autocomplete="off" aria-label="Nombre del augment" />
+                <button class="btn tiny" id="live-augment-add" type="button">Añadir</button>
+              </div>
+              <datalist id="live-augment-list">
+                <option value="Blade Waltz"></option>
+                <option value="Dashing"></option>
+                <option value="Heavy Hitter"></option>
+                <option value="Goliath"></option>
+                <option value="Jeweled Gauntlet"></option>
+                <option value="Mystic Punch"></option>
+                <option value="Omniscient"></option>
+                <option value="Phenomenal Evil"></option>
+                <option value="Scoped Weapons"></option>
+                <option value="Soul Siphon"></option>
+                <option value="Tank It Or Leave It"></option>
+                <option value="Vulnerability"></option>
+              </datalist>
+              <div class="manual-chips" id="live-augment-chips"></div>
+            </div>
+
+            <div class="field hidden" id="live-anvils-field">
+              <span class="label">Anviles usados</span>
+              <div class="chips compact" id="live-anvils">
+                <button type="button" class="chip" data-anvil="stats">Stats +</button>
+                <button type="button" class="chip" data-anvil="legendary">Legendario +</button>
+                <button type="button" class="chip" data-anvil="prismatic">Prismático +</button>
+              </div>
+              <div class="manual-chips" id="live-anvil-chips"></div>
+            </div>
+
+            <p class="fineprint hidden" id="live-manual-note">La API local no expone augments ni anviles; lo que añadas aquí se guarda en el resumen de la partida.</p>
             <p class="client-source" id="live-source">Fuente manual · introduce los datos</p>
           </aside>
 
@@ -337,6 +381,21 @@
             <div id="live-notes" class="live-notes"></div>
           </section>
         </div>
+      </section>
+
+      <!-- ===================== RESUMEN ===================== -->
+      <section class="view hidden" id="view-summary" aria-labelledby="summary-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">Post-partida</p>
+            <h1 id="summary-title">Resumen de partidas</h1>
+            <p class="lead">Build real, objetos comprados, seguimiento de la recomendación y resultado. Se guarda en tu equipo.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost" id="summary-clear" type="button"><svg class="icon"><use href="#i-close"/></svg>Borrar historial</button>
+          </div>
+        </div>
+        <div id="summary-content"></div>
       </section>
 
       <!-- ===================== CLIENTE ===================== -->

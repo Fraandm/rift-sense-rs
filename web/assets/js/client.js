@@ -4,7 +4,8 @@ import { api } from "./api.js";
 import { meta, state, championByName, roleLabel, ROLE_SHORT } from "./state.js";
 import { $, avatarHTML, emptyState, esc, num, toast } from "./ui.js";
 import { applyClientDraft } from "./draft.js";
-import { applyClientState } from "./live.js";
+import { applyClientState, stopTracking } from "./live.js";
+import { activeSession, finalizeSession } from "./session.js";
 
 const PHASE_LABELS = {
   None: "Cliente abierto",
@@ -41,6 +42,7 @@ let timer = null;
 let busy = false;
 let lastDraftSig = null;
 let lastConnected = null;
+let wasInGame = false;
 let initialized = false;
 
 function phaseLabel(phase) {
@@ -185,8 +187,7 @@ function renderStatus() {
   setBadge("#client-live-badge", status?.liveClient ? "En partida" : "—", status?.liveClient ? "teal" : "");
 
   const useDraft = $("#client-use-draft");
-  const classicDraft = (draftData?.gameMode || "classic") === "classic";
-  if (useDraft) useDraft.disabled = !(status?.champSelect && draftData?.available && classicDraft);
+  if (useDraft) useDraft.disabled = !(status?.champSelect && draftData?.available);
   const useLive = $("#client-use-live");
   if (useLive) useLive.disabled = !(status?.liveClient && liveData?.available);
 
@@ -250,7 +251,7 @@ function renderDraft(message = "") {
   const allies = teamBlock(
     data.gameMode === "arena" ? "Tu trío" : "Tu equipo",
     data.side === "red" ? "Rojo" : "Azul",
-    data.allies,
+    data.gameMode === "arena" ? (data.allies || []).slice(0, 3) : data.allies,
     "",
     classic
   );
@@ -276,11 +277,11 @@ function renderDraft(message = "") {
     }</div>
     <p class="fineprint">${myChampion} · ${esc(timerText)} · ${esc(
       phaseLabel(data.phase)
-    )} · ${esc(data.modeLabel || "")}${classic ? " · Tu slot queda libre en Draft para comparar." : " · En este modo no hay draft de Grieta; usa En vivo para la build."}</p>`;
+    )} · ${esc(data.modeLabel || "")}${classic ? " · Tu slot queda libre en Draft para comparar." : " · Sin roles: la composición se importa tal cual."}</p>`;
 
   setBadge("#client-draft-badge", "En vivo", "teal");
   const button = $("#client-use-draft");
-  if (button) button.disabled = !classic;
+  if (button) button.disabled = false;
 }
 
 function itemChip(item) {
@@ -364,6 +365,7 @@ function updateLiveSource() {
 /* ------------------------------------------------------------------ */
 function draftSignature(draft) {
   return JSON.stringify({
+    mode: draft.gameMode,
     role: draft.role,
     side: draft.side,
     allies: draft.allies,
@@ -435,6 +437,49 @@ async function fetchLive() {
   }
 }
 
+async function finalizePostgame() {
+  try {
+    let postgame = await api
+      .get("/api/client/postgame")
+      .catch(() => ({ available: false }));
+    const expected = activeSession();
+    const actual =
+      postgame?.championId != null
+        ? meta.byKey.get(Number(postgame.championId))
+        : null;
+    const finishedAt = Date.parse(postgame?.finishedAt || "");
+    const startedAt = Date.parse(expected?.startedAt || "");
+    const stale =
+      Number.isFinite(finishedAt) &&
+      Number.isFinite(startedAt) &&
+      finishedAt < startedAt - 5 * 60 * 1000;
+    if (
+      postgame?.available &&
+      expected &&
+      ((actual && actual.name !== expected.champion) || stale)
+    ) {
+      postgame = {
+        ...postgame,
+        available: false,
+        message: "La última partida del historial todavía no coincide con la actual.",
+      };
+    }
+    const session = finalizeSession(postgame);
+    stopTracking();
+    if (session) {
+      toast(
+        postgame?.available
+          ? "Resumen post-partida guardado. Revísalo en Resumen."
+          : "Partida guardada sin resultado del cliente; puedes corregirlo en Resumen.",
+        postgame?.available ? "success" : "info",
+        6000
+      );
+    }
+  } catch {
+    finalizeSession(null);
+  }
+}
+
 async function poll() {
   if (busy) return;
   if (document.hidden) return;
@@ -466,6 +511,9 @@ async function poll() {
       renderLive();
       renderStatus();
     }
+    const nowInGame = Boolean(status.liveClient || status.inGame);
+    if (wasInGame && !nowInGame) await finalizePostgame();
+    wasInGame = nowInGame;
   } catch (err) {
     status = {
       ...(status || {}),

@@ -6,11 +6,12 @@ import { $, $$, clearToasts, num, toast } from "./ui.js";
 import * as draft from "./draft.js";
 import * as live from "./live.js";
 import * as client from "./client.js";
+import * as summary from "./summary.js";
 import * as model from "./model.js";
 import * as data from "./data.js";
 import * as settings from "./settings.js";
 
-const TABS = ["draft", "live", "client", "model", "data", "settings"];
+const TABS = ["draft", "live", "summary", "client", "model", "data", "settings"];
 const ONBOARDING_KEY = "riftsense.onboarding.v1";
 let booted = false;
 
@@ -74,6 +75,7 @@ function setTab(tab, updateHash = true) {
   if ((updateHash || requested !== tab) && location.hash !== `#${tab}`) {
     history.replaceState(null, "", `#${tab}`);
   }
+  if (tab === "summary") summary.refresh();
   if (tab === "model") model.load();
   if (tab === "data") data.load();
   if (tab === "settings") settings.refresh();
@@ -185,6 +187,7 @@ async function boot() {
     updateStatus(metaPayload, health);
     draft.init();
     live.init();
+    summary.init();
     data.initEvents();
     client.init();
     await settings.init();

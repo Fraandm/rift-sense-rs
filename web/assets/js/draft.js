@@ -22,8 +22,83 @@ let requestSeq = 0;
 let lastResponse = null;
 let bound = false;
 
+const DRAFT_MODES = [
+  { key: "classic", label: "Grieta" },
+  { key: "aram", label: "ARAM" },
+  { key: "mayhem", label: "Mayhem" },
+  { key: "arena", label: "Arena" },
+];
+
 function roleIdx(role) {
   return meta.roles.indexOf(role);
+}
+
+function modeLabel(mode = draft.mode) {
+  return DRAFT_MODES.find((entry) => entry.key === mode)?.label || "Grieta";
+}
+
+function modeNotice(mode = draft.mode) {
+  if (mode === "aram") {
+    return "ARAM detectado: no hay roles ni bans. Registra los 5 aliados y los 5 rivales; la build se recomienda en En vivo.";
+  }
+  if (mode === "mayhem") {
+    return "ARAM: Mayhem detectado: no hay roles ni bans. Los augments elegidos se corrigen en En vivo.";
+  }
+  if (mode === "arena") {
+    return "Arena detectada: no hay draft de roles. Corrige trío, augments y anviles en En vivo.";
+  }
+  return "";
+}
+
+function applyModeLayout() {
+  const classic = draft.mode === "classic";
+  $("#draft-side-control")?.classList.toggle("hidden", !classic);
+  $("#draft-role-control")?.classList.toggle("hidden", !classic);
+  $("#draft-ban-card")?.classList.toggle("hidden", !classic);
+  $("#draft-extra")?.classList.toggle("hidden", !classic);
+  $("#ally-side-badge")?.classList.toggle("hidden", !classic);
+  $("#enemy-side-badge")?.classList.toggle("hidden", !classic);
+
+  const notice = $("#draft-mode-notice");
+  if (notice) {
+    notice.classList.toggle("hidden", classic);
+    notice.textContent = classic ? "" : modeNotice();
+  }
+  const title = $("#draft-reco-title");
+  if (title) title.textContent = classic ? "Mejores picks" : "Composición";
+  const verdictLabel = $("#draft-verdict .verdict-label");
+  if (verdictLabel) verdictLabel.textContent = classic ? "Prob. estimada" : "Composición";
+  const allyTitle = $("#ally-card h2");
+  const allySub = $("#ally-card .card-head p");
+  const enemyTitle = $("#enemy-card h2");
+  const enemySub = $("#enemy-card .card-head p");
+  if (allyTitle) allyTitle.textContent = classic ? "Tu equipo" : draft.mode === "arena" ? "Tu trío" : "Tu equipo";
+  if (allySub) {
+    allySub.textContent = classic
+      ? "Marca tu rol y deja libre tu slot"
+      : draft.mode === "arena"
+        ? "Tú y tus compañeros de Arena"
+        : "Los cinco campeones aliados";
+  }
+  if (enemyTitle) enemyTitle.textContent = classic ? "Rival" : "Rivales";
+  if (enemySub) {
+    enemySub.textContent = classic
+      ? "Añade lo que ya viste en el draft"
+      : draft.mode === "arena"
+        ? "Los demás equipos de Arena"
+        : "Los cinco rivales";
+  }
+}
+
+function renderModes() {
+  const host = $("#draft-modes");
+  if (!host) return;
+  host.innerHTML = DRAFT_MODES.map(
+    (mode) =>
+      `<button type="button" class="chip ${draft.mode === mode.key ? "active" : ""}" data-draft-mode="${mode.key}" aria-pressed="${
+        draft.mode === mode.key
+      }">${mode.label}</button>`
+  ).join("");
 }
 
 function allPicks() {
@@ -68,21 +143,35 @@ function renderSide() {
 }
 
 function slotHTML(team, role, index) {
-  const mine = role === draft.role;
+  const classic = draft.mode === "classic";
+  const mine = classic ? role === draft.role : team === "allies" && index === 0;
   const name = draft[team][index];
   const champ = championByName(name);
-  const roleData = champ?.roles?.[role];
+  const roleData = classic ? champ?.roles?.[role] : null;
   const subtitle = champ
     ? `${champ.tags?.[0] || "Flex"}${roleData ? ` · ${pct(roleData.winrate, 0)} WR` : ""}`
     : mine
-    ? "Tu pick queda libre para comparar"
-    : "Hueco libre";
+      ? classic
+        ? "Tu pick queda libre para comparar"
+        : "Tu campeón en este modo"
+      : "Hueco libre";
+  const roleText = classic
+    ? `${ROLE_SHORT[role] || role}${mine ? "<small>TU ROL</small>" : ""}`
+    : `${team === "allies" ? "A" : "R"}${index + 1}${mine ? "<small>TU CAMPEÓN</small>" : ""}`;
+  const pickerRole = classic ? role : "ALL";
+  const title = classic
+    ? champ
+      ? `Cambiar ${champ.name} en ${roleLabel(role)}`
+      : `Elegir campeón para ${roleLabel(role)}`
+    : champ
+      ? `Cambiar ${champ.name}`
+      : `Elegir ${team === "allies" ? "aliado" : "rival"} ${index + 1}`;
   return `<div class="slot-row ${mine ? "mine" : ""}">
-    <div class="slot-role">${ROLE_SHORT[role] || role}${mine ? "<small>TU ROL</small>" : ""}</div>
+    <div class="slot-role">${roleText}</div>
     <div class="slot-wrap">
-      <button type="button" class="slot ${champ ? "filled" : "empty"} ${mine ? "mine" : ""}" data-team="${team}" data-role="${role}" aria-label="${
-        champ ? `Cambiar ${champ.name} en ${roleLabel(role)}` : `Elegir campeón para ${roleLabel(role)}`
-      }">
+      <button type="button" class="slot ${champ ? "filled" : "empty"} ${mine ? "mine" : ""}" data-team="${team}" data-index="${index}" data-role="${pickerRole}" aria-label="${esc(
+        title
+      )}">
         ${
           champ
             ? `${avatarHTML(champ)}<span class="slot-text"><strong>${esc(champ.name)}</strong><small>${esc(
@@ -108,7 +197,12 @@ function slotHTML(team, role, index) {
 function renderTeam(team, hostSelector) {
   const host = $(hostSelector);
   if (!host) return;
-  host.innerHTML = meta.roles.map((role, index) => slotHTML(team, role, index)).join("");
+  const roles = draft.mode === "classic" ? meta.roles : Array.from({ length: 5 }, (_, index) => String(index));
+  const limit = draft.mode === "arena" && team === "allies" ? 3 : roles.length;
+  host.innerHTML = roles
+    .slice(0, limit)
+    .map((role, index) => slotHTML(team, role, index))
+    .join("");
 }
 
 function renderBans() {
@@ -133,21 +227,33 @@ function renderBans() {
 }
 
 function renderAll() {
+  renderModes();
   renderRoles();
   renderSide();
   renderTeam("allies", "#ally-slots");
   renderTeam("enemies", "#enemy-slots");
   renderBans();
+  applyModeLayout();
 }
 
 function renderVerdict(data) {
   const value = $("#draft-verdict .verdict-value");
   const note = $("#draft-verdict .verdict-note");
+  const known = data
+    ? (data.knownAllies || []).filter(Boolean).length +
+      (data.knownEnemies || []).filter(Boolean).length
+    : allPicks().length;
+  if (draft.mode !== "classic") {
+    if (value) value.textContent = "—";
+    if (note) note.textContent = `${modeLabel()} · ${known}/10 campeones`;
+    return;
+  }
   const probability = data?.baselineWinProbability;
   if (value) value.textContent = probability == null ? "—" : pct(probability, 1);
-  const known = data ? (data.knownAllies || []).filter(Boolean).length + (data.knownEnemies || []).filter(Boolean).length : 0;
   if (note) {
-    note.textContent = data ? `${known}/10 picks · ${data.mode === "model" ? "modelo" : "datos pro"}` : "Completa el draft";
+    note.textContent = data
+      ? `${known}/10 picks · ${data.mode === "model" ? "modelo" : "datos pro"}`
+      : "Completa el draft";
   }
 }
 
@@ -175,6 +281,15 @@ function renderRecommendations(data) {
   const badge = $("#reco-mode");
   const subtitle = $("#reco-subtitle");
   if (!host) return;
+  if (draft.mode !== "classic") {
+    if (badge) {
+      badge.textContent = modeLabel();
+      badge.classList.add("priors");
+    }
+    if (subtitle) subtitle.textContent = "Sin picks ni roles en este modo";
+    host.innerHTML = emptyState("i-info", modeLabel(), modeNotice());
+    return;
+  }
   setModeBadge(badge, data?.mode);
 
   if (data?.myChampion) {
@@ -297,6 +412,15 @@ function payload() {
 
 async function refresh() {
   if (!state.meta) return;
+  if (draft.mode !== "classic") {
+    controller?.abort();
+    requestSeq += 1;
+    renderVerdict(null);
+    renderRecommendations(null);
+    renderBanPriority([]);
+    applyModeLayout();
+    return;
+  }
   const seq = ++requestSeq;
   controller?.abort();
   controller = new AbortController();
@@ -311,15 +435,26 @@ async function refresh() {
   }
 }
 
-async function chooseChampion(team, role) {
-  const index = roleIdx(role);
-  if (index < 0) return;
-  const current = draft[team][index];
+async function chooseChampion(team, role, index) {
+  const slotIndex = Number(index);
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= 5) return;
+  const current = draft[team][slotIndex];
   const exclude = [...allPicks().filter((name) => name !== current), ...draft.bans];
-  const title = team === "allies" ? `Tu equipo · ${roleLabel(role)}` : `Rival · ${roleLabel(role)}`;
-  const name = await openChampionPicker({ role, exclude, title, kicker: "Elegir campeón" });
+  const title =
+    draft.mode === "classic"
+      ? team === "allies"
+        ? `Tu equipo · ${roleLabel(role)}`
+        : `Rival · ${roleLabel(role)}`
+      : `${team === "allies" ? "Aliado" : "Rival"} ${slotIndex + 1}`;
+  const pickerRole = draft.mode === "classic" ? role : "ALL";
+  const name = await openChampionPicker({
+    role: pickerRole,
+    exclude,
+    title,
+    kicker: draft.mode === "classic" ? "Elegir campeón" : modeLabel(),
+  });
   if (!name) return;
-  draft[team][index] = name;
+  draft[team][slotIndex] = name;
   renderAll();
   refresh();
 }
@@ -361,18 +496,41 @@ function removeBan(index) {
   refresh();
 }
 
-function loadExample() {
-  const allies = ["K'Sante", "Lee Sin", null, "Jinx", "Rakan"];
-  const enemies = ["Gnar", "Vi", "Orianna", "Kai'Sa", "Nautilus"];
-  const bans = ["Yone", "Aurora", "Rell", "Ambessa", "Poppy"];
-  draft.role = "MID";
-  draft.side = "blue";
-  draft.allies = allies.map((n) => (n && championByName(n) ? n : null));
-  draft.enemies = enemies.map((n) => (n && championByName(n) ? n : null));
-  draft.bans = bans.filter((n) => championByName(n)).slice(0, 10);
+function setDraftMode(mode) {
+  if (!DRAFT_MODES.some((entry) => entry.key === mode) || mode === draft.mode) return;
+  draft.mode = mode;
+  if (mode !== "classic") draft.bans = [];
   renderAll();
   refresh();
-  toast("Draft de ejemplo cargado. Tu slot MID queda libre.", "success");
+  toast(`Modo: ${modeLabel(mode)}.`, "info");
+}
+
+function loadExample() {
+  const pad = (list) =>
+    Array.from({ length: 5 }, (_, index) => {
+      const name = list[index];
+      return name && championByName(name) ? name : null;
+    });
+  if (draft.mode === "classic") {
+    draft.role = "MID";
+    draft.side = "blue";
+    draft.allies = pad(["K'Sante", "Lee Sin", null, "Jinx", "Rakan"]);
+    draft.enemies = pad(["Gnar", "Vi", "Orianna", "Kai'Sa", "Nautilus"]);
+    draft.bans = ["Yone", "Aurora", "Rell", "Ambessa", "Poppy"]
+      .filter((name) => championByName(name))
+      .slice(0, 10);
+    toast("Draft de ejemplo cargado. Tu slot MID queda libre.", "success");
+  } else {
+    draft.allies =
+      draft.mode === "arena"
+        ? pad(["Ahri", "Rakan", "Gnar"])
+        : pad(["Ahri", "Garen", "Jinx", "Rakan", "Lee Sin"]);
+    draft.enemies = pad(["Gnar", "Vi", "Orianna", "Kai'Sa", "Nautilus"]);
+    draft.bans = [];
+    toast(`Composición de ejemplo cargada: ${modeLabel()}.`, "success");
+  }
+  renderAll();
+  refresh();
 }
 
 function clearDraft() {
@@ -391,6 +549,11 @@ export function init() {
   bound = true;
   renderAll();
   refresh();
+
+  $("#draft-modes")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-draft-mode]");
+    if (button) setDraftMode(button.dataset.draftMode);
+  });
 
   $("#role-chips")?.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-role]");
@@ -421,8 +584,8 @@ export function init() {
         refresh();
         return;
       }
-      const slot = event.target.closest("[data-team][data-role]");
-      if (slot) chooseChampion(slot.dataset.team, slot.dataset.role);
+      const slot = event.target.closest("[data-team]");
+      if (slot) chooseChampion(slot.dataset.team, slot.dataset.role, slot.dataset.index);
     });
   }
 
@@ -472,26 +635,36 @@ export function init() {
 export function applyClientDraft(mapped) {
   if (!mapped?.available) return false;
   const role = meta.roles.includes(mapped.role) ? mapped.role : draft.role;
+  const detected = DRAFT_MODES.some((entry) => entry.key === mapped.gameMode)
+    ? mapped.gameMode
+    : draft.mode;
+  const changed = detected !== draft.mode;
   const pad = (list) =>
     Array.from({ length: 5 }, (_, index) => {
       const name = Array.isArray(list) ? list[index] : null;
       return name && championByName(name) ? name : null;
     });
 
+  draft.mode = detected;
   draft.role = role;
   draft.side = mapped.side === "red" ? "red" : "blue";
   draft.allies = pad(mapped.allies);
   draft.enemies = pad(mapped.enemies);
-  draft.bans = Array.isArray(mapped.bans)
-    ? mapped.bans.filter((name) => championByName(name)).slice(0, 10)
-    : [];
+  draft.bans =
+    detected === "classic" && Array.isArray(mapped.bans)
+      ? mapped.bans.filter((name) => championByName(name)).slice(0, 10)
+      : [];
 
-  // El slot propio se deja libre para comparar alternativas, incluso si el
-  // jugador ya tiene un hover en el cliente.
-  const index = roleIdx(role);
-  if (index >= 0) draft.allies[index] = null;
+  // En Grieta el slot propio se deja libre para comparar alternativas. En el
+  // resto de modos el mapper ya coloca tu campeón en el primer hueco y no hay
+  // roles que encajar.
+  if (detected === "classic") {
+    const index = roleIdx(role);
+    if (index >= 0) draft.allies[index] = null;
+  }
 
   renderAll();
   refresh();
+  if (changed) toast(`Modo detectado: ${modeLabel(detected)}.`, "info");
   return true;
 }

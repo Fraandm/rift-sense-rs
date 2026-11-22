@@ -11,6 +11,7 @@ import {
   roleIndex,
   roleLabel,
 } from "./state.js";
+import { recordSession } from "./session.js";
 import {
   $,
   $$,
@@ -87,6 +88,12 @@ function ownIndex() {
 const ARENA_STARTER_IDS = new Set([2051, 3112, 3177, 3184]);
 const SUPPORT_ITEM_IDS = new Set([3865, 3866, 3867, 3869, 3870, 3871, 3876, 3877]);
 const SUPPORT_FINAL_IDS = new Set([3869, 3870, 3871, 3876, 3877]);
+const MAX_AUGMENTS = 4;
+const ANVIL_LABELS = {
+  stats: "Stats",
+  legendary: "Legendario",
+  prismatic: "Prismático",
+};
 const TIER3_BOOTS = new Map([
   [3006, 3172],
   [3008, 3168],
@@ -253,7 +260,10 @@ function setMode(mode) {
   if (champion && live.allies[oldIdx] === champion) live.allies[oldIdx] = null;
   live.mode = mode;
   live.modeLabel = modeLabel(mode);
+  live.gameId = null;
   live.roleQuestBoots = null;
+  live.augments = [];
+  live.anvils = [];
   itemsExpanded = false;
   lastAnnouncedPurchase = "";
   lastItemsSignature = "";
@@ -380,11 +390,90 @@ function buyItem(id, price = null, name = "") {
 /* ------------------------------------------------------------------ */
 function applyModeLayout() {
   const classic = live.mode === "classic";
+  const manual = live.mode === "arena" || live.mode === "mayhem";
   $("#live-role-field")?.classList.toggle("hidden", !classic);
   $("#live-side-field")?.classList.toggle("hidden", !classic);
   $("#live-minute-field")?.classList.toggle("hidden", live.mode === "arena");
+  $("#live-augments-field")?.classList.toggle("hidden", !manual);
+  $("#live-anvils-field")?.classList.toggle("hidden", live.mode !== "arena");
+  $("#live-manual-note")?.classList.toggle("hidden", !manual);
+  document.querySelector(".live-hero")?.classList.toggle("no-gauge", !classic);
+  const allyLabel = $("#live-allies-label");
+  if (allyLabel) allyLabel.textContent = live.mode === "arena" ? "Tu trío" : "Aliados";
   document.querySelector("#view-live")?.classList.toggle("mode-arena", live.mode === "arena");
   document.querySelector("#view-live")?.classList.toggle("mode-aram", live.mode !== "classic" && live.mode !== "arena");
+}
+
+function renderManual() {
+  const augmentCount = $("#live-augment-count");
+  if (augmentCount) augmentCount.textContent = `${live.augments.length}/${MAX_AUGMENTS}`;
+  const augmentHost = $("#live-augment-chips");
+  if (augmentHost) {
+    augmentHost.innerHTML = live.augments.length
+      ? live.augments
+          .map(
+            (name, index) =>
+              `<span class="manual-chip">${esc(name)}<button type="button" data-augment-remove="${index}" aria-label="Quitar ${esc(
+                name
+              )}"><svg class="icon" style="width:9px;height:9px"><use href="#i-close"/></svg></button></span>`
+          )
+          .join("")
+      : `<span class="manual-empty">Sin augments registrados.</span>`;
+  }
+  const anvilHost = $("#live-anvil-chips");
+  if (anvilHost) {
+    anvilHost.innerHTML = live.anvils.length
+      ? live.anvils
+          .map(
+            (type, index) =>
+              `<span class="manual-chip">${esc(ANVIL_LABELS[type] || type)}<button type="button" data-anvil-remove="${index}" aria-label="Quitar anvil ${esc(
+                ANVIL_LABELS[type] || type
+              )}"><svg class="icon" style="width:9px;height:9px"><use href="#i-close"/></svg></button></span>`
+          )
+          .join("")
+      : `<span class="manual-empty">Sin anviles registrados.</span>`;
+  }
+}
+
+function addAugment() {
+  const input = $("#live-augment-input");
+  const value = String(input?.value || "").trim();
+  if (!value) return;
+  if (live.augments.length >= MAX_AUGMENTS) {
+    toast(`Puedes registrar hasta ${MAX_AUGMENTS} augments.`, "error");
+    return;
+  }
+  if (live.augments.some((name) => name.toLowerCase() === value.toLowerCase())) {
+    toast("Ese augment ya está registrado.", "info");
+    return;
+  }
+  live.augments.push(value);
+  if (input) input.value = "";
+  renderManual();
+  if (lastData) renderNotes(lastData.build, lastData.draft);
+  refresh();
+}
+
+function removeAugment(index) {
+  live.augments.splice(index, 1);
+  renderManual();
+  if (lastData) renderNotes(lastData.build, lastData.draft);
+  refresh();
+}
+
+function addAnvil(type) {
+  if (!ANVIL_LABELS[type]) return;
+  live.anvils.push(type);
+  renderManual();
+  if (lastData) renderNotes(lastData.build, lastData.draft);
+  refresh();
+}
+
+function removeAnvil(index) {
+  live.anvils.splice(index, 1);
+  renderManual();
+  if (lastData) renderNotes(lastData.build, lastData.draft);
+  refresh();
 }
 
 function renderModes() {
@@ -437,7 +526,9 @@ function renderMiniSlots() {
   ]) {
     const host = $(selector);
     if (!host) continue;
+    const limit = live.mode === "arena" && team === "allies" ? 3 : 5;
     host.innerHTML = meta.roles
+      .slice(0, limit)
       .map((role, index) => {
         const name = live[team][index];
         const champ = championByName(name);
@@ -457,11 +548,12 @@ function renderMiniSlots() {
       })
       .join("");
   }
-  const allyCount = live.allies.filter(Boolean).length;
+  const allyLimit = live.mode === "arena" ? 3 : 5;
+  const allyCount = live.allies.slice(0, allyLimit).filter(Boolean).length;
   const enemyCount = live.enemies.filter(Boolean).length;
   const allyLabel = $("#live-ally-count");
   const enemyLabel = $("#live-enemy-count");
-  if (allyLabel) allyLabel.textContent = `${allyCount}/5`;
+  if (allyLabel) allyLabel.textContent = `${allyCount}/${allyLimit}`;
   if (enemyLabel) {
     const extra =
       live.mode === "arena" && live.arenaEnemies?.length > live.enemies.length
@@ -992,8 +1084,20 @@ function renderNotes(build, draft) {
     rows.push(`<div class="note-box"><strong>Bans del draft</strong>Se están usando los ${state.draft.bans.length} bans configurados en la pestaña Draft.</div>`);
   }
 
-  if (mode === "arena" && !live.arenaTeamKnown) {
-    rows.push(`<div class="note-box warn"><strong>Equipo de Arena</strong>La API local no identifica a tus compañeros de trío. Añádelos a mano si quieres afinar sinergias; el perfil rival usa a los demás jugadores.</div>`);
+  if (mode === "arena" || mode === "mayhem") {
+    const bits = [];
+    if (mode === "arena") {
+      const trio = live.allies.slice(0, 3).filter(Boolean);
+      bits.push(`Trío: ${trio.length ? trio.join(", ") : "sin completar"}`);
+    }
+    bits.push(`Augments: ${live.augments.length ? live.augments.join(", ") : "sin registrar"}`);
+    if (mode === "arena") {
+      const anvils = live.anvils.map((type) => ANVIL_LABELS[type] || type);
+      bits.push(`Anviles: ${anvils.length ? anvils.join(", ") : "sin registrar"}`);
+    }
+    rows.push(`<div class="note-box"><strong>Corrección manual</strong>${bits
+      .map((bit) => esc(bit))
+      .join("<br>")}<br><small style="color:var(--muted-2)">La API local no expone estos datos; se guardan en el resumen de la partida.</small></div>`);
   }
 
   const notes = build?.notes || [];
@@ -1060,6 +1164,22 @@ async function refresh(immediate = false) {
     const data = await api.post("/api/live", payload(), { signal: controller.signal });
     if (seq !== requestSeq) return;
     lastData = data;
+    if (live.tracking) {
+      recordSession({
+        champion: live.champion,
+        mode: live.mode,
+        role: live.role,
+        side: live.side,
+        minute: live.minute,
+        owned: live.owned,
+        build: data.build,
+        augments: live.augments,
+        anvils: live.anvils,
+        allies: live.allies,
+        kda: live.game,
+        gameId: live.gameId,
+      });
+    }
     renderVerdict(data.draft, data.build);
     renderItems(data.build);
     renderCoach(data.build);
@@ -1089,6 +1209,7 @@ function renderAll() {
   renderSide();
   renderChampionSelect();
   renderMiniSlots();
+  renderManual();
   renderInventory();
   applyModeLayout();
 }
@@ -1111,6 +1232,26 @@ export function init() {
   $("#live-roles")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-live-role]");
     if (button) changeRole(button.dataset.liveRole);
+  });
+
+  $("#live-augment-add")?.addEventListener("click", addAugment);
+  $("#live-augment-input")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addAugment();
+    }
+  });
+  $("#live-augment-chips")?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-augment-remove]");
+    if (remove) removeAugment(Number(remove.dataset.augmentRemove));
+  });
+  $("#live-anvils")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-anvil]");
+    if (button) addAnvil(button.dataset.anvil);
+  });
+  $("#live-anvil-chips")?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-anvil-remove]");
+    if (remove) removeAnvil(Number(remove.dataset.anvilRemove));
   });
 
   $("#live-side")?.addEventListener("click", (event) => {
@@ -1257,6 +1398,9 @@ export function init() {
       : ["Doran's Ring", "Sorcerer's Shoes"])
       .map((n) => itemByName(n)?.id)
       .filter((id) => id != null);
+    live.augments = arena ? ["Blade Waltz", "Goliath"] : live.mode === "mayhem" ? ["Dashing"] : [];
+    live.anvils = arena ? ["stats"] : [];
+    live.tracking = false;
     live.gold = arena ? 2500 : 1600;
     live.minute = arena ? 8 : 9;
     itemsExpanded = false;
@@ -1303,6 +1447,10 @@ export function init() {
     live.arenaTeamKnown = false;
     live.owned = [];
     live.roleQuestBoots = null;
+    live.augments = [];
+    live.anvils = [];
+    live.tracking = false;
+    live.gameId = null;
     itemsExpanded = false;
     lastAnnouncedPurchase = "";
     lastItemsSignature = "";
@@ -1344,6 +1492,10 @@ export function init() {
 /* ------------------------------------------------------------------ */
 /* Integracion con el cliente local                                    */
 /* ------------------------------------------------------------------ */
+export function stopTracking() {
+  live.tracking = false;
+}
+
 export async function applyClientState(mapped) {
   if (!mapped?.available) return false;
   const champion = championByName(mapped.champion);
@@ -1360,7 +1512,15 @@ export async function applyClientState(mapped) {
     normalizeMode(mapped.gameMode) ||
     normalizeMode(mapped.mapName) ||
     "classic";
+  const previousMode = live.mode;
   live.mode = mode;
+  live.tracking = true;
+  live.gameId = Number(mapped.gameId) || live.gameId || null;
+  if (previousMode !== mode) {
+    live.augments = [];
+    live.anvils = [];
+    live.gameId = Number(mapped.gameId) || null;
+  }
   live.modeLabel = mapped.modeLabel || modeLabel(mode);
   live.champion = champion.name;
   live.role = meta.roles.includes(mapped.role) ? mapped.role : live.role;

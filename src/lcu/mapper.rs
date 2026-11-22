@@ -265,6 +265,18 @@ fn timer_seconds(session: &Value) -> Option<f64> {
     Some((seconds * 10.0).round() / 10.0)
 }
 
+fn push_unique_champion(team: &mut Vec<Option<String>>, champion: Option<String>) {
+    let Some(champion) = champion else {
+        return;
+    };
+    if team.iter().flatten().any(|value| value == &champion) {
+        return;
+    }
+    if team.len() < 5 {
+        team.push(Some(champion));
+    }
+}
+
 fn place_champion(
     engine: &Engine,
     team: &mut [Option<String>],
@@ -336,19 +348,6 @@ pub fn map_champ_select(
         .unwrap_or(Value::Null);
     let my_champion = champion_from_id(engine, me.get("championId"))
         .or_else(|| champion_from_id(engine, me.get("championPickIntent")));
-    let mut role = me
-        .get("assignedPosition")
-        .and_then(Value::as_str)
-        .and_then(role_map)
-        .map(str::to_string);
-    if role.is_none() {
-        role = Some(infer_role(engine, my_champion.as_deref()));
-    }
-    let role = role.unwrap_or_else(|| "MID".to_string());
-    let mut allies = fill_team_by_id(engine, &my_team, "assignedPosition");
-    let enemies = fill_team_by_id(engine, &their_team, "assignedPosition");
-    place_champion(engine, &mut allies, my_champion.clone(), &role);
-
     let queue_id = gameflow
         .and_then(|value| value.get("gameData"))
         .and_then(|value| value.get("queue"))
@@ -361,18 +360,67 @@ pub fn map_champ_select(
                 .and_then(|value| value.get("queueId"))
                 .and_then(Value::as_i64)
         });
-    let mode = GameMode::resolve(
-        None,
-        gameflow
-            .and_then(|value| value.get("gameData"))
-            .and_then(|value| value.get("gameMode"))
-            .and_then(Value::as_str),
-        gameflow
-            .and_then(|value| value.get("gameData"))
-            .and_then(|value| value.get("map"))
-            .and_then(Value::as_str),
-        queue_id,
-    );
+    let game_mode = gameflow
+        .and_then(|value| value.get("gameData"))
+        .and_then(|value| value.get("gameMode"))
+        .and_then(Value::as_str)
+        .or_else(|| {
+            session
+                .get("gameData")
+                .and_then(|value| value.get("gameMode"))
+                .and_then(Value::as_str)
+        });
+    let map_name = gameflow
+        .and_then(|value| value.get("gameData"))
+        .and_then(|value| value.get("map"))
+        .and_then(Value::as_str)
+        .or_else(|| {
+            session
+                .get("gameData")
+                .and_then(|value| value.get("map"))
+                .and_then(Value::as_str)
+        });
+    let mode = GameMode::resolve(None, game_mode, map_name, queue_id);
+
+    let mut role = me
+        .get("assignedPosition")
+        .and_then(Value::as_str)
+        .and_then(role_map)
+        .map(str::to_string);
+    if role.is_none() {
+        role = Some(infer_role(engine, my_champion.as_deref()));
+    }
+    let role = role.unwrap_or_else(|| "MID".to_string());
+    // En ARAM/Mayhem/Arena no existen los roles de Grieta. Colocar el pick
+    // propio en el primer hueco evita que el frontend intente encajarlo en un
+    // rol inferido y muestra la composicion real.
+    let (mut allies, mut enemies) = if mode.is_classic() {
+        let mut allies = fill_team_by_id(engine, &my_team, "assignedPosition");
+        let enemies = fill_team_by_id(engine, &their_team, "assignedPosition");
+        place_champion(engine, &mut allies, my_champion.clone(), &role);
+        (allies, enemies)
+    } else {
+        let mut allies = Vec::new();
+        push_unique_champion(&mut allies, my_champion.clone());
+        for player in &my_team {
+            push_unique_champion(
+                &mut allies,
+                champion_from_id(engine, player.get("championId")),
+            );
+        }
+        let mut enemies = Vec::new();
+        for player in &their_team {
+            push_unique_champion(
+                &mut enemies,
+                champion_from_id(engine, player.get("championId")),
+            );
+        }
+        allies.resize(5, None);
+        enemies.resize(5, None);
+        (allies, enemies)
+    };
+    allies.truncate(5);
+    enemies.truncate(5);
 
     json!({
         "available": true,
@@ -690,6 +738,7 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         "team": team,
         "gameMode": game_data.get("gameMode"),
         "mapName": game_data.get("mapName"),
+        "gameId": game_data.get("gameId"),
         "queueId": queue_id,
         "mode": mode.key(),
         "modeLabel": mode.label(),
@@ -698,4 +747,22 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         "summoner": active_name,
         "updatedAt": Utc::now().to_rfc3339(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ordered_team_keeps_champion_first_without_duplicates() {
+        let mut team = Vec::new();
+        push_unique_champion(&mut team, Some("Ahri".to_string()));
+        push_unique_champion(&mut team, Some("Rakan".to_string()));
+        push_unique_champion(&mut team, Some("Ahri".to_string()));
+        push_unique_champion(&mut team, None);
+        assert_eq!(
+            team,
+            vec![Some("Ahri".to_string()), Some("Rakan".to_string())]
+        );
+    }
 }

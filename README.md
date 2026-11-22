@@ -11,7 +11,7 @@ ejecutarla.
 
 | Componente | Estado |
 | --- | --- |
-| API HTTP (`/api/health`, meta, draft, bans, build, live, dataset, model, reload, update, settings, diagnostics) | ✅ Rust, paridad base 0 diferencias con Python |
+| API HTTP (`/api/health`, meta, draft, bans, build, live, client, postgame, dataset, model, reload, update, settings, diagnostics) | ✅ Rust, paridad base 0 diferencias con Python |
 | Motor de draft y build | ✅ Rust; compra principal estable por BuildNet + winrate |
 | Modelos ML | ✅ ONNX + `tract-onnx` (sin Python en runtime) |
 | Cliente LCU (estado, lockfile, localizador) | ✅ Rust; estado verificado contra Python |
@@ -19,7 +19,7 @@ ejecutarla.
 | Modos de juego | ✅ ARAM, ARAM: Mayhem (KIWI) y Arena (CHERRY) con objetos y precios propios |
 | Lanzador de escritorio | ✅ Rust + `tao`/`wry`, instancia única, bandeja y arranque con Windows |
 | Seguridad y soporte | ✅ API local con Host/Origin/CSP, logs, diagnóstico y guía de inicio |
-| Interfaz web | SPA responsive, lista progresiva y barra de compra móvil |
+| Interfaz web | SPA responsive, draft por modo, barra de compra móvil y resumen post-partida |
 | Actualizador | ✅ GitHub Releases + instalador Inno Setup, checksum y firma opcional |
 | CI | ✅ GitHub Actions: fmt, clippy, tests, build y sintaxis JS |
 | Pipeline de datos, scrapers y entrenamiento | ⏳ Manual; la automatización completa sigue pendiente |
@@ -76,6 +76,20 @@ la quest y las botas desaparecen del inventario visible, RiftSense conserva
 las ultimas botas vistas; si la app arranca despues de completarla, la septima
 ranura queda etiquetada como botas y el motor no gasta una ranura normal en
 ellas.
+
+## Modos y resumen
+
+El **Draft** detecta el modo desde el LCU y se adapta: en Grieta mantiene roles,
+lado y bans; en ARAM, Mayhem y Arena muestra solo la composición (A1–A5 / R1–R5)
+y no intenta encajar campeones en roles. Arena usa **Tu trío** con 3 huecos.
+
+La pestaña **Resumen** guarda la build real, las compras, el seguimiento de la
+recomendación y el resultado. Al terminar la partida consulta el historial local
+del LCU; si la app no la siguió, importa la última partida disponible. El
+resultado se puede corregir a mano si el cliente no lo devuelve.
+
+En **Arena** puedes corregir el trío, los augments y los anviles; en **Mayhem**
+puedes registrar hasta cuatro augments. Esos datos se guardan con el resumen.
 
 ## ARAM, ARAM: Mayhem y Arena
 
@@ -205,7 +219,7 @@ RiftSense y se distribuyen para uso personal no comercial. Consulta
 - [`SECURITY.md`](SECURITY.md): cómo reportar vulnerabilidades y el modelo de
   seguridad de la API local.
 - [`docs/VALIDATION.md`](docs/VALIDATION.md): matriz de validación real y
-  criterios de salida para 1.0.
+  criterios de salida para 1.1.
 
 RiftSense no está afiliado a Riot Games. No lee memoria del juego, no inyecta
 código, no automatiza compras ni envía inputs.

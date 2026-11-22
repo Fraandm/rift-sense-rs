@@ -1,6 +1,6 @@
 # Release validation
 
-This checklist is the minimum for a public 1.0 build. Automated checks are in
+This checklist is the minimum for a public 1.1 build. Automated checks are in
 `.github/workflows/ci.yml`; installer checks are in
 `scripts/validate-installer.ps1`.
 
@@ -13,12 +13,14 @@ cargo test --lib
 cargo build --bins
 
 .\scripts\validate-installer.ps1 `
-  -Installer .\dist\RiftSense-Setup-1.0.2.exe `
-  -ExpectedSha256 "b538be2d859c3ea825b3a12ca24831181d89a052c89a60df080a84f804e49b65" `
-  -RequireSignature
+  -Installer .\dist\RiftSense-Setup-1.1.0.exe `
+  -ExpectedSha256 "3d4fb8986af4c19335de38425cb604065c0ade43124561ca9b570befa0e489f5" `
+  -AllowExistingInstall
 ```
 
-The installer validator checks SHA-256, Authenticode, silent install, version,
+The 1.1.0 build is unsigned because no Authenticode certificate is configured;
+add `-RequireSignature` once a signed build is available. The installer validator
+checks SHA-256, Authenticode, silent install, version,
 local health endpoint and uninstall. Run it in a clean VM or Windows Sandbox:
 the installer uses the same `AppId` as the real application, so validating on a
 machine with a real installation can remove its Start menu shortcut during the
@@ -32,6 +34,9 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Scenario | What to verify |
 | --- | --- |
 | Summoner's Rift, draft | Roles, bans, side, import from LCU, next build. |
+| ARAM/Mayhem/Arena draft | Mode detected from LCU; no roles/side/bans; composition A1–A5 / R1–R5; Arena trio. |
+| Post-game summary | Result, real build, purchases, recommendation follow-rate, KDA and manual result fallback. |
+| Arena/Mayhem manual | Trio, up to 4 augments, anvils for Arena; data persisted in the summary. |
 | Summoner's Rift, live | KDA/CS/levels/gold/items update every 3 s, next purchase and component. |
 | Bot role quest | 6 complete items + boots in the dedicated slot; 7 inventory holes; no extra boots recommended. |
 | Support item | World Atlas -> Runic Compass -> Bounty of Worlds -> final upgrade; support item occupies one normal slot. |
@@ -47,7 +52,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Game end | Live data stops, no stale recommendation, app remains usable. |
 | Fullscreen / borderless | App can be restored from tray and remains readable on a second monitor. |
 | Windows startup | Starts minimized, one instance, tray icon, settings persisted. |
-| Update | 1.0.1 -> 1.0.2, checksum, relaunch, settings preserved. |
+| Update | 1.0.2 -> 1.1.0, checksum, relaunch, settings preserved. |
 | Uninstall | Binaries removed, startup entry removed, user settings/log policy clear. |
 
 ## Acceptance criteria
