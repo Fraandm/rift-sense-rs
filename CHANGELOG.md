@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.0.2
+
+Mejora de interfaz, accesibilidad y experiencia en vivo.
+
+### Interfaz en vivo
+
+- La lista de compras muestra **4 alternativas** y un botón **Ver N alternativas**
+  para desplegar el resto, en lugar de una lista larga siempre abierta.
+- La tarjeta de lectura de partida ya no duplica la próxima compra; el CTA
+  principal queda en la lista de recomendaciones.
+- En móvil hay una **barra fija de próxima compra** con precio y botón de
+  compra, accesible sin bajar hasta el final de la página.
+- La lista solo se vuelve a pintar cuando cambia el contenido relevante, para
+  no perder el foco del teclado durante la actualización automática.
+
+### Accesibilidad y feedback
+
+- Las imágenes rotas se gestionan con un listener global y `data-fallback`;
+  se eliminan los `onerror` inline que bloqueaba la CSP.
+- Los avisos duran 3,6 s, se limita la pila a 2, no bloquean clics y se limpian
+  al cambiar de pestaña.
+- `aria-live` se limita a un resumen de la próxima compra, sin anunciar toda
+  la lista cada 3 segundos.
+- `Auto` expone `aria-pressed`; los slots de composición tienen nombre
+  accesible; el botón de quitar objeto de inventario es visible en táctil y
+  mide 26 px.
+- Se aclaran los textos secundarios (`--muted-2`) y se suben los tamaños
+  mínimos de metadatos y etiquetas.
+
+### Responsive y calidad
+
+- Sin scroll horizontal en 390, 768 y 1440 px; ajustes y tarjetas corregidos
+  para móvil.
+- Barra móvil por encima de la zona segura y avisos por encima de la barra.
+- `build.rs` vigila `web/` para que la SPA embebida se recompile al cambiar.
+- Validación con Playwright: 0 errores de consola/CSP, navegación y compra
+  móvil comprobadas.
+
+### Limitaciones conocidas
+
+- La API local de Riot no expone la ranura 8 de role quest.
+- El instalador de 1.0.2 se publica sin firma Authenticode si no se compila con
+  un certificado.
+- La validación en partidas reales de Grieta/ARAM/Mayhem/Arena sigue pendiente
+  de la matriz documentada en `docs/VALIDATION.md`.
+
 ## 1.0.1
 
 Parche de inventario por rol y reentrenamiento del modelo.

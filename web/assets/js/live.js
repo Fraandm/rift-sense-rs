@@ -32,6 +32,10 @@ let controller = null;
 let requestSeq = 0;
 let bound = false;
 let lastData = null;
+let itemsExpanded = false;
+let lastAnnouncedPurchase = "";
+let lastItemsSignature = "";
+let lastMobileBuySignature = "";
 
 const MODES = [
   { key: "classic", label: "Grieta" },
@@ -217,6 +221,10 @@ function setChampion(name) {
   live.allies = live.allies.map((n) => (n === name ? null : n));
   live.champion = name;
   live.allies[idx] = name;
+  itemsExpanded = false;
+  lastAnnouncedPurchase = "";
+  lastItemsSignature = "";
+  lastMobileBuySignature = "";
   renderAll();
   refresh(true);
 }
@@ -229,6 +237,10 @@ function changeRole(role) {
   if (oldChamp && live.allies[oldIdx] === oldChamp) live.allies[oldIdx] = null;
   live.role = role;
   live.roleQuestBoots = null;
+  itemsExpanded = false;
+  lastAnnouncedPurchase = "";
+  lastItemsSignature = "";
+  lastMobileBuySignature = "";
   if (oldChamp) live.allies[newIdx] = oldChamp;
   renderAll();
   refresh(true);
@@ -242,6 +254,10 @@ function setMode(mode) {
   live.mode = mode;
   live.modeLabel = modeLabel(mode);
   live.roleQuestBoots = null;
+  itemsExpanded = false;
+  lastAnnouncedPurchase = "";
+  lastItemsSignature = "";
+  lastMobileBuySignature = "";
   if (champion) live.allies[ownIndex()] = champion;
   applyModeLayout();
   renderAll();
@@ -434,7 +450,7 @@ function renderMiniSlots() {
           : classic
             ? `Elegir ${roleLabel(role)}`
             : `${team === "allies" ? "Aliado" : "Rival"} ${index + 1}`;
-        return `<button type="button" class="mini-slot ${champ ? "filled" : ""} ${mine ? "mine" : ""}" data-mini-team="${team}" data-index="${index}" title="${title}">
+        return `<button type="button" class="mini-slot ${champ ? "filled" : ""} ${mine ? "mine" : ""}" data-mini-team="${team}" data-index="${index}" title="${esc(title)}" aria-label="${esc(title)}">
           ${champ ? avatarHTML(champ) : `<svg class="icon"><use href="#i-plus"/></svg>`}
           <span class="mini-role">${slotLabel}</span>
         </button>`;
@@ -503,7 +519,7 @@ function componentsHTML(components = []) {
     .slice(0, 3)
     .map(
       (c) => `<span class="comp ${c.affordable ? "ok" : ""}" title="${esc(c.name)} · ${num(c.gold)} oro">
-        ${c.icon ? `<img src="${esc(iconUrl("item", c.icon))}" alt="" loading="lazy" onerror="this.remove()">` : ""}
+        ${c.icon ? `<img src="${esc(iconUrl("item", c.icon))}" alt="" loading="lazy" data-fallback="hide">` : ""}
         ${esc(c.name)}
       </span>`
     )
@@ -564,12 +580,17 @@ function renderItems(build) {
   const host = $("#live-items");
   const subtitle = $("#live-reco-subtitle");
   const badge = $("#live-mode");
+  const status = $("#live-reco-status");
   if (!host) return;
   setModeBadge(badge, build?.mode);
 
   if (!live.champion) {
     host.innerHTML = emptyState("i-brain", "Elige tu campeón", "RiftSense necesita el campeón para buscar builds con contexto.");
     if (subtitle) subtitle.textContent = "Recomendaciones contextualizadas";
+    if (status) status.textContent = "";
+    lastAnnouncedPurchase = "";
+    lastItemsSignature = "";
+    renderMobileBuy(null);
     return;
   }
   if (build?.mode === "complete") {
@@ -584,12 +605,20 @@ function renderItems(build) {
           : "Ya tienes 6 objetos. Reserva oro para el trinket y consumibles."
     );
     if (subtitle) subtitle.textContent = "Inventario lleno";
+    if (status) status.textContent = "";
+    lastAnnouncedPurchase = "";
+    lastItemsSignature = "";
+    renderMobileBuy(null);
     return;
   }
   const items = build?.items || [];
   if (!items.length) {
     host.innerHTML = emptyState("i-info", "Sin recomendaciones", "Añade rivales o revisa el inventario.");
     if (subtitle) subtitle.textContent = "Sin candidatos";
+    if (status) status.textContent = "";
+    lastAnnouncedPurchase = "";
+    lastItemsSignature = "";
+    renderMobileBuy(null);
     return;
   }
   if (subtitle) {
@@ -617,7 +646,86 @@ function renderItems(build) {
   for (const item of items) {
     if (item.id !== nextId) cards.push(renderItemCard(item, false));
   }
-  host.innerHTML = cards.join("");
+  const signature = JSON.stringify({
+    next: nextId,
+    gold: build?.gold,
+    slot: build?.slot,
+    cap: build?.slotCap,
+    mode: build?.mode,
+    source: build?.recommendationSource,
+    component: build?.nextComponent?.id || 0,
+    expanded: itemsExpanded,
+    owned: live.owned,
+    items: items.map((item) => [
+      item.id,
+      Math.round(item.score || 0),
+      Boolean(item.affordable),
+      Boolean(item.replacement),
+      item.replaces || 0,
+    ]),
+  });
+  if (signature === lastItemsSignature) {
+    renderMobileBuy(build);
+    return;
+  }
+  lastItemsSignature = signature;
+  const visible = itemsExpanded ? cards : cards.slice(0, 4);
+  const hidden = cards.length - visible.length;
+  const more =
+    cards.length > 4
+      ? `<button type="button" class="btn ghost tiny item-more" data-items-more aria-expanded="${itemsExpanded}">${
+          itemsExpanded ? "Ver menos" : `Ver ${hidden} alternativas`
+        }</button>`
+      : "";
+  host.innerHTML = visible.join("") + more;
+
+  const purchase = build?.nextPurchase;
+  if (status) {
+    const message = purchase
+      ? `Siguiente compra: ${purchase.name}, ${num(purchase.gold)} de oro.`
+      : "";
+    if (message && message !== lastAnnouncedPurchase) {
+      status.textContent = message;
+      lastAnnouncedPurchase = message;
+    } else if (!message) {
+      status.textContent = "";
+      lastAnnouncedPurchase = "";
+    }
+  }
+  renderMobileBuy(build);
+}
+
+function renderMobileBuy(build) {
+  const host = $("#live-mobile-buy");
+  if (!host) return;
+  const item = build?.nextPurchase;
+  const signature =
+    live.champion && item && build?.mode !== "complete"
+      ? `${item.id}|${item.gold}|${item.affordable}|${item.replacement}|${item.replaces}`
+      : "none";
+  if (signature === lastMobileBuySignature) return;
+  lastMobileBuySignature = signature;
+  if (signature === "none") {
+    host.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+  const label = item.replacement ? "Mejorar" : "Comprar";
+  host.innerHTML = `
+    <div class="live-mobile-buy-main">
+      ${avatarHTML(item, "", "item")}
+      <div class="live-mobile-buy-copy">
+        <small>Próxima compra</small>
+        <strong>${esc(item.name)}</strong>
+      </div>
+    </div>
+    <div class="live-mobile-buy-side">
+      <span>${num(item.gold)} oro</span>
+      <button type="button" class="btn tiny" data-buy="${item.id}" data-buy-gold="${item.gold}" data-buy-name="${esc(item.name)}" ${
+        item.affordable ? "" : "disabled"
+      }>${label}</button>
+    </div>`;
+  host.classList.remove("hidden");
 }
 
 function renderCoach(build) {
@@ -628,23 +736,6 @@ function renderCoach(build) {
     host.classList.add("hidden");
     host.innerHTML = "";
     return;
-  }
-
-  const next = build?.nextPurchase;
-  const component = build?.nextComponent;
-  const top = build?.items?.[0];
-  const nextName = next?.name || component?.name || "Ahorra oro";
-  let nextDetail;
-  if (next?.replacement) {
-    nextDetail = "Mejora gratuita de la role quest";
-  } else if (next) {
-    nextDetail = "Puedes comprarlo ahora";
-  } else if (component) {
-    nextDetail = `Componente de ${component.parent}`;
-  } else if (top?.missingGold) {
-    nextDetail = `Faltan ${num(top.missingGold)} para ${top.name}`;
-  } else {
-    nextDetail = "Guarda oro para el siguiente spike";
   }
 
   const notes = (analysis.notes || []).slice(0, 3).join(" · ");
@@ -670,11 +761,6 @@ function renderCoach(build) {
       <strong>${esc(analysis.label)}</strong>
       <div class="coach-metrics">${metrics.map((metric) => `<span>${esc(metric)}</span>`).join("")}</div>
       <p>${esc(notes)}${extras.length ? ` · ${esc(extras.join(" · "))}` : ""}</p>
-    </div>
-    <div class="coach-next">
-      <span class="eyebrow">Próxima compra</span>
-      <strong>${esc(nextName)}</strong>
-      <span>${esc(nextDetail)}</span>
     </div>`;
   host.classList.remove("hidden");
 }
@@ -1109,6 +1195,18 @@ export function init() {
   });
 
   $("#live-items")?.addEventListener("click", (event) => {
+    const more = event.target.closest("[data-items-more]");
+    if (more) {
+      itemsExpanded = !itemsExpanded;
+      renderItems(lastData?.build);
+      return;
+    }
+    const button = event.target.closest("[data-buy]");
+    if (!button || button.disabled) return;
+    buyItem(Number(button.dataset.buy), Number(button.dataset.buyGold), button.dataset.buyName || "");
+  });
+
+  $("#live-mobile-buy")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-buy]");
     if (!button || button.disabled) return;
     buyItem(Number(button.dataset.buy), Number(button.dataset.buyGold), button.dataset.buyName || "");
@@ -1161,6 +1259,10 @@ export function init() {
       .filter((id) => id != null);
     live.gold = arena ? 2500 : 1600;
     live.minute = arena ? 8 : 9;
+    itemsExpanded = false;
+    lastAnnouncedPurchase = "";
+    lastItemsSignature = "";
+    lastMobileBuySignature = "";
     live.game = {
       kills: 4,
       deaths: 2,
@@ -1201,6 +1303,10 @@ export function init() {
     live.arenaTeamKnown = false;
     live.owned = [];
     live.roleQuestBoots = null;
+    itemsExpanded = false;
+    lastAnnouncedPurchase = "";
+    lastItemsSignature = "";
+    lastMobileBuySignature = "";
     live.gold = 0;
     live.minute = 6;
     live.game = {

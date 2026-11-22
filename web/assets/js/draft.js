@@ -75,7 +75,7 @@ function slotHTML(team, role, index) {
   const subtitle = champ
     ? `${champ.tags?.[0] || "Flex"}${roleData ? ` · ${pct(roleData.winrate, 0)} WR` : ""}`
     : mine
-    ? "Tu pick · deja hueco para comparar"
+    ? "Tu pick queda libre para comparar"
     : "Hueco libre";
   return `<div class="slot-row ${mine ? "mine" : ""}">
     <div class="slot-role">${ROLE_SHORT[role] || role}${mine ? "<small>TU ROL</small>" : ""}</div>
@@ -89,7 +89,7 @@ function slotHTML(team, role, index) {
                 subtitle
               )}</small></span>`
             : `<span class="plus"><svg class="icon"><use href="#i-plus"/></svg></span>
-               <span class="slot-text"><strong>${mine ? "Tu pick" : "Añadir campeón"}</strong><small>${esc(
+               <span class="slot-text"><strong>${mine ? "Elegir campeón" : "Añadir campeón"}</strong><small>${esc(
                  subtitle
                )}</small></span>`
         }

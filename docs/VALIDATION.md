@@ -13,8 +13,8 @@ cargo test --lib
 cargo build --bins
 
 .\scripts\validate-installer.ps1 `
-  -Installer .\dist\RiftSense-Setup-1.0.1.exe `
-  -ExpectedSha256 "5d8c77b38843369f27510c8b190470bf19cc69eb94ced58ef85d1120383d5628" `
+  -Installer .\dist\RiftSense-Setup-1.0.2.exe `
+  -ExpectedSha256 "b538be2d859c3ea825b3a12ca24831181d89a052c89a60df080a84f804e49b65" `
   -RequireSignature
 ```
 
@@ -37,6 +37,8 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Support item | World Atlas -> Runic Compass -> Bounty of Worlds -> final upgrade; support item occupies one normal slot. |
 | Mid boots | Tier 2 boots offered as a free tier 3 replacement after the role quest; no extra slot consumed. |
 | Jungle / Doran | Jungle pets only for jungle; Doran not offered to support with a support item. |
+| Responsive UI | 390/768/1440 px without horizontal scroll; sticky mobile buy bar; inventory remove buttons visible on touch. |
+| UI feedback | No CSP/console errors, toasts auto-dismiss and clear on tab change, accessible names and focus visible. |
 | ARAM | Map 12/35/36, no illegal items, no-recall advice, CS as reference. |
 | ARAM: Mayhem (`KIWI`) | Mode label, exclusive items, item legality, augment limitation notice. |
 | Arena (`CHERRY`) | Whole-item prices, no components, CS/roles hidden, subteam fallback, anvil notes. |
@@ -45,7 +47,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Game end | Live data stops, no stale recommendation, app remains usable. |
 | Fullscreen / borderless | App can be restored from tray and remains readable on a second monitor. |
 | Windows startup | Starts minimized, one instance, tray icon, settings persisted. |
-| Update | 1.0.0 → 1.0.1, checksum, relaunch, settings preserved. |
+| Update | 1.0.1 -> 1.0.2, checksum, relaunch, settings preserved. |
 | Uninstall | Binaries removed, startup entry removed, user settings/log policy clear. |
 
 ## Acceptance criteria

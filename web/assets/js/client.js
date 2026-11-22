@@ -202,6 +202,10 @@ function renderStatus() {
   if (liveAuto) {
     liveAuto.textContent = `Auto: ${auto ? "on" : "off"}`;
     liveAuto.classList.toggle("auto", auto);
+    liveAuto.setAttribute("aria-pressed", auto ? "true" : "false");
+    liveAuto.title = auto
+      ? "Desactivar sincronizacion automatica"
+      : "Activar sincronizacion automatica";
   }
   const note = $("#client-auto-note");
   if (note) {
@@ -495,6 +499,10 @@ function syncAutoUi() {
   if (liveAuto) {
     liveAuto.textContent = `Auto: ${auto ? "on" : "off"}`;
     liveAuto.classList.toggle("auto", auto);
+    liveAuto.setAttribute("aria-pressed", auto ? "true" : "false");
+    liveAuto.title = auto
+      ? "Desactivar sincronizacion automatica"
+      : "Activar sincronizacion automatica";
   }
   const note = $("#client-auto-note");
   if (note) {

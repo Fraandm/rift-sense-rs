@@ -12,6 +12,19 @@ import {
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+// La CSP no permite `onerror` inline. Centralizamos el fallback de imagenes
+// rotas para no dejar iconos vacios ni errores en consola.
+document.addEventListener(
+  "error",
+  (event) => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.dataset.fallback === "hide") {
+      image.remove();
+    }
+  },
+  true
+);
+
 export function esc(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -52,18 +65,28 @@ export function avatarHTML(entity, size = "", kind = "champion") {
   const url = iconUrl(kind, file);
   const initial = esc(String(entity.name || "?").slice(0, 2).toUpperCase());
   return `<span class="avatar ${size}" data-initial="${initial}" aria-hidden="true">
-    ${url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ""}
+    ${url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" data-fallback="hide">` : ""}
   </span>`;
 }
 
-export function toast(message, type = "info", ms = 4200) {
+export function clearToasts() {
   const host = $("#toasts");
   if (!host) return;
+  host.replaceChildren();
+}
+
+export function toast(message, type = "info", ms = 3600) {
+  const host = $("#toasts");
+  if (!host) return;
+  const duplicate = [...host.children].some(
+    (child) => child.textContent === message && !child.classList.contains("out")
+  );
+  if (duplicate) return;
   const el = document.createElement("div");
   el.className = `toast ${type}`;
   el.textContent = message;
   host.append(el);
-  while (host.children.length > 4) host.firstElementChild.remove();
+  while (host.children.length > 2) host.firstElementChild.remove();
   setTimeout(() => {
     el.classList.add("out");
     setTimeout(() => el.remove(), 220);

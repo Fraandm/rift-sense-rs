@@ -2,7 +2,7 @@
 
 import { api } from "./api.js";
 import { hydrateMeta, meta, state } from "./state.js";
-import { $, $$, num, toast } from "./ui.js";
+import { $, $$, clearToasts, num, toast } from "./ui.js";
 import * as draft from "./draft.js";
 import * as live from "./live.js";
 import * as client from "./client.js";
@@ -62,6 +62,7 @@ function setTab(tab, updateHash = true) {
   const requested = TABS.includes(tab) ? tab : "draft";
   tab = settings.tabVisible(requested) ? requested : "settings";
   state.activeTab = tab;
+  clearToasts();
   for (const name of TABS) {
     $(`#view-${name}`)?.classList.toggle("hidden", name !== tab);
   }
@@ -77,7 +78,8 @@ function setTab(tab, updateHash = true) {
   if (tab === "data") data.load();
   if (tab === "settings") settings.refresh();
   client.setActive(tab === "client");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
 }
 
 function bindNav() {

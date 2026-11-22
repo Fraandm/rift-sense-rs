@@ -19,14 +19,14 @@ ejecutarla.
 | Modos de juego | ✅ ARAM, ARAM: Mayhem (KIWI) y Arena (CHERRY) con objetos y precios propios |
 | Lanzador de escritorio | ✅ Rust + `tao`/`wry`, instancia única, bandeja y arranque con Windows |
 | Seguridad y soporte | ✅ API local con Host/Origin/CSP, logs, diagnóstico y guía de inicio |
-| Interfaz web | ✅ SPA incluida en `web/` |
+| Interfaz web | SPA responsive, lista progresiva y barra de compra móvil |
 | Actualizador | ✅ GitHub Releases + instalador Inno Setup, checksum y firma opcional |
 | CI | ✅ GitHub Actions: fmt, clippy, tests, build y sintaxis JS |
 | Pipeline de datos, scrapers y entrenamiento | ⏳ Manual; la automatización completa sigue pendiente |
 
 La paridad comprobada cubre un draft de ejemplo y una build de ejemplo:
 12 recomendaciones, 10 objetos y análisis en vivo, con **0 diferencias**
-frente a la API Python en el contrato base. La 1.0.1 añade recomendaciones
+frente a la API Python en el contrato base. La serie 1.0 añade recomendaciones
 estables y funciones locales sin cambiar ese contrato.
 
 ## Datos actuales

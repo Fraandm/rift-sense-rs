@@ -5,6 +5,9 @@ use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    // La SPA se embebe con RustEmbed: sin esta linea, un cambio de CSS/JS no
+    // siempre recompila el binario y la release puede servir la UI anterior.
+    println!("cargo:rerun-if-changed=web");
     if !cfg!(windows) {
         return;
     }

@@ -320,9 +320,12 @@
               <div><h2>Siguiente compra</h2><p id="live-reco-subtitle">Recomendaciones contextualizadas</p></div>
               <span class="mode-badge" id="live-mode">—</span>
             </div>
-            <div class="item-list" id="live-items" aria-live="polite"></div>
+            <p class="sr-only" id="live-reco-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div class="item-list" id="live-items"></div>
           </section>
         </div>
+
+        <div class="live-mobile-buy hidden" id="live-mobile-buy"></div>
 
         <div class="grid-2 live-bottom">
           <section class="card">
