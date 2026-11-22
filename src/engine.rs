@@ -328,6 +328,33 @@ fn is_grievous_item(item: &Item) -> bool {
         .any(|candidate| key.contains(candidate))
 }
 
+fn is_grievous_for_champion(item: &Item, champion: &Champion) -> bool {
+    if !is_grievous_item(item) {
+        return false;
+    }
+    if champion.tags.iter().any(|tag| tag == "Tank") {
+        return true;
+    }
+    let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
+    let key = compact_name(&item.name);
+    match champion.damage.as_str() {
+        "AP" => {
+            tags.contains("AbilityPower")
+                || tags.contains("Mana")
+                || key.contains("morellonomicon")
+                || key.contains("oblivionorb")
+        }
+        "AD" => {
+            tags.contains("Damage")
+                || tags.contains("AttackSpeed")
+                || tags.contains("CriticalStrike")
+                || key.contains("chempunk")
+                || key.contains("mortalreminder")
+        }
+        _ => true,
+    }
+}
+
 fn is_defensive_item(item: &Item) -> bool {
     let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
     let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
@@ -1972,7 +1999,7 @@ impl Engine {
             {
                 candidates
                     .iter()
-                    .filter(|candidate| is_grievous_item(candidate.item))
+                    .filter(|candidate| is_grievous_for_champion(candidate.item, champ))
                     .collect::<Vec<_>>()
             } else if analysis.state == "behind" {
                 candidates
