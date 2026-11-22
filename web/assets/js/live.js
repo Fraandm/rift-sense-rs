@@ -33,18 +33,65 @@ let requestSeq = 0;
 let bound = false;
 let lastData = null;
 
+const MODES = [
+  { key: "classic", label: "Grieta" },
+  { key: "aram", label: "ARAM" },
+  { key: "mayhem", label: "Mayhem" },
+  { key: "arena", label: "Arena" },
+];
+
+const MODE_INFO = {
+  classic: {
+    title: "Draft favorable",
+    empty: "Elige un campeón y añade rivales para recibir recomendaciones de build con contexto.",
+    champion: "La estimación del draft usa los picks y el modelo de Grieta. Ajusta oro e inventario para la siguiente compra.",
+  },
+  aram: {
+    title: "ARAM",
+    empty: "Elige un campeón y añade rivales. RiftSense adapta la compra a ARAM: sin recall, oro pasivo y sustain.",
+    champion: "ARAM: sin recall, oro pasivo y compras al morir. La build prioriza sustain, teamfight y objetos legales en el mapa.",
+  },
+  mayhem: {
+    title: "ARAM: Mayhem",
+    empty: "Elige un campeón. RiftSense filtra objetos legales en Mayhem y añade los exclusivos del modo.",
+    champion: "ARAM: Mayhem: runas desactivadas y augments. Se filtran objetos no disponibles y se añaden los exclusivos del modo.",
+  },
+  arena: {
+    title: "Arena",
+    empty: "Elige un campeón y tus rivales. En Arena se recomiendan objetos completos y se ignoran CS y roles.",
+    champion: "Arena: compra objetos completos entre rondas. Sin CS ni roles; los anvils y augments se eligen en la tienda.",
+  },
+};
+
+function normalizeMode(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (text === "kiwi" || text === "mayhem") return "mayhem";
+  if (text === "cherry" || text === "arena") return "arena";
+  if (text === "aram" || text === "map12" || text === "map35" || text === "map36") return "aram";
+  if (text === "classic" || text === "map11" || text === "sr") return "classic";
+  return null;
+}
+
+function modeLabel(mode = live.mode) {
+  return MODES.find((entry) => entry.key === mode)?.label || "Grieta";
+}
+
+function ownIndex() {
+  return live.mode === "classic" ? roleIndex(live.role) : 0;
+}
+
 /* ------------------------------------------------------------------ */
 /* Estado                                                              */
 /* ------------------------------------------------------------------ */
 function syncChampionSlot() {
-  const idx = roleIndex(live.role);
+  const idx = ownIndex();
   live.allies = live.allies.map((name) => (name === live.champion ? null : name));
   if (live.champion) live.allies[idx] = live.champion;
 }
 
 function setChampion(name) {
   if (!name) return;
-  const idx = roleIndex(live.role);
+  const idx = ownIndex();
   live.allies = live.allies.map((n) => (n === name ? null : n));
   live.champion = name;
   live.allies[idx] = name;
@@ -53,13 +100,26 @@ function setChampion(name) {
 }
 
 function changeRole(role) {
-  if (role === live.role) return;
+  if (live.mode !== "classic" || role === live.role) return;
   const oldIdx = roleIndex(live.role);
   const newIdx = roleIndex(role);
   const oldChamp = live.champion;
   if (oldChamp && live.allies[oldIdx] === oldChamp) live.allies[oldIdx] = null;
   live.role = role;
   if (oldChamp) live.allies[newIdx] = oldChamp;
+  renderAll();
+  refresh(true);
+}
+
+function setMode(mode) {
+  if (!MODES.some((entry) => entry.key === mode) || mode === live.mode) return;
+  const oldIdx = ownIndex();
+  const champion = live.champion;
+  if (champion && live.allies[oldIdx] === champion) live.allies[oldIdx] = null;
+  live.mode = mode;
+  live.modeLabel = modeLabel(mode);
+  if (champion) live.allies[ownIndex()] = champion;
+  applyModeLayout();
   renderAll();
   refresh(true);
 }
@@ -86,18 +146,23 @@ function removeItem(index) {
   refresh(true);
 }
 
-function buyItem(id) {
-  const item = itemById(id);
+function buyItem(id, price = null, name = "") {
+  let item = itemById(id);
+  if (!item && name) {
+    item = { id, name, icon: `${id}.png`, gold: Number(price) || 0, tags: [] };
+    meta.itemsById.set(id, item);
+  }
   if (!item) return;
+  const cost = Number(price ?? item.gold) || 0;
   if (live.owned.length >= 6) {
     toast("Inventario completo.", "error");
     return;
   }
-  if (live.gold < item.gold) {
-    toast(`Te faltan ${num(item.gold - live.gold)} de oro para ${item.name}.`, "error");
+  if (live.gold < cost) {
+    toast(`Te faltan ${num(cost - live.gold)} de oro para ${item.name}.`, "error");
     return;
   }
-  live.gold = Math.max(0, live.gold - item.gold);
+  live.gold = Math.max(0, live.gold - cost);
   live.owned.push(Number(id));
   const input = $("#live-gold");
   if (input) input.value = String(live.gold);
@@ -108,6 +173,24 @@ function buyItem(id) {
 /* ------------------------------------------------------------------ */
 /* Render                                                              */
 /* ------------------------------------------------------------------ */
+function applyModeLayout() {
+  const classic = live.mode === "classic";
+  $("#live-role-field")?.classList.toggle("hidden", !classic);
+  $("#live-side-field")?.classList.toggle("hidden", !classic);
+  $("#live-minute-field")?.classList.toggle("hidden", live.mode === "arena");
+  document.querySelector("#view-live")?.classList.toggle("mode-arena", live.mode === "arena");
+  document.querySelector("#view-live")?.classList.toggle("mode-aram", live.mode !== "classic" && live.mode !== "arena");
+}
+
+function renderModes() {
+  const host = $("#live-modes");
+  if (!host) return;
+  host.innerHTML = MODES.map(
+    (mode) =>
+      `<button type="button" class="chip ${live.mode === mode.key ? "active" : ""}" data-live-mode="${mode.key}">${mode.label}</button>`
+  ).join("");
+}
+
 function renderRoles() {
   const host = $("#live-roles");
   if (!host) return;
@@ -135,11 +218,14 @@ function renderChampionSelect() {
   if (name) name.textContent = champ ? champ.name : "Elegir campeón";
   const kicker = $("#live-champ-role");
   if (kicker) {
-    kicker.textContent = champ ? `${champ.name} · ${roleLabel(live.role)}` : "Sin campeón";
+    kicker.textContent = champ
+      ? `${champ.name} · ${live.mode === "classic" ? roleLabel(live.role) : modeLabel()}`
+      : `Sin campeón · ${modeLabel()}`;
   }
 }
 
 function renderMiniSlots() {
+  const classic = live.mode === "classic";
   for (const [team, selector] of [
     ["allies", "#live-allies"],
     ["enemies", "#live-enemies"],
@@ -150,12 +236,18 @@ function renderMiniSlots() {
       .map((role, index) => {
         const name = live[team][index];
         const champ = championByName(name);
-        const mine = team === "allies" && index === roleIndex(live.role);
-        return `<button type="button" class="mini-slot ${champ ? "filled" : ""} ${mine ? "mine" : ""}" data-mini-team="${team}" data-index="${index}" title="${
-          champ ? `Cambiar ${champ.name}` : `Elegir ${roleLabel(role)}`
-        }">
+        const mine = team === "allies" && index === ownIndex();
+        const slotLabel = classic
+          ? roleLabel(role).slice(0, 3).toUpperCase()
+          : `${team === "allies" ? "A" : "R"}${index + 1}`;
+        const title = champ
+          ? `Cambiar ${champ.name}`
+          : classic
+            ? `Elegir ${roleLabel(role)}`
+            : `${team === "allies" ? "Aliado" : "Rival"} ${index + 1}`;
+        return `<button type="button" class="mini-slot ${champ ? "filled" : ""} ${mine ? "mine" : ""}" data-mini-team="${team}" data-index="${index}" title="${title}">
           ${champ ? avatarHTML(champ) : `<svg class="icon"><use href="#i-plus"/></svg>`}
-          <span class="mini-role">${roleLabel(role).slice(0, 3).toUpperCase()}</span>
+          <span class="mini-role">${slotLabel}</span>
         </button>`;
       })
       .join("");
@@ -165,7 +257,13 @@ function renderMiniSlots() {
   const allyLabel = $("#live-ally-count");
   const enemyLabel = $("#live-enemy-count");
   if (allyLabel) allyLabel.textContent = `${allyCount}/5`;
-  if (enemyLabel) enemyLabel.textContent = `${enemyCount}/5`;
+  if (enemyLabel) {
+    const extra =
+      live.mode === "arena" && live.arenaEnemies?.length > live.enemies.length
+        ? ` (+${live.arenaEnemies.length - live.enemies.length})`
+        : "";
+    enemyLabel.textContent = `${enemyCount}/5${extra}`;
+  }
 }
 
 function renderInventory() {
@@ -240,7 +338,7 @@ function renderItemCard(item, isNext = false) {
       <div class="score-bar"><i style="width:${Math.max(3, Math.min(100, item.score))}%"></i></div>
     </div>
     <div class="item-action">
-      <button type="button" class="btn tiny" data-buy="${item.id}" ${disabled ? "disabled" : ""}>${label}</button>
+      <button type="button" class="btn tiny" data-buy="${item.id}" data-buy-gold="${item.gold}" data-buy-name="${esc(item.name)}" ${disabled ? "disabled" : ""}>${label}</button>
       <small>${actionNote}</small>
     </div>
   </article>`;
@@ -259,7 +357,13 @@ function renderItems(build) {
     return;
   }
   if (build?.mode === "complete") {
-    host.innerHTML = emptyState("i-trophy", "Build completa", "Ya tienes 6 objetos. Reserva oro para el trinket y consumibles.");
+    host.innerHTML = emptyState(
+      "i-trophy",
+      "Build completa",
+      live.mode === "arena"
+        ? "Ya tienes 6 objetos de Arena."
+        : "Ya tienes 6 objetos. Reserva oro para el trinket y consumibles."
+    );
     if (subtitle) subtitle.textContent = "Inventario lleno";
     return;
   }
@@ -273,7 +377,8 @@ function renderItems(build) {
     const component = build?.nextComponent
       ? ` · componente: ${build.nextComponent.name}`
       : "";
-    subtitle.textContent = `Slot ${build.slot} de 6 · ${items.length} candidatos · ${
+    const modeText = build?.modeLabel ? `${build.modeLabel} · ` : "";
+    subtitle.textContent = `${modeText}Slot ${build.slot} de 6 · ${items.length} candidatos · ${
       build.mode === "model" ? "modelo + datos" : "datos pro"
     }${component}`;
   }
@@ -316,19 +421,24 @@ function renderCoach(build) {
   const extras = [];
   if (analysis.enemyFed?.length) extras.push(`Fuertes: ${analysis.enemyFed.join(", ")}`);
   if (analysis.healingThreat?.length) extras.push(`Curación: ${analysis.healingThreat.join(", ")}`);
+  const metrics = [
+    `KDA ${analysis.kills}/${analysis.deaths}/${analysis.assists}`,
+    analysis.showCs !== false ? `${num(analysis.cs)} CS · ${analysis.csPerMin}/min` : "",
+    `Nivel ${analysis.level}`,
+    analysis.showTeamStats !== false
+      ? `Equipos ${analysis.teamKills}-${analysis.enemyKills}`
+      : "",
+    analysis.showTeamStats !== false
+      ? `Niveles ${analysis.teamLevel}-${analysis.enemyLevel}`
+      : "",
+  ].filter(Boolean);
 
   host.className = `live-coach ${analysis.state || ""}`;
   host.innerHTML = `
     <div class="coach-copy">
-      <span class="eyebrow">Lectura de partida</span>
+      <span class="eyebrow">${esc(analysis.modeLabel || "Lectura de partida")}</span>
       <strong>${esc(analysis.label)}</strong>
-      <div class="coach-metrics">
-        <span>KDA ${analysis.kills}/${analysis.deaths}/${analysis.assists}</span>
-        <span>${num(analysis.cs)} CS · ${analysis.csPerMin}/min</span>
-        <span>Nivel ${analysis.level}</span>
-        <span>Equipos ${analysis.teamKills}-${analysis.enemyKills}</span>
-        <span>Niveles ${analysis.teamLevel}-${analysis.enemyLevel}</span>
-      </div>
+      <div class="coach-metrics">${metrics.map((metric) => `<span>${esc(metric)}</span>`).join("")}</div>
       <p>${esc(notes)}${extras.length ? ` · ${esc(extras.join(" · "))}` : ""}</p>
     </div>
     <div class="coach-next">
@@ -345,16 +455,54 @@ function renderVerdict(draft, build) {
   const text = $("#live-verdict-text");
   const pills = $("#live-pills");
   const probability = draft?.winProbability ?? null;
-
-  renderGauge($("#live-gauge"), probability);
+  const mode = build?.gameMode || live.mode || "classic";
+  const classic = mode === "classic";
+  const info = MODE_INFO[mode] || MODE_INFO.classic;
+  $("#live-gauge")?.classList.toggle("hidden", !classic);
 
   if (!champ) {
-    if (title) title.textContent = "Configura tu partida";
-    if (text) text.textContent = "Elige un campeón y añade rivales para recibir recomendaciones de build con contexto.";
-    if (pills) pills.innerHTML = "";
+    if (title) title.textContent = classic ? "Configura tu partida" : `${modeLabel(mode)} · configura tu partida`;
+    if (text) text.textContent = info.empty;
+    if (pills) {
+      pills.innerHTML = classic
+        ? ""
+        : MODES.map(
+            (entry) =>
+              `<span class="pill ${entry.key === mode ? "gold" : ""}">${entry.label}</span>`
+          ).join("");
+    }
     return;
   }
 
+  if (!classic) {
+    if (title) title.textContent = `${build?.modeLabel || modeLabel(mode)} · ${champ.name}`;
+    if (text) text.textContent = info.champion;
+    if (pills) {
+      const profile = build?.enemyProfile;
+      const analysis = build?.gameAnalysis;
+      pills.innerHTML = [
+        `<span class="pill gold">${esc(build?.modeLabel || modeLabel(mode))}</span>`,
+        `<span class="pill">${live.owned.length}/6 objetos</span>`,
+        analysis
+          ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
+              analysis.label
+            )}</span>`
+          : "",
+        analysis ? `<span class="pill">KDA ${analysis.kills}/${analysis.deaths}/${analysis.assists}</span>` : "",
+        analysis?.showCs !== false && analysis
+          ? `<span class="pill">${num(analysis.cs)} CS</span>`
+          : "",
+        profile
+          ? `<span class="pill">${profile.label === "Mixta" ? "Daño mixto" : `Rival ${profile.label}`}</span>`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("");
+    }
+    return;
+  }
+
+  renderGauge($("#live-gauge"), probability);
   const p = probability ?? 0.5;
   if (title) {
     title.textContent = p >= 0.54 ? "Draft favorable" : p >= 0.47 ? "Draft parejo" : "Draft cuesta arriba";
@@ -426,7 +574,11 @@ function renderPlan(build) {
       </div>`
       )
       .join("") +
-    `</div><div class="plan-cost">Coste del plan: <b>${num(total)}</b> oro (sin contar lo ya comprado)</div>`;
+    `</div><div class="plan-cost">Coste del plan: <b>${num(total)}</b> oro ${
+      live.mode === "arena"
+        ? "(objetos completos con precios de Arena)"
+        : "(sin contar lo ya comprado)"
+    }</div>`;
 }
 
 function renderNotes(build, draft) {
@@ -438,11 +590,18 @@ function renderNotes(build, draft) {
     return;
   }
   const rows = [];
+  const mode = build?.gameMode || live.mode || "classic";
+  const classic = mode === "classic";
   const nearby = build?.powerSpike?.nearby || {};
   const entries = Object.entries(nearby)
     .map(([slot, value]) => [Number(slot), value])
     .sort((a, b) => a[0] - b[0]);
-  if (entries.length) {
+  if (build?.modeNotes?.length) {
+    rows.push(`<div class="note-box mode-note"><strong>${esc(build.modeLabel || modeLabel(mode))}</strong>${build.modeNotes
+      .map((note) => esc(note))
+      .join("<br>")}</div>`);
+  }
+  if (classic && entries.length) {
     rows.push(`<div class="note-box"><strong>Winrate por número de objetos</strong>
       <table class="spike-table"><thead><tr><th>Objetos</th><th>Partidas</th><th>WR pro</th></tr></thead><tbody>
       ${entries
@@ -460,15 +619,17 @@ function renderNotes(build, draft) {
 
   const profile = build?.enemyProfile;
   if (profile) {
-    rows.push(`<div class="note-box"><strong>Perfil del rival</strong>${
-      profile.known < 5 ? "Faltan campeones enemigos, el cálculo es aproximado. " : ""
-    }La composición rival es ${profile.label === "Mixta" ? "de daño mixto" : `principalmente ${profile.label}`} (${pct(
-      profile.physical,
-      0
-    )} físico / ${pct(profile.magic, 0)} mágico).</div>`);
+    const missing =
+      classic && profile.known < 5
+        ? "Faltan campeones enemigos, el cálculo es aproximado. "
+        : "";
+    const knownText = classic ? "" : `Se usan ${profile.known || 0} rivales conocidos. `;
+    rows.push(`<div class="note-box"><strong>Perfil del rival</strong>${missing}${knownText}La composición rival es ${
+      profile.label === "Mixta" ? "de daño mixto" : `principalmente ${profile.label}`
+    } (${pct(profile.physical, 0)} físico / ${pct(profile.magic, 0)} mágico).</div>`);
   }
 
-  if (draft) {
+  if (classic && draft) {
     rows.push(`<div class="note-box ${draft.complete ? "good" : "warn"}"><strong>Draft ${
       draft.complete ? "completo" : "incompleto"
     }</strong>${pct(draft.winProbability, 1)} de victoria estimada. ${
@@ -476,8 +637,12 @@ function renderNotes(build, draft) {
     }</div>`);
   }
 
-  if (state.draft.bans.length) {
+  if (classic && state.draft.bans.length) {
     rows.push(`<div class="note-box"><strong>Bans del draft</strong>Se están usando los ${state.draft.bans.length} bans configurados en la pestaña Draft.</div>`);
+  }
+
+  if (mode === "arena" && !live.arenaTeamKnown) {
+    rows.push(`<div class="note-box warn"><strong>Equipo de Arena</strong>La API local no identifica a tus compañeros de trío. Añádelos a mano si quieres afinar sinergias; el perfil rival usa a los demás jugadores.</div>`);
   }
 
   const notes = build?.notes || [];
@@ -485,7 +650,13 @@ function renderNotes(build, draft) {
     rows.push(`<div class="note-box"><strong>Notas del motor</strong>${notes.map((n) => esc(n)).join("<br>")}</div>`);
   }
 
-  rows.push(`<div class="note-box"><strong>Alcance</strong>Con Auto activo, RiftSense lee el estado de la partida cada 3 segundos (KDA, CS, niveles, equipo, oro e inventario) y adapta la siguiente compra. Sin partida en curso puedes introducir los datos manualmente. Nada de esto envía compras al juego.</div>`);
+  const scope =
+    mode === "arena"
+      ? "Arena: se leen KDA, nivel, oro e inventario cada 3 segundos. No se usan CS ni equipos porque la API local no expone la estructura de tríos."
+      : mode === "classic"
+        ? "Con Auto activo, RiftSense lee el estado de la partida cada 3 segundos (KDA, CS, niveles, equipo, oro e inventario) y adapta la siguiente compra. Sin partida en curso puedes introducir los datos manualmente. Nada de esto envía compras al juego."
+        : `${modeLabel(mode)}: se leen KDA, CS, niveles, equipo, oro e inventario cada 3 segundos y se adapta la siguiente compra. La API local no expone los augments elegidos. Nada de esto envía compras al juego.`;
+  rows.push(`<div class="note-box"><strong>Alcance</strong>${scope}</div>`);
   host.innerHTML = rows.join("");
 }
 
@@ -493,12 +664,17 @@ function renderNotes(build, draft) {
 /* Request                                                             */
 /* ------------------------------------------------------------------ */
 function payload() {
+  const enemies =
+    live.mode === "arena"
+      ? [...new Set([...live.enemies, ...(live.arenaEnemies || [])].filter(Boolean))]
+      : live.enemies;
   return {
     champion: live.champion,
+    mode: live.mode,
     role: live.role,
     side: live.side,
     allies: live.allies,
-    enemies: live.enemies,
+    enemies,
     owned: live.owned,
     gold: Number(live.gold) || 0,
     minute: Number(live.minute) || 0,
@@ -556,11 +732,13 @@ const debouncedRefresh = (() => {
 /* Eventos                                                             */
 /* ------------------------------------------------------------------ */
 function renderAll() {
+  renderModes();
   renderRoles();
   renderSide();
   renderChampionSelect();
   renderMiniSlots();
   renderInventory();
+  applyModeLayout();
 }
 
 export function init() {
@@ -572,6 +750,11 @@ export function init() {
   renderCoach(null);
   renderPlan(null);
   renderNotes(null, null);
+
+  $("#live-modes")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-live-mode]");
+    if (button) setMode(button.dataset.liveMode);
+  });
 
   $("#live-roles")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-live-role]");
@@ -593,7 +776,7 @@ export function init() {
       ...live.enemies.filter(Boolean),
     ];
     const name = await openChampionPicker({
-      role: live.role,
+      role: live.mode === "classic" ? live.role : "ALL",
       exclude,
       title: "Tu campeón",
       kicker: "Estado de la partida",
@@ -607,11 +790,12 @@ export function init() {
       if (!slot) return;
       const team = slot.dataset.miniTeam;
       const index = Number(slot.dataset.index);
-      const role = meta.roles[index];
+      const classic = live.mode === "classic";
+      const role = classic ? meta.roles[index] : null;
       const current = live[team][index];
-      if (team === "allies" && index === roleIndex(live.role)) {
+      if (team === "allies" && index === ownIndex()) {
         const name = await openChampionPicker({
-          role: live.role,
+          role: live.mode === "classic" ? live.role : "ALL",
           exclude: [...live.allies.filter((n) => n && n !== live.champion), ...live.enemies.filter(Boolean)],
           title: "Tu campeón",
           kicker: "Estado de la partida",
@@ -625,13 +809,19 @@ export function init() {
         ...live.enemies.filter((n) => n && n !== current),
       ].filter(Boolean);
       const name = await openChampionPicker({
-        role,
+        role: role || "ALL",
         exclude,
-        title: `${team === "allies" ? "Aliado" : "Rival"} · ${roleLabel(role)}`,
+        title: classic
+          ? `${team === "allies" ? "Aliado" : "Rival"} · ${roleLabel(role)}`
+          : `${team === "allies" ? "Aliado" : "Rival"} ${index + 1} · ${modeLabel()}`,
         kicker: "Composición",
       });
       if (!name) return;
       live[team][index] = name;
+      if (live.mode === "arena" && team === "enemies") {
+        if (index < live.arenaEnemies.length) live.arenaEnemies[index] = name;
+        else live.arenaEnemies.push(name);
+      }
       renderMiniSlots();
       refresh();
     });
@@ -655,7 +845,7 @@ export function init() {
   $("#live-items")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-buy]");
     if (!button || button.disabled) return;
-    buyItem(Number(button.dataset.buy));
+    buyItem(Number(button.dataset.buy), Number(button.dataset.buyGold), button.dataset.buyName || "");
   });
 
   $("#live-gold")?.addEventListener("input", (event) => {
@@ -684,49 +874,65 @@ export function init() {
   });
 
   $("#live-example")?.addEventListener("click", () => {
+    const mode = live.mode;
+    const arena = mode === "arena";
+    const aram = mode === "aram" || mode === "mayhem";
     live.champion = "Ahri";
     live.role = "MID";
     live.side = "blue";
-    live.allies = ["K'Sante", "Lee Sin", "Ahri", "Jinx", "Rakan"]
-      .map((n) => (championByName(n) ? n : null));
+    live.allies = Array.from({ length: 5 }, (_, index) => (index === 0 ? "Ahri" : null));
     live.enemies = ["Gnar", "Vi", "Orianna", "Kai'Sa", "Nautilus"]
       .map((n) => (championByName(n) ? n : null));
-    live.owned = ["Doran's Ring", "Sorcerer's Shoes"]
+    live.arenaEnemies = arena
+      ? ["Gnar", "Vi", "Orianna", "Kai'Sa", "Nautilus", "Aatrox", "Rakan", "Sejuani"]
+          .map((n) => (championByName(n) ? n : null))
+          .filter(Boolean)
+      : [];
+    live.owned = (arena
+      ? ["Guardian's Orb", "Sorcerer's Shoes"]
+      : ["Doran's Ring", "Sorcerer's Shoes"])
       .map((n) => itemByName(n)?.id)
       .filter((id) => id != null);
-    live.gold = 1600;
-    live.minute = 9;
+    live.gold = arena ? 2500 : 1600;
+    live.minute = arena ? 8 : 9;
     live.game = {
       kills: 4,
       deaths: 2,
       assists: 5,
-      cs: 120,
+      cs: arena ? 0 : 120,
       level: 10,
-      gameTime: 540,
-      teamKills: 10,
-      enemyKills: 7,
-      teamCs: 500,
-      enemyCs: 420,
-      teamLevel: 9.6,
-      enemyLevel: 9.1,
-      enemyFed: ["Vi"],
+      gameTime: arena ? 600 : 540,
+      teamKills: arena ? 0 : 10,
+      enemyKills: arena ? 0 : 7,
+      teamCs: arena ? 0 : 500,
+      enemyCs: arena ? 0 : 420,
+      teamLevel: arena ? 0 : 9.6,
+      enemyLevel: arena ? 0 : 9.1,
+      enemyFed: arena ? ["Aatrox", "Kai'Sa"] : ["Vi"],
+      gameMode: arena ? "CHERRY" : mode === "mayhem" ? "KIWI" : aram ? "ARAM" : "CLASSIC",
+      mapName: arena ? "Map30" : aram ? "Map12" : "Map11",
+      queueId: arena ? 1700 : mode === "mayhem" ? 2400 : aram ? 450 : 420,
     };
     const source = $("#live-source");
     if (source) {
-      source.textContent = "Fuente manual · ejemplo";
+      source.textContent = `Fuente manual · ejemplo ${modeLabel(mode)}`;
       source.classList.remove("live");
     }
     renderAll();
     refresh(true);
-    toast("Partida de ejemplo cargada: Ahri mid, 9 minutos.", "success");
+    toast(`Ejemplo cargado: ${modeLabel(mode)} con Ahri.`, "success");
   });
 
   $("#live-reset")?.addEventListener("click", () => {
     live.champion = null;
+    live.mode = "classic";
+    live.modeLabel = "Grieta del Invocador";
     live.role = "MID";
     live.side = "blue";
     live.allies = [null, null, null, null, null];
     live.enemies = [null, null, null, null, null];
+    live.arenaEnemies = [];
+    live.arenaTeamKnown = false;
     live.owned = [];
     live.gold = 0;
     live.minute = 6;
@@ -744,6 +950,9 @@ export function init() {
       teamLevel: 0,
       enemyLevel: 0,
       enemyFed: [],
+      gameMode: "",
+      mapName: "",
+      queueId: null,
     };
     lastData = null;
     const source = $("#live-source");
@@ -773,14 +982,35 @@ export async function applyClientState(mapped) {
       return name && championByName(name) ? name : null;
     });
 
+  const mode =
+    normalizeMode(mapped.mode) ||
+    normalizeMode(mapped.gameMode) ||
+    normalizeMode(mapped.mapName) ||
+    "classic";
+  live.mode = mode;
+  live.modeLabel = mapped.modeLabel || modeLabel(mode);
   live.champion = champion.name;
   live.role = meta.roles.includes(mapped.role) ? mapped.role : live.role;
   live.side = mapped.side === "red" ? "red" : "blue";
-  live.allies = pad(mapped.allies);
-  live.enemies = pad(mapped.enemies);
-  const ownIndex = roleIndex(live.role);
-  if (!live.allies[ownIndex]) live.allies[ownIndex] = champion.name;
+  const mappedAllies = Array.isArray(mapped.allies) ? mapped.allies.filter(Boolean) : [];
+  const mappedEnemies = Array.isArray(mapped.enemies) ? mapped.enemies.filter(Boolean) : [];
+  live.allies = pad(mappedAllies);
+  live.enemies = pad(mappedEnemies);
+  live.arenaEnemies = mode === "arena" ? mappedEnemies : [];
+  live.arenaTeamKnown = mode === "arena" && mapped.arenaTeamKnown === true;
+  const championSlot = ownIndex();
+  if (!live.allies[championSlot]) live.allies[championSlot] = champion.name;
 
+  for (const item of Array.isArray(mapped.items) ? mapped.items : []) {
+    if (!item?.id || meta.itemsById.has(item.id)) continue;
+    meta.itemsById.set(item.id, {
+      id: item.id,
+      name: item.name || String(item.id),
+      icon: `${item.id}.png`,
+      gold: Number(item.price) || 0,
+      tags: [],
+    });
+  }
   live.owned = (Array.isArray(mapped.owned) ? mapped.owned : [])
     .filter((id) => itemById(id))
     .slice(0, 6);
@@ -801,12 +1031,16 @@ export async function applyClientState(mapped) {
     teamLevel: Number(mapped.teamLevel) || 0,
     enemyLevel: Number(mapped.enemyLevel) || 0,
     enemyFed: Array.isArray(mapped.enemyFed) ? mapped.enemyFed.filter(Boolean) : [],
+    gameMode: mapped.gameMode || "",
+    mapName: mapped.mapName || "",
+    queueId: mapped.queueId ?? null,
   };
 
   renderAll();
   const source = $("#live-source");
   if (source) {
-    source.textContent = "Cliente local · actualizando…";
+    const modeText = mode === "classic" ? "" : ` · ${modeLabel(mode)}`;
+    source.textContent = `Cliente local${modeText} · actualizando…`;
     source.classList.add("live");
   }
   await refresh(true);

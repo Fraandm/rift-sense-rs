@@ -63,7 +63,7 @@ Opciones para el entrenamiento en Rust:
 - ✅ Instalador Inno Setup por usuario (`installer/build-installer.ps1`).
 - ✅ `data/processed`, `artifacts`, modelos y binarios incluidos en el instalador.
 - ⏳ Firma de código (el instalador es unsigned).
-- ✅ Release `v0.2.0` con instalador y checksum.
+- ✅ Release `v0.5.0` con instalador, checksum, ajustes y soporte ARAM/Mayhem/Arena.
 - ⏳ CI de GitHub Actions (Windows + Rust + tests de paridad).
 
 ## Verificación

@@ -185,7 +185,8 @@ function renderStatus() {
   setBadge("#client-live-badge", status?.liveClient ? "En partida" : "—", status?.liveClient ? "teal" : "");
 
   const useDraft = $("#client-use-draft");
-  if (useDraft) useDraft.disabled = !(status?.champSelect && draftData?.available);
+  const classicDraft = (draftData?.gameMode || "classic") === "classic";
+  if (useDraft) useDraft.disabled = !(status?.champSelect && draftData?.available && classicDraft);
   const useLive = $("#client-use-live");
   if (useLive) useLive.disabled = !(status?.liveClient && liveData?.available);
 
@@ -210,13 +211,13 @@ function renderStatus() {
   }
 }
 
-function teamBlock(title, side, list, tone = "") {
+function teamBlock(title, side, list, tone = "", classic = true) {
   const rows = meta.roles
     .map((role, index) => {
       const name = Array.isArray(list) ? list[index] : null;
       const champ = name ? championByName(name) : null;
       return `<div class="client-player-row">
-        <span class="role">${ROLE_SHORT[role]}</span>
+        <span class="role">${classic ? ROLE_SHORT[role] : index + 1}</span>
         ${champ ? avatarHTML(champ, "sm") : `<span class="avatar sm" data-initial="—" aria-hidden="true"></span>`}
         <strong class="${champ ? "" : "missing"}">${esc(champ?.name || "Sin pick")}</strong>
       </div>`;
@@ -241,12 +242,20 @@ function renderDraft(message = "") {
     return;
   }
 
-  const allies = teamBlock("Tu equipo", data.side === "red" ? "Rojo" : "Azul", data.allies);
+  const classic = (data.gameMode || "classic") === "classic";
+  const allies = teamBlock(
+    data.gameMode === "arena" ? "Tu trío" : "Tu equipo",
+    data.side === "red" ? "Rojo" : "Azul",
+    data.allies,
+    "",
+    classic
+  );
   const enemies = teamBlock(
-    "Rival",
+    classic ? "Rival" : "Rivales",
     data.side === "red" ? "Azul" : "Rojo",
     data.enemies,
-    "red"
+    "red",
+    classic
   );
   const bans = (data.bans || [])
     .map((name) => championByName(name))
@@ -263,11 +272,11 @@ function renderDraft(message = "") {
     }</div>
     <p class="fineprint">${myChampion} · ${esc(timerText)} · ${esc(
       phaseLabel(data.phase)
-    )} · Tu slot queda libre en Draft para comparar.</p>`;
+    )} · ${esc(data.modeLabel || "")}${classic ? " · Tu slot queda libre en Draft para comparar." : " · En este modo no hay draft de Grieta; usa En vivo para la build."}</p>`;
 
   setBadge("#client-draft-badge", "En vivo", "teal");
   const button = $("#client-use-draft");
-  if (button) button.disabled = false;
+  if (button) button.disabled = !classic;
 }
 
 function itemChip(item) {
@@ -296,8 +305,15 @@ function renderLive(message = "") {
   }
 
   const champ = championByName(data.champion);
-  const allies = teamBlock("Tu equipo", data.side === "red" ? "Rojo" : "Azul", data.allies);
-  const enemies = teamBlock("Rival", data.side === "red" ? "Azul" : "Rojo", data.enemies, "red");
+  const classic = (data.mode || data.gameMode || "classic") === "classic";
+  const allies = teamBlock("Tu equipo", data.side === "red" ? "Rojo" : "Azul", data.allies, "", classic);
+  const enemies = teamBlock(
+    classic ? "Rival" : "Rivales",
+    data.side === "red" ? "Azul" : "Rojo",
+    data.enemies,
+    "red",
+    classic
+  );
   const items = (data.items || []).map(itemChip).join("") || `<span class="ban-empty">Sin objetos comprados</span>`;
   const scores = data.scores || {};
 
@@ -306,17 +322,17 @@ function renderLive(message = "") {
       ${champ ? avatarHTML(champ, "lg") : `<span class="avatar lg" data-initial="?" aria-hidden="true"></span>`}
       <div>
         <h3>${esc(data.champion || "Campeón")}</h3>
-        <p>${esc(roleLabel(data.role))} · ${data.side === "red" ? "Rojo" : "Azul"} · nivel ${num(
+        <p>${classic ? `${esc(roleLabel(data.role))} · ` : ""}${data.side === "red" ? "Rojo" : "Azul"} · nivel ${num(
     data.level
-  )} · ${esc(data.mapName || data.gameMode || "")}</p>
+  )} · ${esc(data.modeLabel || data.mapName || data.gameMode || "")}</p>
       </div>
       <div class="client-kpis">
         <div class="client-kpi"><span>Oro</span><strong>${num(data.gold)}</strong></div>
-        <div class="client-kpi"><span>Minuto</span><strong>${clock(data.minute)}</strong></div>
+        ${classic ? `<div class="client-kpi"><span>Minuto</span><strong>${clock(data.minute)}</strong></div>` : ""}
         <div class="client-kpi"><span>KDA</span><strong>${scores.kills || 0}/${scores.deaths || 0}/${
     scores.assists || 0
   }</strong></div>
-        <div class="client-kpi"><span>CS</span><strong>${num(scores.cs)}</strong></div>
+        ${classic ? `<div class="client-kpi"><span>CS</span><strong>${num(scores.cs)}</strong></div>` : ""}
       </div>
     </div>
     <div class="client-items">${items}</div>

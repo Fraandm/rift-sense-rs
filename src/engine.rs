@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::config::Paths;
 use crate::data::{Catalog, Champion, Item, MetaItem, norm_name};
+use crate::mode::GameMode;
 use crate::model::{BuildModel, DraftModel};
 
 #[derive(Deserialize, Clone, Debug)]
@@ -104,6 +105,12 @@ pub struct GameContext {
     pub enemy_level: f64,
     #[serde(default)]
     pub enemy_fed: Vec<String>,
+    #[serde(default)]
+    pub game_mode: String,
+    #[serde(default)]
+    pub map_name: String,
+    #[serde(default)]
+    pub queue_id: Option<i64>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -125,6 +132,9 @@ pub struct BuildRequest {
     pub minute: f64,
     #[serde(default)]
     pub game: Option<GameContext>,
+    /// Modo explicito (`classic`, `aram`, `mayhem` o `arena`).
+    #[serde(default)]
+    pub mode: Option<String>,
     #[serde(default = "default_draft_limit")]
     pub limit: usize,
     #[serde(default = "default_true")]
@@ -185,6 +195,9 @@ struct ItemCandidate<'a> {
     defense_note: String,
     context_fit: f64,
     context_note: String,
+    mode_fit: f64,
+    mode_note: String,
+    price: i64,
     score: f64,
     affordable: bool,
     missing_gold: i64,
@@ -215,23 +228,34 @@ struct GameAnalysis {
     enemy_fed: Vec<String>,
     healers: Vec<String>,
     notes: Vec<String>,
+    mode: GameMode,
 }
 
 impl GameAnalysis {
     fn to_json(&self) -> Value {
         json!({
             "state": self.state,
-            "label": match self.state {
-                "ahead" => "Vas por delante",
-                "behind" => "Vas por detrás",
+            "label": match (self.mode, self.state) {
+                (GameMode::Arena, "ahead") => "Ronda fuerte",
+                (GameMode::Arena, "behind") => "Ronda cuesta arriba",
+                (GameMode::Arena, _) => "Ronda pareja",
+                (_, "ahead") => "Vas por delante",
+                (_, "behind") => "Vas por detrás",
                 _ => "Partida igualada",
             },
             "phase": self.phase,
-            "phaseLabel": match self.phase {
-                "early" => "Early game",
-                "late" => "Late game",
+            "phaseLabel": match (self.mode, self.phase) {
+                (GameMode::Arena, _) => "Ronda en curso",
+                (_, "early") => "Early game",
+                (_, "late") => "Late game",
                 _ => "Mid game",
             },
+            "gameMode": self.mode.key(),
+            "modeLabel": self.mode.label(),
+            "modeNotes": self.mode.notes(),
+            "showTeamStats": self.mode.uses_team_stats(),
+            "showCs": self.mode.uses_cs(),
+            "showPhase": self.mode.uses_phase(),
             "kills": self.kills,
             "deaths": self.deaths,
             "assists": self.assists,
@@ -406,6 +430,9 @@ pub struct Engine {
     pub item_by_id: HashMap<i64, usize>,
     pub item_by_norm: HashMap<String, usize>,
     pub all_items_by_id: HashMap<i64, MetaItem>,
+    pub extra_items: Vec<Item>,
+    pub extra_item_by_id: HashMap<i64, usize>,
+    pub extra_item_by_norm: HashMap<String, usize>,
     pub priors_games: f64,
     pub patch: String,
     pub icon_base: String,
@@ -471,6 +498,22 @@ impl Engine {
             model_notes.push("BuildNet no entrenada: se usan estadísticas empíricas.".to_string());
         }
 
+        let mut extra_items: Vec<Item> = catalog
+            .all_items_by_id
+            .values()
+            .filter(|item| !catalog.item_by_id.contains_key(&item.id))
+            .map(item_from_meta)
+            .collect();
+        extra_items.sort_by_key(|item| item.id);
+        let mut extra_item_by_id = HashMap::with_capacity(extra_items.len());
+        let mut extra_item_by_norm = HashMap::with_capacity(extra_items.len());
+        for (index, item) in extra_items.iter().enumerate() {
+            extra_item_by_id.insert(item.id, index);
+            extra_item_by_norm
+                .entry(norm_name(&item.name))
+                .or_insert(index);
+        }
+
         Ok(Self {
             paths,
             vocab: catalog.vocab,
@@ -491,6 +534,9 @@ impl Engine {
             item_by_id: catalog.item_by_id,
             item_by_norm: catalog.item_by_norm,
             all_items_by_id: catalog.all_items_by_id,
+            extra_items,
+            extra_item_by_id,
+            extra_item_by_norm,
             priors_games: catalog.priors_games,
             patch: catalog.patch,
             icon_base: catalog.icon_base,
@@ -526,7 +572,15 @@ impl Engine {
 
     pub fn resolve_item(&self, value: &ItemRef) -> Option<&Item> {
         match value {
-            ItemRef::Int(id) => self.item_by_id.get(id).map(|index| &self.items[*index]),
+            ItemRef::Int(id) => self
+                .item_by_id
+                .get(id)
+                .map(|index| &self.items[*index])
+                .or_else(|| {
+                    self.extra_item_by_id
+                        .get(id)
+                        .map(|index| &self.extra_items[*index])
+                }),
             ItemRef::Str(text) => {
                 let text = text.trim();
                 if text.is_empty() {
@@ -536,10 +590,18 @@ impl Engine {
                     if let Some(index) = self.item_by_id.get(&id) {
                         return Some(&self.items[*index]);
                     }
+                    if let Some(index) = self.extra_item_by_id.get(&id) {
+                        return Some(&self.extra_items[*index]);
+                    }
                 }
                 self.item_by_norm
                     .get(&norm_name(text))
                     .map(|index| &self.items[*index])
+                    .or_else(|| {
+                        self.extra_item_by_norm
+                            .get(&norm_name(text))
+                            .map(|index| &self.extra_items[*index])
+                    })
             }
         }
     }
@@ -583,9 +645,17 @@ impl Engine {
     }
 
     fn team<'a>(&'a self, values: &[Option<ChampionRef>]) -> Result<Vec<Option<&'a Champion>>> {
-        let mut team = Vec::with_capacity(5);
+        self.team_limited(values, 5)
+    }
+
+    fn team_limited<'a>(
+        &'a self,
+        values: &[Option<ChampionRef>],
+        limit: usize,
+    ) -> Result<Vec<Option<&'a Champion>>> {
+        let mut team = Vec::with_capacity(limit);
         let mut seen = HashSet::new();
-        for index in 0..5 {
+        for index in 0..limit {
             let champ = values
                 .get(index)
                 .and_then(|value| value.as_ref())
@@ -598,6 +668,21 @@ impl Engine {
             team.push(champ);
         }
         Ok(team)
+    }
+
+    /// Rol mas jugado del campeon en el dataset, usado en modos sin roles.
+    fn primary_role(&self, champ: &Champion) -> String {
+        self.priors
+            .champions
+            .get(&champ.name)
+            .and_then(|data| {
+                data.roles
+                    .iter()
+                    .max_by_key(|(_, value)| value.n)
+                    .map(|(role, _)| role.clone())
+            })
+            .filter(|role| self.roles.contains(role))
+            .unwrap_or_else(|| "MID".to_string())
     }
 
     fn ban_list<'a>(&'a self, bans: &[ChampionRef]) -> Vec<&'a Champion> {
@@ -1251,6 +1336,135 @@ impl Engine {
             .collect()
     }
 
+    fn mode_item_legal(&self, item: &Item, mode: GameMode, slot: usize) -> bool {
+        if mode == GameMode::Classic {
+            return true;
+        }
+        if is_mayhem_item(item.id) {
+            return mode == GameMode::Mayhem;
+        }
+        if item.id >= 600_000 {
+            return false;
+        }
+        let meta = self.all_items_by_id.get(&item.id);
+        let map_ok = meta
+            .map(|meta| {
+                if mode == GameMode::Arena {
+                    meta.maps.get("11").copied().unwrap_or(true)
+                        && meta.maps.get("12").copied().unwrap_or(true)
+                } else {
+                    meta.maps.get("12").copied().unwrap_or(true)
+                }
+            })
+            .unwrap_or(true);
+        if !map_ok {
+            return false;
+        }
+        if mode != GameMode::Arena {
+            return true;
+        }
+
+        let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
+        if tags.contains("Jungle") || tags.contains("Consumable") {
+            return false;
+        }
+        let depth = meta.map(|meta| meta.depth).unwrap_or(0);
+        if item.boots {
+            return depth == 2;
+        }
+        if is_arena_starter(item.id) {
+            return slot == 0;
+        }
+        if tags.contains("Lane") {
+            return false;
+        }
+        let final_item = meta
+            .map(|meta| meta.into.is_empty() && meta.depth >= 2)
+            .unwrap_or(false);
+        final_item && item.gold >= 2000
+    }
+
+    fn mode_price(&self, item: &Item, mode: GameMode, _slot: usize) -> i64 {
+        if mode != GameMode::Arena {
+            return item.gold;
+        }
+        if is_arena_starter(item.id) {
+            return 500;
+        }
+        let depth = self
+            .all_items_by_id
+            .get(&item.id)
+            .map(|meta| meta.depth)
+            .unwrap_or(0);
+        if item.boots && depth == 2 {
+            return 500;
+        }
+        2500
+    }
+
+    fn item_mode_fit(
+        &self,
+        item: &Item,
+        champ: &Champion,
+        mode: GameMode,
+        slot: usize,
+    ) -> (f64, String) {
+        if mode == GameMode::Arena {
+            if is_arena_starter(item.id) && slot == 0 {
+                let tags: HashSet<&str> = champ.tags.iter().map(String::as_str).collect();
+                let fit = match item.id {
+                    3112 if champ.damage == "AP" => 0.40,
+                    3177 | 3184 if champ.damage == "AD" => 0.34,
+                    3184 if tags.contains("Fighter") => 0.24,
+                    2051 if tags.contains("Tank") => 0.35,
+                    _ => 0.0,
+                };
+                return (0.65 + fit, "Starter de Arena".to_string());
+            }
+            if item.boots && slot <= 1 {
+                return (0.10, "Botas de Arena".to_string());
+            }
+            return (0.0, String::new());
+        }
+        if mode != GameMode::Mayhem || !is_mayhem_item(item.id) {
+            return (0.0, String::new());
+        }
+        let tags: HashSet<&str> = champ.tags.iter().map(String::as_str).collect();
+        let score = match item.id {
+            3039 => {
+                if champ.damage == "AD" {
+                    0.20 + if tags.contains("Fighter") || tags.contains("Marksman") {
+                        0.08
+                    } else {
+                        0.0
+                    }
+                } else {
+                    -0.12
+                }
+            }
+            123430 => {
+                if champ.damage == "AP" {
+                    0.20 + if tags.contains("Mage") { 0.08 } else { 0.0 }
+                } else {
+                    -0.10
+                }
+            }
+            124011 => {
+                if champ.damage == "AP" {
+                    0.16 + if tags.contains("Fighter") || tags.contains("Marksman") {
+                        0.06
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.04
+                }
+            }
+            _ => 0.0,
+        };
+        (score, "Exclusivo de ARAM: Mayhem".to_string())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn score_items<'a>(
         &'a self,
@@ -1263,11 +1477,24 @@ impl Engine {
         gold: i64,
         _minute: f64,
         analysis: Option<&GameAnalysis>,
+        mode: GameMode,
         use_model: bool,
     ) -> Result<Vec<ItemCandidate<'a>>> {
         let owned_ids: HashSet<i64> = owned.iter().map(|item| item.id).collect();
         let slot = owned.len();
         let profile = self.enemy_profile(enemy_team);
+        let mut pool: Vec<&'a Item> = self
+            .items
+            .iter()
+            .filter(|item| self.mode_item_legal(item, mode, slot))
+            .collect();
+        if mode == GameMode::Mayhem {
+            for extra in &self.extra_items {
+                if is_mayhem_item(extra.id) && !pool.iter().any(|item| item.id == extra.id) {
+                    pool.push(extra);
+                }
+            }
+        }
 
         let mut items_tensor = [0i64; 7];
         for (i, item) in owned.iter().take(7).enumerate() {
@@ -1347,7 +1574,7 @@ impl Engine {
         };
 
         let mut candidates = Vec::new();
-        for item in &self.items {
+        for item in pool {
             let item_id = item.id;
             if owned_ids.contains(&item_id) {
                 continue;
@@ -1371,9 +1598,15 @@ impl Engine {
             let (context_fit, context_note) = analysis
                 .map(|analysis| self.context_fit(item, analysis, &profile, owned))
                 .unwrap_or((0.0, String::new()));
+            let (mode_fit, mode_note) = self.item_mode_fit(item, champ, mode, slot);
+            let model_prob = if item.idx > 0 {
+                probs.get(item.idx as usize).copied().unwrap_or(0.0) as f64
+            } else {
+                0.0
+            };
             candidates.push(ItemCandidate {
                 item,
-                model_prob: probs.get(item.idx as usize).copied().unwrap_or(0.0) as f64,
+                model_prob,
                 prior_n: prior.n,
                 avg_slot,
                 slot_fit,
@@ -1383,6 +1616,9 @@ impl Engine {
                 defense_note,
                 context_fit,
                 context_note,
+                mode_fit,
+                mode_note,
+                price: self.mode_price(item, mode, slot),
                 score: 0.0,
                 affordable: false,
                 missing_gold: 0,
@@ -1393,16 +1629,24 @@ impl Engine {
         }
 
         let model_weight = if use_model && self.build_model.is_some() {
-            0.50
+            match mode {
+                GameMode::Classic => 0.50,
+                GameMode::Arena => 0.22,
+                _ => 0.38,
+            }
         } else {
             0.0
         };
         let mut weights = vec![
             ("model", model_weight),
-            ("popularity", 0.20),
-            ("slot", 0.15),
+            (
+                "popularity",
+                if mode == GameMode::Arena { 0.22 } else { 0.20 },
+            ),
+            ("slot", if mode == GameMode::Arena { 0.05 } else { 0.15 }),
             ("winrate", 0.05),
-            ("defense", 0.10),
+            ("defense", if mode == GameMode::Arena { 0.18 } else { 0.10 }),
+            ("mode", if mode.is_classic() { 0.0 } else { 0.10 }),
         ];
         if analysis.is_some() {
             weights.push(("context", 0.12));
@@ -1461,16 +1705,26 @@ impl Engine {
                 .map(|candidate| candidate.context_fit)
                 .collect::<Vec<_>>(),
         );
+        let z_mode = standardize(
+            &candidates
+                .iter()
+                .map(|candidate| candidate.mode_fit)
+                .collect::<Vec<_>>(),
+        );
         for (i, candidate) in candidates.iter_mut().enumerate() {
             let composite = weight("model") * z_model[i]
                 + weight("popularity") * z_pop[i]
                 + weight("slot") * z_slot[i]
                 + weight("winrate") * z_wr[i]
                 + weight("defense") * z_def[i]
-                + weight("context") * z_context[i];
+                + weight("context") * z_context[i]
+                + weight("mode") * z_mode[i];
             candidate.score = clamp(50.0 + 11.0 * composite, 1.0, 96.0);
-            candidate.affordable = gold >= candidate.item.gold;
-            candidate.missing_gold = (candidate.item.gold - gold).max(0);
+            if mode == GameMode::Arena && is_arena_starter(candidate.item.id) && slot == 0 {
+                candidate.score = clamp(candidate.score + 8.0, 1.0, 96.0);
+            }
+            candidate.affordable = gold >= candidate.price;
+            candidate.missing_gold = (candidate.price - gold).max(0);
         }
         candidates.sort_by(|a, b| {
             b.score
@@ -1578,6 +1832,7 @@ impl Engine {
         context: &GameContext,
         minute: f64,
         enemies: &[Option<&Champion>],
+        mode: GameMode,
     ) -> Option<GameAnalysis> {
         let has_signals = context.game_time > 0.0
             || context.cs > 0
@@ -1605,18 +1860,38 @@ impl Engine {
         } else {
             0.0
         };
-        let tempo = kill_diff as f64 * 2.0
-            + level_diff * 3.0
-            + cs_diff as f64 / 80.0
-            + (kda - 2.0).clamp(-2.0, 2.0) * 0.3;
-        let state = if tempo >= 3.0 {
-            "ahead"
-        } else if tempo <= -3.0 {
-            "behind"
+        let state = if mode == GameMode::Arena {
+            let personal = (kda - 1.8) * 1.2
+                + (context.kills - context.deaths) as f64 * 0.25
+                + (context.level - 9) as f64 * 0.08;
+            if personal >= 1.6 {
+                "ahead"
+            } else if personal <= -1.4 {
+                "behind"
+            } else {
+                "even"
+            }
         } else {
-            "even"
+            let cs_weight = if mode == GameMode::Classic {
+                80.0
+            } else {
+                200.0
+            };
+            let tempo = kill_diff as f64 * 2.0
+                + level_diff * 3.0
+                + cs_diff as f64 / cs_weight
+                + (kda - 2.0).clamp(-2.0, 2.0) * 0.3;
+            if tempo >= 3.0 {
+                "ahead"
+            } else if tempo <= -3.0 {
+                "behind"
+            } else {
+                "even"
+            }
         };
-        let phase = if minute < 14.0 {
+        let phase = if mode == GameMode::Arena {
+            "arena"
+        } else if minute < 14.0 {
             "early"
         } else if minute < 28.0 {
             "mid"
@@ -1632,6 +1907,7 @@ impl Engine {
         }
         healers.sort();
         healers.dedup();
+        healers.truncate(4);
 
         let enemy_fed: Vec<String> = context
             .enemy_fed
@@ -1646,21 +1922,38 @@ impl Engine {
             .cloned()
             .collect();
 
-        let mut notes = vec![
-            format!(
+        let mut notes = Vec::new();
+        if mode == GameMode::Arena {
+            notes.push(format!(
+                "KDA {:.2} · {}/{} · nivel {}",
+                kda, context.kills, context.deaths, context.level
+            ));
+            notes.push(format!(
+                "Oro y objetos: compra completa entre rondas (nivel {})",
+                context.level
+            ));
+        } else {
+            notes.push(format!(
                 "Equipos {}-{} ({:+})",
                 context.team_kills, context.enemy_kills, kill_diff
-            ),
-            format!(
-                "CS {}-{} ({:+})",
-                context.team_cs, context.enemy_cs, cs_diff
-            ),
-            format!(
+            ));
+            notes.push(format!(
+                "{} {}-{} ({:+})",
+                if mode == GameMode::Classic {
+                    "CS"
+                } else {
+                    "CS ref."
+                },
+                context.team_cs,
+                context.enemy_cs,
+                cs_diff
+            ));
+            notes.push(format!(
                 "Nivel medio {:.1}-{:.1} ({:+.1})",
                 context.team_level, context.enemy_level, level_diff
-            ),
-            format!("KDA {:.1} · {:.1} CS/min", kda, cs_per_min),
-        ];
+            ));
+            notes.push(format!("KDA {:.1} · {:.1} CS/min", kda, cs_per_min));
+        }
         if !healers.is_empty() {
             notes.push(format!("Curación enemiga: {}", healers.join(", ")));
         }
@@ -1692,6 +1985,7 @@ impl Engine {
             enemy_fed,
             healers,
             notes,
+            mode,
         })
     }
 
@@ -1832,7 +2126,14 @@ impl Engine {
         components
     }
 
-    fn format_item(&self, candidate: &ItemCandidate, gold: i64, slot: usize, role: &str) -> Value {
+    fn format_item(
+        &self,
+        candidate: &ItemCandidate,
+        gold: i64,
+        slot: usize,
+        role: &str,
+        mode: GameMode,
+    ) -> Value {
         let item = candidate.item;
         let prior_n = candidate.prior_n;
         let avg_slot = candidate.avg_slot;
@@ -1869,13 +2170,23 @@ impl Engine {
         if !candidate.context_note.is_empty() {
             reasons.push(candidate.context_note.clone());
         }
+        if !candidate.mode_note.is_empty() {
+            reasons.push(candidate.mode_note.clone());
+        }
+        if mode == GameMode::Arena {
+            reasons.push("Precio de Arena: objeto completo".to_string());
+        }
         if candidate.affordable {
             reasons.push("Puedes comprarlo ahora".to_string());
         } else {
             reasons.push(format!("Te faltan {} de oro", candidate.missing_gold));
         }
-        let components = self.components(item, gold);
-        if !candidate.affordable {
+        let components = if mode.uses_components() {
+            self.components(item, gold)
+        } else {
+            Vec::new()
+        };
+        if !candidate.affordable && mode.uses_components() {
             if let Some(cheap) = components.iter().find(|component| {
                 component.get("affordable").and_then(Value::as_bool) == Some(true)
             }) {
@@ -1888,7 +2199,7 @@ impl Engine {
             "id": item.id,
             "name": item.name,
             "icon": item.icon,
-            "gold": item.gold,
+            "gold": candidate.price,
             "tags": item.tags,
             "score": round(candidate.score, 1),
             "affordable": candidate.affordable,
@@ -1909,7 +2220,11 @@ impl Engine {
         candidates: &[&ItemCandidate],
         gold: i64,
         owned_ids: &HashSet<i64>,
+        mode: GameMode,
     ) -> Value {
+        if !mode.uses_components() {
+            return Value::Null;
+        }
         for candidate in candidates.iter().take(5) {
             for component in self.components(candidate.item, gold) {
                 let affordable = component
@@ -1917,7 +2232,11 @@ impl Engine {
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
                 let id = component.get("id").and_then(Value::as_i64).unwrap_or(0);
-                if affordable && id > 0 && !owned_ids.contains(&id) {
+                let legal = id > 0
+                    && self
+                        .resolve_item(&ItemRef::Int(id))
+                        .is_some_and(|item| self.mode_item_legal(item, mode, 0));
+                if affordable && legal && !owned_ids.contains(&id) {
                     return json!({
                         "id": id,
                         "name": component.get("name").cloned().unwrap_or(Value::Null),
@@ -1936,10 +2255,26 @@ impl Engine {
         let champ = self
             .resolve_champion(&req.champion)
             .ok_or_else(|| anyhow::anyhow!("Campeón desconocido: {:?}", req.champion))?;
-        let role = self.resolve_role(&req.role)?;
+        let mode = GameMode::resolve(
+            req.mode.as_deref(),
+            req.game
+                .as_ref()
+                .map(|game| game.game_mode.as_str())
+                .filter(|value| !value.is_empty()),
+            req.game
+                .as_ref()
+                .map(|game| game.map_name.as_str())
+                .filter(|value| !value.is_empty()),
+            req.game.as_ref().and_then(|game| game.queue_id),
+        );
+        let role = if mode.uses_roles() {
+            self.resolve_role(&req.role)?
+        } else {
+            self.primary_role(champ)
+        };
         let side = self.resolve_side(&req.side)?;
         let ally_team = self.team(&req.allies)?;
-        let enemy_team = self.team(&req.enemies)?;
+        let enemy_team = self.team_limited(&req.enemies, mode.max_enemies())?;
         let gold = req.gold.clamp(0, 100_000);
         let minute = req.minute.clamp(0.0, 120.0);
         let limit = req.limit.clamp(1, 25);
@@ -1958,8 +2293,13 @@ impl Engine {
         let analysis = req
             .game
             .as_ref()
-            .and_then(|game| self.analyze_game(game, minute, &enemy_team));
+            .and_then(|game| self.analyze_game(game, minute, &enemy_team, mode));
         if slot >= 6 {
+            let complete_note = if mode == GameMode::Arena {
+                "Build completa: 6 objetos de Arena."
+            } else {
+                "Build completa: 6 objetos. Considera el trinket y consumibles."
+            };
             let mut complete = json!({
                 "mode": "complete",
                 "champion": champion_brief(champ),
@@ -1968,8 +2308,13 @@ impl Engine {
                 "enemyProfile": profile,
                 "items": [],
                 "buildPlan": [],
-                "notes": ["Build completa: 6 objetos. Considera el trinket y consumibles."],
+                "notes": [complete_note],
             });
+            if !mode.is_classic() {
+                complete["gameMode"] = json!(mode.key());
+                complete["modeLabel"] = json!(mode.label());
+                complete["modeNotes"] = json!(mode.notes());
+            }
             if let Some(analysis) = analysis.as_ref() {
                 complete["gameAnalysis"] = analysis.to_json();
             }
@@ -1986,12 +2331,13 @@ impl Engine {
             gold,
             minute,
             analysis.as_ref(),
+            mode,
             true,
         )?;
         let items_out: Vec<Value> = candidates
             .iter()
             .take(limit)
-            .map(|candidate| self.format_item(candidate, gold, slot, &role))
+            .map(|candidate| self.format_item(candidate, gold, slot, &role, mode))
             .collect();
         let focus: Vec<&ItemCandidate> = if let Some(analysis) = analysis.as_ref() {
             let mut preferred = if !analysis.healers.is_empty()
@@ -2035,8 +2381,10 @@ impl Engine {
         };
         let next_purchase = focus
             .iter()
-            .find(|candidate| gold >= candidate.item.gold)
-            .map(|candidate| self.format_item(candidate, gold, slot, &role));
+            .copied()
+            .find(|candidate| gold >= candidate.price)
+            .or_else(|| candidates.iter().find(|candidate| gold >= candidate.price))
+            .map(|candidate| self.format_item(candidate, gold, slot, &role, mode));
 
         let mut build_plan = Vec::new();
         if req.simulate {
@@ -2053,9 +2401,24 @@ impl Engine {
                     sim_gold,
                     minute,
                     analysis.as_ref(),
+                    mode,
                     true,
                 )?;
-                let Some(best) = sims.first() else { break };
+                let best = if mode == GameMode::Arena {
+                    if sim_owned.is_empty() {
+                        sims.iter()
+                            .find(|candidate| is_arena_starter(candidate.item.id))
+                            .or_else(|| sims.iter().find(|candidate| sim_gold >= candidate.price))
+                            .or_else(|| sims.first())
+                    } else {
+                        sims.iter()
+                            .find(|candidate| sim_gold >= candidate.price)
+                            .or_else(|| sims.first())
+                    }
+                } else {
+                    sims.first()
+                };
+                let Some(best) = best else { break };
                 let item = best.item;
                 let mut reasons = vec![format!("Score {:.0}", best.score)];
                 if best.prior_n >= 20 {
@@ -2065,13 +2428,13 @@ impl Engine {
                     "id": item.id,
                     "name": item.name,
                     "icon": item.icon,
-                    "gold": item.gold,
+                    "gold": best.price,
                     "slot": sim_owned.len() + 1,
                     "score": round(best.score, 1),
                     "reasons": reasons,
                 }));
                 sim_owned.push(item);
-                sim_gold = (sim_gold - item.gold).max(0);
+                sim_gold = (sim_gold - best.price).max(0);
             }
         }
 
@@ -2097,7 +2460,7 @@ impl Engine {
         }
 
         let next_component = if analysis.is_some() && next_purchase.is_none() {
-            self.next_component(&focus, gold, &seen)
+            self.next_component(&focus, gold, &seen, mode)
         } else {
             Value::Null
         };
@@ -2129,6 +2492,22 @@ impl Engine {
             },
             "notes": notes,
         });
+        if !mode.is_classic() {
+            output["gameMode"] = json!(mode.key());
+            output["modeLabel"] = json!(mode.label());
+            output["modeNotes"] = json!(mode.notes());
+        }
+        if mode == GameMode::Arena {
+            output["arenaShop"] = json!({
+                "components": false,
+                "starterPrice": 500,
+                "bootsPrice": 500,
+                "legendaryPrice": 2500,
+                "statAnvil": 750,
+                "legendaryAnvil": 2000,
+                "prismaticAnvil": 4000,
+            });
+        }
         if let Some(analysis) = analysis.as_ref() {
             output["gameAnalysis"] = analysis.to_json();
             output["nextComponent"] = next_component;
@@ -2349,6 +2728,32 @@ impl Engine {
                     .filter_map(|champ| champ.map(|c| c.name.clone())),
             )
             .collect()
+    }
+}
+
+const MAYHEM_ITEM_IDS: [i64; 3] = [3039, 123430, 124011];
+const ARENA_STARTER_IDS: [i64; 4] = [2051, 3112, 3177, 3184];
+
+fn is_mayhem_item(item_id: i64) -> bool {
+    MAYHEM_ITEM_IDS.contains(&item_id)
+}
+
+fn is_arena_starter(item_id: i64) -> bool {
+    ARENA_STARTER_IDS.contains(&item_id)
+}
+
+fn item_from_meta(item: &MetaItem) -> Item {
+    Item {
+        idx: 0,
+        id: item.id,
+        name: item.name.clone(),
+        icon: item.icon.clone(),
+        gold: item.gold,
+        tags: item.tags.clone(),
+        stats: item.stats.clone(),
+        from: item.from.clone(),
+        into: item.into.clone(),
+        boots: item.boots,
     }
 }
 

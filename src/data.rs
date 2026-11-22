@@ -219,6 +219,12 @@ pub struct MetaItem {
     pub into: Vec<i64>,
     #[serde(default)]
     pub boots: bool,
+    #[serde(default)]
+    pub depth: i64,
+    #[serde(default)]
+    pub maps: HashMap<String, bool>,
+    #[serde(default)]
+    pub trainable: bool,
 }
 
 /// Todos los datos que necesita el motor, ya indexados.

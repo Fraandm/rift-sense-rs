@@ -15,6 +15,8 @@ export const state = {
   },
   live: {
     champion: null,
+    mode: "classic",
+    modeLabel: "Grieta del Invocador",
     role: "MID",
     side: "blue",
     allies: [null, null, null, null, null],
@@ -36,7 +38,12 @@ export const state = {
       teamLevel: 0,
       enemyLevel: 0,
       enemyFed: [],
+      gameMode: "",
+      mapName: "",
+      queueId: null,
     },
+    arenaEnemies: [],
+    arenaTeamKnown: false,
   },
 };
 

@@ -15,7 +15,8 @@ ejecutarla.
 | Motor de draft y build | ✅ Rust, misma lógica y pesos que `engine.py` |
 | Modelos ML | ✅ ONNX + `tract-onnx` (sin Python en runtime) |
 | Cliente LCU (estado, lockfile, localizador) | ✅ Rust; estado verificado contra Python |
-| Mapper de champ select / partida en vivo | ✅ Portado; pendiente de probar con el cliente LoL abierto |
+| Mapper de champ select / partida en vivo | ✅ Portado y probado con datos sintéticos de Grieta, ARAM, Mayhem y Arena |
+| Modos de juego | ✅ ARAM, ARAM: Mayhem (KIWI) y Arena (CHERRY) con objetos y precios propios |
 | Lanzador de escritorio | ✅ Rust + `tao`/`wry` (WebView2 en Windows) |
 | Interfaz web | ⚠️ SPA compartida incluida en `web/`; pendiente reescritura en Rust |
 | Actualizador | ✅ GitHub Releases + instalador Inno Setup |
@@ -50,6 +51,31 @@ contexto:
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni
 envía inputs al juego.
+
+## ARAM, ARAM: Mayhem y Arena
+
+RiftSense detecta el modo con el `gameMode` del Live Client Data (`KIWI` para
+**ARAM: Mayhem** y `CHERRY` para **Arena**), el mapa y la cola; en champ select
+también usa la cola del LCU. La pestaña **En vivo** incluye un selector manual
+de modo para probar builds sin partida.
+
+- **ARAM**: filtra objetos que no existen en el mapa (Dark Seal, Cull, objetos
+  de jungla, Guardián Ángel, Mejai, botas de nivel 3...). Sin recall, prioriza
+  sustain, teamfight y compras al morir. El CS se muestra como referencia.
+- **ARAM: Mayhem**: mismas reglas que ARAM, runas desactivadas y objetos
+  exclusivos añadidos al motor: **Atma's Reckoning**, **Rite of Ruin** y
+  **Sword of Blossoming Dawn**. Los augments no se exponen por la API local.
+- **Arena**: no hay CS, roles ni fases de línea; se ocultan el draft y los
+  componentes. Los objetos se compran completos con precios de Arena
+  (starter y botas 500, legendario 2500) y se muestra el recordatorio de
+  anvils (750 stats / 2000 legendario / 4000 prismático). La API local no
+  identifica a los compañeros de trío ni expone vida de equipo o augments, así
+  que el perfil rival usa a los demás jugadores y el estado se estima con KDA
+  y nivel.
+
+La base estadística sigue siendo de Grieta; en estos modos se aplican filtros
+de legalidad, precios y contexto propios. La app no compra ni elige augments:
+solo recomienda la siguiente compra.
 
 ## Ajustes y bandeja del sistema
 
@@ -99,6 +125,7 @@ riftsense-rs/
 │   ├── api.rs                 Axum + assets embebidos
 │   ├── config.rs              detección de raíz y rutas
 │   ├── settings.rs            preferencias, arranque y bandeja
+│   ├── mode.rs                detección y reglas de ARAM/Mayhem/Arena
 │   ├── data.rs                vocabulario, priors, meta
 │   ├── engine.rs              draft, bans, build, meta
 │   ├── model.rs               DraftNet/BuildNet vía tract

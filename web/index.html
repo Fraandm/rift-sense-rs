@@ -223,7 +223,12 @@
 
         <div class="live-layout">
           <aside class="card live-setup">
-            <header class="card-head"><div><h2>Estado</h2><p>Campeón, rol y economía</p></div></header>
+            <header class="card-head"><div><h2>Estado</h2><p>Modo, campeón y economía</p></div></header>
+
+            <div class="field" id="live-mode-field">
+              <span class="label">Modo de juego</span>
+              <div class="chips compact" id="live-modes" role="group" aria-label="Modo de juego"></div>
+            </div>
 
             <button class="champ-select" id="live-champ" type="button">
               <span class="champ-select-avatar" id="live-champ-avatar"></span>
@@ -234,12 +239,12 @@
               <svg class="icon"><use href="#i-arrow"/></svg>
             </button>
 
-            <div class="field">
+            <div class="field" id="live-role-field">
               <span class="label">Rol</span>
               <div class="chips compact" id="live-roles" role="group" aria-label="Rol"></div>
             </div>
 
-            <div class="field">
+            <div class="field" id="live-side-field">
               <span class="label">Lado</span>
               <div class="segmented" id="live-side" role="group" aria-label="Lado">
                 <button type="button" data-side="blue" class="active">Azul</button>
@@ -260,7 +265,7 @@
                   <button type="button" class="gold-quick" data-gold-reset>0</button>
                 </span>
               </label>
-              <label class="field">
+              <label class="field" id="live-minute-field">
                 <span class="label">Minuto <b id="live-minute-label">6</b></span>
                 <input id="live-minute" type="range" min="0" max="45" step="1" value="6" />
               </label>

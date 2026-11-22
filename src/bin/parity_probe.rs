@@ -42,6 +42,7 @@ fn main() -> Result<()> {
         gold: 2500,
         minute: 14.0,
         game: None,
+        mode: None,
         limit: 10,
         simulate: true,
     };

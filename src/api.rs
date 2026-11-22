@@ -352,7 +352,7 @@ async fn client_draft(State(state): State<SharedState>) -> Json<Value> {
 }
 
 async fn client_live(State(state): State<SharedState>) -> Json<Value> {
-    let Some(data) = state
+    let Some(mut data) = state
         .lcu
         .client
         .live_gamedata(std::time::Duration::from_millis(1500))
@@ -363,6 +363,17 @@ async fn client_live(State(state): State<SharedState>) -> Json<Value> {
             "message": "No hay una partida en curso o el Live Client API no responde en el puerto 2999.",
         }));
     };
+    if let Some(session) = state.lcu.client.gameflow_session().await {
+        if let (Some(game), Some(queue_id)) = (
+            data.get_mut("gameData").and_then(Value::as_object_mut),
+            session
+                .get("gameData")
+                .and_then(|value| value.get("queue"))
+                .and_then(|value| value.get("queueId")),
+        ) {
+            game.insert("queueId".to_string(), queue_id.clone());
+        }
+    }
     let engine = engine(&state).await;
     let mapped = map_live_gamedata(&engine, &data);
     let available = mapped

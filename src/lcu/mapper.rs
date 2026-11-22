@@ -2,7 +2,8 @@ use chrono::Utc;
 use serde_json::{Value, json};
 
 use crate::data::norm_name;
-use crate::engine::Engine;
+use crate::engine::{Engine, ItemRef};
+use crate::mode::GameMode;
 
 const ROLES: [&str; 5] = ["TOP", "JUNGLE", "MID", "BOT", "SUPPORT"];
 
@@ -108,7 +109,15 @@ fn fill_team_by_id(engine: &Engine, players: &[Value], position_key: &str) -> Ve
 }
 
 fn fill_team_by_name(engine: &Engine, players: &[Value]) -> Vec<Option<String>> {
-    let mut team: Vec<Option<String>> = vec![None; 5];
+    fill_team_by_name_limited(engine, players, 5)
+}
+
+fn fill_team_by_name_limited(
+    engine: &Engine,
+    players: &[Value],
+    limit: usize,
+) -> Vec<Option<String>> {
+    let mut team: Vec<Option<String>> = vec![None; limit];
     for player in players {
         let Some(player) = player.as_object() else {
             continue;
@@ -128,14 +137,16 @@ fn fill_team_by_name(engine: &Engine, players: &[Value]) -> Vec<Option<String>> 
             .get("position")
             .and_then(Value::as_str)
             .and_then(|value| role_index(Some(value)));
-        if index.is_none() {
+        if index.is_none_or(|index| index >= team.len()) {
             index = first_empty(&team);
         }
         if let Some(mut index) = index {
             if team.get(index).is_some_and(Option::is_some) {
                 index = first_empty(&team).unwrap_or(index);
             }
-            team[index] = Some(champion);
+            if index < team.len() {
+                team[index] = Some(champion);
+            }
         }
     }
     team
@@ -338,6 +349,31 @@ pub fn map_champ_select(
     let enemies = fill_team_by_id(engine, &their_team, "assignedPosition");
     place_champion(engine, &mut allies, my_champion.clone(), &role);
 
+    let queue_id = gameflow
+        .and_then(|value| value.get("gameData"))
+        .and_then(|value| value.get("queue"))
+        .and_then(|value| value.get("queueId"))
+        .and_then(Value::as_i64)
+        .or_else(|| {
+            session
+                .get("gameData")
+                .and_then(|value| value.get("queue"))
+                .and_then(|value| value.get("queueId"))
+                .and_then(Value::as_i64)
+        });
+    let mode = GameMode::resolve(
+        None,
+        gameflow
+            .and_then(|value| value.get("gameData"))
+            .and_then(|value| value.get("gameMode"))
+            .and_then(Value::as_str),
+        gameflow
+            .and_then(|value| value.get("gameData"))
+            .and_then(|value| value.get("map"))
+            .and_then(Value::as_str),
+        queue_id,
+    );
+
     json!({
         "available": true,
         "source": "lcu",
@@ -350,10 +386,9 @@ pub fn map_champ_select(
         "myChampion": my_champion,
         "localPlayerCellId": local_cell,
         "timerSeconds": timer_seconds(session),
-        "queueId": gameflow
-            .and_then(|value| value.get("gameData"))
-            .and_then(|value| value.get("queue"))
-            .and_then(|value| value.get("queueId")),
+        "queueId": queue_id,
+        "gameMode": mode.key(),
+        "modeLabel": mode.label(),
         "summoner": status.get("summoner"),
         "updatedAt": Utc::now().to_rfc3339(),
     })
@@ -416,6 +451,14 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
             "error": format!("Campeón no reconocido: {}", raw_champion.unwrap_or("")),
         });
     };
+    let game_data = data.get("gameData").cloned().unwrap_or(Value::Null);
+    let queue_id = game_data.get("queueId").and_then(Value::as_i64);
+    let mode = GameMode::resolve(
+        None,
+        game_data.get("gameMode").and_then(Value::as_str),
+        game_data.get("mapName").and_then(Value::as_str),
+        queue_id,
+    );
     let role = role_index(me.get("position").and_then(Value::as_str))
         .map(|index| ROLES[index].to_string())
         .unwrap_or_else(|| infer_role(engine, Some(&champion)));
@@ -425,23 +468,57 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         .unwrap_or("")
         .to_uppercase();
     let side = if team == "CHAOS" { "red" } else { "blue" };
+
+    let subteam_id = ["playerSubteamId", "subteamId", "teamId"]
+        .iter()
+        .find_map(|key| me.get(*key).and_then(Value::as_i64));
     let mut team_players = Vec::new();
     let mut enemy_players = Vec::new();
-    for player in &players {
-        let player_team = player
-            .get("team")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_uppercase();
-        if player_team == team {
-            team_players.push(player.clone());
-        } else {
+    let mut arena_team_known = false;
+    if mode == GameMode::Arena {
+        for player in &players {
+            if same_player(&active_name, player) {
+                continue;
+            }
+            if let Some(active_subteam) = subteam_id {
+                let player_subteam = ["playerSubteamId", "subteamId", "teamId"]
+                    .iter()
+                    .find_map(|key| player.get(*key).and_then(Value::as_i64));
+                if player_subteam == Some(active_subteam) {
+                    arena_team_known = true;
+                    team_players.push(player.clone());
+                    continue;
+                }
+            }
             enemy_players.push(player.clone());
         }
+    } else {
+        for player in &players {
+            let player_team = player
+                .get("team")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_uppercase();
+            if player_team == team {
+                team_players.push(player.clone());
+            } else {
+                enemy_players.push(player.clone());
+            }
+        }
     }
+
     let mut allies = fill_team_by_name(engine, &team_players);
-    let enemies = fill_team_by_name(engine, &enemy_players);
-    place_champion(engine, &mut allies, Some(champion.clone()), &role);
+    if mode.is_classic() {
+        place_champion(engine, &mut allies, Some(champion.clone()), &role);
+    } else {
+        allies.retain(|value| value.as_deref() != Some(champion.as_str()));
+        allies.insert(0, Some(champion.clone()));
+        allies.truncate(5);
+    }
+    let mut enemies = fill_team_by_name_limited(engine, &enemy_players, mode.max_enemies());
+    while enemies.last().is_some_and(Option::is_none) {
+        enemies.pop();
+    }
 
     let mut raw_items: Vec<Value> = me
         .get("items")
@@ -466,10 +543,9 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
     let owned: Vec<i64> = items
         .iter()
         .filter_map(|item| item.get("id").and_then(Value::as_i64))
-        .filter(|id| engine.item_by_id.contains_key(id))
+        .filter(|id| engine.resolve_item(&ItemRef::Int(*id)).is_some())
         .collect();
 
-    let game_data = data.get("gameData").cloned().unwrap_or(Value::Null);
     let game_time = game_data
         .get("gameTime")
         .and_then(Value::as_f64)
@@ -503,8 +579,21 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         };
         (kills, cs, level)
     };
-    let (team_kills, team_cs, team_level) = team_stats(&team_players);
-    let (enemy_kills, enemy_cs, enemy_level) = team_stats(&enemy_players);
+    let (team_kills, team_cs, team_level, enemy_kills, enemy_cs, enemy_level) =
+        if mode == GameMode::Arena {
+            (0, 0, 0.0, 0, 0, 0.0)
+        } else {
+            let (team_kills, team_cs, team_level) = team_stats(&team_players);
+            let (enemy_kills, enemy_cs, enemy_level) = team_stats(&enemy_players);
+            (
+                team_kills,
+                team_cs,
+                team_level,
+                enemy_kills,
+                enemy_cs,
+                enemy_level,
+            )
+        };
     let mut fed: Vec<(f64, String)> = enemy_players
         .iter()
         .filter_map(|player| {
@@ -575,6 +664,11 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         "team": team,
         "gameMode": game_data.get("gameMode"),
         "mapName": game_data.get("mapName"),
+        "queueId": queue_id,
+        "mode": mode.key(),
+        "modeLabel": mode.label(),
+        "allPlayersCount": players.len(),
+        "arenaTeamKnown": arena_team_known,
         "summoner": active_name,
         "updatedAt": Utc::now().to_rfc3339(),
     })
