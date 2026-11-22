@@ -1,7 +1,41 @@
 param(
   [string]$Version = "",
-  [string]$DataRoot = ""
+  [string]$DataRoot = "",
+  [string]$SignCertificate = $env:RIFTSENSE_SIGN_CERT,
+  [string]$SignPassword = $env:RIFTSENSE_SIGN_PASSWORD,
+  [string]$TimestampUrl = "http://timestamp.digicert.com",
+  [string]$WebView2Bootstrapper = ""
 )
+
+function Find-SignTool {
+  $command = Get-Command signtool.exe -ErrorAction SilentlyContinue
+  if ($command) { return $command.Source }
+  $kits = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
+  if (Test-Path $kits) {
+    return Get-ChildItem $kits -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+      Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
+      Sort-Object FullName -Descending |
+      Select-Object -First 1 -ExpandProperty FullName
+  }
+  return $null
+}
+
+function Sign-RiftSenseFile([string]$Path) {
+  if (-not $SignCertificate) { return }
+  $signtool = Find-SignTool
+  if (-not $signtool) { throw "No se encontro signtool.exe. Instala Windows SDK o usa un certificado en el almacen." }
+  $arguments = @("sign", "/fd", "SHA256", "/tr", $TimestampUrl, "/td", "SHA256")
+  if ($SignCertificate -like "*.pfx") {
+    $arguments += @("/f", $SignCertificate)
+    if ($SignPassword) { $arguments += @("/p", $SignPassword) }
+  } else {
+    $arguments += @("/sha1", $SignCertificate)
+  }
+  $arguments += $Path
+  & $signtool @arguments
+  if ($LASTEXITCODE -ne 0) { throw "Fallo la firma de $Path" }
+  Write-Host "Firmado: $Path" -ForegroundColor DarkGreen
+}
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -60,7 +94,8 @@ try {
   Pop-Location
 }
 
-$target = Join-Path $root "target\release"
+$targetRoot = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $root "target" }
+$target = Join-Path $targetRoot "release"
 foreach ($file in @("riftsense.exe", "riftsense-desktop.exe", "WebView2Loader.dll")) {
   if (-not (Test-Path (Join-Path $target $file))) { throw "Falta $target\$file" }
 }
@@ -74,6 +109,16 @@ Copy-Item (Join-Path $target "riftsense.exe") $payload -Force
 Copy-Item (Join-Path $target "riftsense-desktop.exe") $payload -Force
 Copy-Item (Join-Path $target "WebView2Loader.dll") $payload -Force
 Copy-Item (Join-Path $root "assets\RiftSense.ico") $payload -Force
+if ($WebView2Bootstrapper) {
+  if (-not (Test-Path $WebView2Bootstrapper)) { throw "No existe el bootstrapper de WebView2: $WebView2Bootstrapper" }
+  Copy-Item $WebView2Bootstrapper (Join-Path $payload "MicrosoftEdgeWebview2Setup.exe") -Force
+}
+if ($SignCertificate) {
+  Sign-RiftSenseFile (Join-Path $payload "riftsense.exe")
+  Sign-RiftSenseFile (Join-Path $payload "riftsense-desktop.exe")
+} else {
+  Write-Warning "Instalador sin firmar: define RIFTSENSE_SIGN_CERT o -SignCertificate para firmar."
+}
 Copy-Item (Join-Path $root "models\*") (Join-Path $payload "models") -Recurse -Force
 Copy-Item (Join-Path $DataRoot "data\processed\*") (Join-Path $payload "data\processed") -Force
 foreach ($file in @("meta.json", "draft_report.json", "build_report.json")) {
@@ -84,11 +129,16 @@ Copy-Item (Join-Path $root "README.md") $payload -Force
 
 if (-not (Test-Path $dist)) { New-Item -ItemType Directory -Path $dist -Force | Out-Null }
 Write-Host "Compilando instalador con Inno Setup..." -ForegroundColor Cyan
-& $iscc "/DMyAppVersion=$Version" $iss
+$defines = @("/DMyAppVersion=$Version")
+if (Test-Path (Join-Path $payload "MicrosoftEdgeWebview2Setup.exe")) {
+  $defines += "/DWebView2Setup=1"
+}
+& $iscc @defines $iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC fallo" }
 
 $setup = Join-Path $dist "RiftSense-Setup-$Version.exe"
 if (-not (Test-Path $setup)) { throw "No se genero $setup" }
+if ($SignCertificate) { Sign-RiftSenseFile $setup }
 $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
 $hashFile = "$setup.sha256"
 "$hash  $(Split-Path -Leaf $setup)" | Set-Content $hashFile -Encoding ascii

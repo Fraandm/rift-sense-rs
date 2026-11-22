@@ -43,7 +43,10 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "payload\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "payload\*"; DestDir: "{app}"; Excludes: "MicrosoftEdgeWebview2Setup.exe"; Flags: recursesubdirs createallsubdirs ignoreversion
+#ifdef WebView2Setup
+Source: "payload\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{app}"; Flags: ignoreversion
+#endif
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\RiftSense.ico"
@@ -54,3 +57,44 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall
+
+[Code]
+const
+  WebView2Client = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+
+function IsWebView2Installed: Boolean;
+var
+  Version: String;
+begin
+  Result :=
+    (RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + WebView2Client, 'pv', Version) and (Version <> '')) or
+    (RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\' + WebView2Client, 'pv', Version) and (Version <> '')) or
+    (RegQueryStringValue(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\' + WebView2Client, 'pv', Version) and (Version <> ''));
+end;
+
+procedure EnsureWebView2;
+var
+  Bootstrapper: String;
+  ResultCode: Integer;
+begin
+  if IsWebView2Installed then
+    Exit;
+
+  Bootstrapper := ExpandConstant('{app}\MicrosoftEdgeWebview2Setup.exe');
+  if FileExists(Bootstrapper) then
+  begin
+    if MsgBox('RiftSense necesita Microsoft Edge WebView2. Se instalara ahora para que la aplicacion pueda abrirse.', mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      if (not Exec(Bootstrapper, '/silent /install', '', SW_SHOW, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
+        MsgBox('No se pudo instalar WebView2 automaticamente. Descargalo en https://go.microsoft.com/fwlink/p/?LinkId=2124703', mbError, MB_OK);
+    end;
+  end
+  else
+    MsgBox('RiftSense necesita Microsoft Edge WebView2. Instalalo desde https://go.microsoft.com/fwlink/p/?LinkId=2124703 antes de abrir la aplicacion.', mbInformation, MB_OK);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    EnsureWebView2;
+end;

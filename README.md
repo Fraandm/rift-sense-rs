@@ -114,6 +114,24 @@ Para compilar el instalador:
 .\installer\build-installer.ps1
 ```
 
+Para firmar los binarios y el instalador con Authenticode:
+
+```powershell
+$env:RIFTSENSE_SIGN_CERT = "huella-o-ruta-al-pfx"
+$env:RIFTSENSE_SIGN_PASSWORD = "..."   # solo si usas PFX
+.\installer\build-installer.ps1
+```
+
+Sin certificado, el script avisa y genera un instalador sin firmar. También
+puedes incluir el bootstrapper de WebView2 para instalaciones offline:
+
+```powershell
+.\installer\build-installer.ps1 -WebView2Bootstrapper "C:\ruta\MicrosoftEdgeWebview2Setup.exe"
+```
+
+El instalador comprueba WebView2 y, si falta, ejecuta el bootstrapper incluido
+o muestra el enlace oficial de descarga.
+
 ## Estructura
 
 ```
