@@ -132,6 +132,12 @@ puedes incluir el bootstrapper de WebView2 para instalaciones offline:
 El instalador comprueba WebView2 y, si falta, ejecuta el bootstrapper incluido
 o muestra el enlace oficial de descarga.
 
+Para actualizar datos y modelos sin reinstalar, sustituye `models/*.onnx` y
+`data/processed` por la nueva exportación y pulsa **Recargar datos** en
+Ajustes. El endpoint `/api/reload` valida el vocabulario y vuelve a cargar el
+motor; si el modelo y el vocabulario no coinciden, conserva el anterior y
+muestra el error.
+
 ## Estructura
 
 ```

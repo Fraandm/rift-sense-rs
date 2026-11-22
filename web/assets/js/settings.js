@@ -79,10 +79,11 @@ function apply() {
     const timestamp = end ? Date.parse(end) : NaN;
     if (Number.isFinite(timestamp)) {
       const days = Math.max(0, Math.floor((Date.now() - timestamp) / 86400000));
+      const dayText = days === 1 ? "día" : "días";
       dataNote.textContent =
         days > 45
-          ? `Datos hasta ${end} (${days} días). Actualiza datos y modelos antes de confiar en las recomendaciones.`
-          : `Datos hasta ${end} (${days} días). Dentro de la ventana de 45 días.`;
+          ? `Datos hasta ${end} (${days} ${dayText}). Actualiza datos y modelos antes de confiar en las recomendaciones.`
+          : `Datos hasta ${end} (${days} ${dayText}). Dentro de la ventana de 45 días.`;
       dataNote.classList.toggle("bad", days > 45);
     } else {
       dataNote.textContent = "No se pudo leer la fecha del dataset.";
@@ -135,6 +136,15 @@ function bind() {
       }
     } catch (err) {
       toast(err?.message || "No se pudo generar el diagnóstico.", "error", 7000);
+    }
+  });
+  $("#settings-reload")?.addEventListener("click", async () => {
+    try {
+      const result = await api.post("/api/reload", {}, { timeout: 120000 });
+      toast(`Datos y modelos recargados (parche ${result?.patch || "actual"}).`, "success");
+      setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+      toast(err?.message || "No se pudieron recargar los modelos.", "error", 8000);
     }
   });
   $("#settings-logs")?.addEventListener("click", async () => {
