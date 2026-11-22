@@ -35,6 +35,22 @@ frente a la API Python (incluidos textos y orden).
 
 Resultados de rendimiento frente a la app original: [`PERFORMANCE.md`](PERFORMANCE.md).
 
+## Coach de compras en vivo
+
+La pestaña **En vivo** lee el Live Client Data durante la partida y analiza
+KDA, CS, nivel, diferencia de kills/CS/niveles entre equipos, campeones
+enemigos fuertes y amenazas de curación. La siguiente compra se ajusta con ese
+contexto:
+
+- prioriza defensas si vas por detrás;
+- recomienda antiheal si el rival tiene curación y aún no lo llevas;
+- acelera objetos ofensivos si vas por delante;
+- sugiere un componente asequible cuando el objeto completo no entra en oro.
+
+Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
+mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni
+envía inputs al juego.
+
 ## Instalación y actualizaciones
 
 El instalador se publica en

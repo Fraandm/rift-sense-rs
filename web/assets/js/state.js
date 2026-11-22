@@ -22,6 +22,21 @@ export const state = {
     owned: [],
     gold: 0,
     minute: 6,
+    game: {
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      cs: 0,
+      level: 1,
+      gameTime: 0,
+      teamKills: 0,
+      enemyKills: 0,
+      teamCs: 0,
+      enemyCs: 0,
+      teamLevel: 0,
+      enemyLevel: 0,
+      enemyFed: [],
+    },
   },
 };
 

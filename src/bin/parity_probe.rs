@@ -41,6 +41,7 @@ fn main() -> Result<()> {
         owned: vec![ItemRef::Int(6655)],
         gold: 2500,
         minute: 14.0,
+        game: None,
         limit: 10,
         simulate: true,
     };

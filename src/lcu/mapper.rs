@@ -476,6 +476,67 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         .unwrap_or(0.0);
     let scores = me.get("scores").cloned().unwrap_or(Value::Null);
     let score = |key: &str| scores.get(key).and_then(Value::as_i64).unwrap_or(0);
+    let player_score = |player: &Value, key: &str| {
+        player
+            .get("scores")
+            .and_then(|scores| scores.get(key))
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+    };
+    let team_stats = |players: &[Value]| {
+        let kills = players
+            .iter()
+            .map(|player| player_score(player, "kills"))
+            .sum::<i64>();
+        let cs = players
+            .iter()
+            .map(|player| player_score(player, "creepScore"))
+            .sum::<i64>();
+        let level_sum = players
+            .iter()
+            .map(|player| player.get("level").and_then(Value::as_i64).unwrap_or(1))
+            .sum::<i64>();
+        let level = if players.is_empty() {
+            0.0
+        } else {
+            level_sum as f64 / players.len() as f64
+        };
+        (kills, cs, level)
+    };
+    let (team_kills, team_cs, team_level) = team_stats(&team_players);
+    let (enemy_kills, enemy_cs, enemy_level) = team_stats(&enemy_players);
+    let mut fed: Vec<(f64, String)> = enemy_players
+        .iter()
+        .filter_map(|player| {
+            let name =
+                canonical_champion(engine, player.get("championName").and_then(Value::as_str))?;
+            let kills = player_score(player, "kills");
+            let deaths = player_score(player, "deaths");
+            let cs = player_score(player, "creepScore");
+            let level = player.get("level").and_then(Value::as_i64).unwrap_or(1);
+            let score =
+                kills as f64 * 2.0 + cs as f64 / 100.0 + level as f64 * 0.5 - deaths as f64 * 0.2;
+            if kills >= 3 || score >= 7.0 {
+                Some((score, name))
+            } else {
+                None
+            }
+        })
+        .collect();
+    fed.sort_by(|left, right| {
+        right
+            .0
+            .partial_cmp(&left.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let enemy_fed: Vec<String> = fed.into_iter().take(2).map(|(_, name)| name).collect();
+    let minute = game_time / 60.0;
+    let cs = score("creepScore");
+    let kill_participation = if team_kills > 0 {
+        ((score("kills") + score("assists")) as f64 / team_kills as f64).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
     json!({
         "available": true,
         "source": "liveclientdata",
@@ -495,9 +556,22 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
             "kills": score("kills"),
             "deaths": score("deaths"),
             "assists": score("assists"),
-            "cs": score("creepScore"),
+            "cs": cs,
             "wards": score("wardScore"),
         },
+        "kills": score("kills"),
+        "deaths": score("deaths"),
+        "assists": score("assists"),
+        "cs": cs,
+        "csPerMin": if minute > 0.0 { (cs as f64 / minute * 10.0).round() / 10.0 } else { 0.0 },
+        "killParticipation": (kill_participation * 1000.0).round() / 1000.0,
+        "teamKills": team_kills,
+        "enemyKills": enemy_kills,
+        "teamCs": team_cs,
+        "enemyCs": enemy_cs,
+        "teamLevel": (team_level * 10.0).round() / 10.0,
+        "enemyLevel": (enemy_level * 10.0).round() / 10.0,
+        "enemyFed": enemy_fed,
         "team": team,
         "gameMode": game_data.get("gameMode"),
         "mapName": game_data.get("mapName"),

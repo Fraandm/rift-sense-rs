@@ -35,7 +35,7 @@ const LOCATION_SOURCES = {
 let status = null;
 let draftData = null;
 let liveData = null;
-let auto = false;
+let auto = true;
 let active = false;
 let timer = null;
 let busy = false;
@@ -602,5 +602,6 @@ export function init() {
     if (!document.hidden && (auto || active)) poll();
   });
 
-  poll();
+  syncAutoUi();
+  ensurePolling();
 }

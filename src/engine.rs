@@ -75,6 +75,37 @@ pub struct BansRequest {
     pub limit: usize,
 }
 
+#[derive(Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GameContext {
+    #[serde(default)]
+    pub kills: i64,
+    #[serde(default)]
+    pub deaths: i64,
+    #[serde(default)]
+    pub assists: i64,
+    #[serde(default)]
+    pub cs: i64,
+    #[serde(default)]
+    pub level: i64,
+    #[serde(default)]
+    pub game_time: f64,
+    #[serde(default)]
+    pub team_kills: i64,
+    #[serde(default)]
+    pub enemy_kills: i64,
+    #[serde(default)]
+    pub team_cs: i64,
+    #[serde(default)]
+    pub enemy_cs: i64,
+    #[serde(default)]
+    pub team_level: f64,
+    #[serde(default)]
+    pub enemy_level: f64,
+    #[serde(default)]
+    pub enemy_fed: Vec<String>,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 pub struct BuildRequest {
     pub champion: ChampionRef,
@@ -92,6 +123,8 @@ pub struct BuildRequest {
     pub gold: i64,
     #[serde(default)]
     pub minute: f64,
+    #[serde(default)]
+    pub game: Option<GameContext>,
     #[serde(default = "default_draft_limit")]
     pub limit: usize,
     #[serde(default = "default_true")]
@@ -150,9 +183,171 @@ struct ItemCandidate<'a> {
     wr_edge: f64,
     defense: f64,
     defense_note: String,
+    context_fit: f64,
+    context_note: String,
     score: f64,
     affordable: bool,
     missing_gold: i64,
+}
+
+#[derive(Clone, Debug)]
+struct GameAnalysis {
+    state: &'static str,
+    phase: &'static str,
+    kills: i64,
+    deaths: i64,
+    assists: i64,
+    cs: i64,
+    level: i64,
+    game_time: f64,
+    team_kills: i64,
+    enemy_kills: i64,
+    team_cs: i64,
+    enemy_cs: i64,
+    team_level: f64,
+    enemy_level: f64,
+    kill_diff: i64,
+    cs_diff: i64,
+    level_diff: f64,
+    kda: f64,
+    cs_per_min: f64,
+    kill_participation: f64,
+    enemy_fed: Vec<String>,
+    healers: Vec<String>,
+    notes: Vec<String>,
+}
+
+impl GameAnalysis {
+    fn to_json(&self) -> Value {
+        json!({
+            "state": self.state,
+            "label": match self.state {
+                "ahead" => "Vas por delante",
+                "behind" => "Vas por detrás",
+                _ => "Partida igualada",
+            },
+            "phase": self.phase,
+            "phaseLabel": match self.phase {
+                "early" => "Early game",
+                "late" => "Late game",
+                _ => "Mid game",
+            },
+            "kills": self.kills,
+            "deaths": self.deaths,
+            "assists": self.assists,
+            "kda": round(self.kda, 2),
+            "cs": self.cs,
+            "csPerMin": round(self.cs_per_min, 1),
+            "level": self.level,
+            "gameTime": round(self.game_time, 1),
+            "teamKills": self.team_kills,
+            "enemyKills": self.enemy_kills,
+            "killDiff": self.kill_diff,
+            "teamCs": self.team_cs,
+            "enemyCs": self.enemy_cs,
+            "csDiff": self.cs_diff,
+            "teamLevel": round(self.team_level, 1),
+            "enemyLevel": round(self.enemy_level, 1),
+            "levelDiff": round(self.level_diff, 1),
+            "killParticipation": round(self.kill_participation, 3),
+            "enemyFed": self.enemy_fed,
+            "healingThreat": self.healers,
+            "notes": self.notes,
+        })
+    }
+}
+
+const HEALING_CHAMPIONS: &[&str] = &[
+    "aatrox",
+    "briar",
+    "darius",
+    "drmundo",
+    "fiora",
+    "gwen",
+    "illaoi",
+    "irelia",
+    "jax",
+    "kayn",
+    "kled",
+    "maokai",
+    "mordekaiser",
+    "nami",
+    "nasus",
+    "nidalee",
+    "olaf",
+    "rakan",
+    "rengar",
+    "riven",
+    "samira",
+    "seraphine",
+    "sett",
+    "shen",
+    "sona",
+    "soraka",
+    "sylas",
+    "tahmkench",
+    "taric",
+    "trundle",
+    "tryndamere",
+    "udyr",
+    "vladimir",
+    "volibear",
+    "warwick",
+    "yuumi",
+    "zac",
+];
+
+const GRIEVOUS_ITEMS: &[&str] = &[
+    "morellonomicon",
+    "chempunkchainsword",
+    "chemtechputrifier",
+    "mortalreminder",
+    "thornmail",
+    "oblivionorb",
+    "executionerscalling",
+    "bramblevest",
+];
+
+fn compact_name(value: &str) -> String {
+    value
+        .to_lowercase()
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .collect()
+}
+
+fn is_healing_champion(name: &str) -> bool {
+    let key = compact_name(name);
+    HEALING_CHAMPIONS.iter().any(|candidate| *candidate == key)
+}
+
+fn is_grievous_item(item: &Item) -> bool {
+    let key = compact_name(&item.name);
+    GRIEVOUS_ITEMS
+        .iter()
+        .any(|candidate| key.contains(candidate))
+}
+
+fn is_defensive_item(item: &Item) -> bool {
+    let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
+    let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
+    tags.contains("Armor")
+        || tags.contains("SpellBlock")
+        || tags.contains("Health")
+        || stat("FlatArmorMod") > 0.0
+        || stat("FlatSpellBlockMod") > 0.0
+        || stat("FlatHPPoolMod") > 0.0
+}
+
+fn is_offensive_item(item: &Item) -> bool {
+    let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
+    let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
+    tags.contains("Damage")
+        || tags.contains("AbilityPower")
+        || tags.contains("AttackSpeed")
+        || tags.contains("CriticalStrike")
+        || stat("FlatPhysicalDamageMod") > 0.0
+        || stat("FlatMagicDamageMod") > 0.0
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1040,6 +1235,7 @@ impl Engine {
         owned: &[&'a Item],
         gold: i64,
         _minute: f64,
+        analysis: Option<&GameAnalysis>,
         use_model: bool,
     ) -> Result<Vec<ItemCandidate<'a>>> {
         let owned_ids: HashSet<i64> = owned.iter().map(|item| item.id).collect();
@@ -1145,6 +1341,9 @@ impl Engine {
             let wr = (prior.wins as f64 + 0.5 * 25.0) / (prior.n as f64 + 25.0);
             let wr_edge = wr - 0.5;
             let (defense, defense_note) = self.defensive_fit(item, &profile);
+            let (context_fit, context_note) = analysis
+                .map(|analysis| self.context_fit(item, analysis, &profile, owned))
+                .unwrap_or((0.0, String::new()));
             candidates.push(ItemCandidate {
                 item,
                 model_prob: probs.get(item.idx as usize).copied().unwrap_or(0.0) as f64,
@@ -1155,6 +1354,8 @@ impl Engine {
                 wr_edge,
                 defense,
                 defense_note,
+                context_fit,
+                context_note,
                 score: 0.0,
                 affordable: false,
                 missing_gold: 0,
@@ -1169,13 +1370,16 @@ impl Engine {
         } else {
             0.0
         };
-        let mut weights = [
+        let mut weights = vec![
             ("model", model_weight),
             ("popularity", 0.20),
             ("slot", 0.15),
             ("winrate", 0.05),
             ("defense", 0.10),
         ];
+        if analysis.is_some() {
+            weights.push(("context", 0.12));
+        }
         let total_w: f64 = weights.iter().map(|(_, value)| *value).sum();
         for (_, value) in &mut weights {
             *value /= if total_w == 0.0 { 1.0 } else { total_w };
@@ -1224,12 +1428,19 @@ impl Engine {
                 .map(|candidate| candidate.defense)
                 .collect::<Vec<_>>(),
         );
+        let z_context = standardize(
+            &candidates
+                .iter()
+                .map(|candidate| candidate.context_fit)
+                .collect::<Vec<_>>(),
+        );
         for (i, candidate) in candidates.iter_mut().enumerate() {
             let composite = weight("model") * z_model[i]
                 + weight("popularity") * z_pop[i]
                 + weight("slot") * z_slot[i]
                 + weight("winrate") * z_wr[i]
-                + weight("defense") * z_def[i];
+                + weight("defense") * z_def[i]
+                + weight("context") * z_context[i];
             candidate.score = clamp(50.0 + 11.0 * composite, 1.0, 96.0);
             candidate.affordable = gold >= candidate.item.gold;
             candidate.missing_gold = (candidate.item.gold - gold).max(0);
@@ -1333,6 +1544,193 @@ impl Engine {
             avg_slot: 0.0,
             scope: "none",
         }
+    }
+
+    fn analyze_game(
+        &self,
+        context: &GameContext,
+        minute: f64,
+        enemies: &[Option<&Champion>],
+    ) -> Option<GameAnalysis> {
+        let has_signals = context.game_time > 0.0
+            || context.cs > 0
+            || context.level > 1
+            || context.team_kills > 0
+            || context.enemy_kills > 0
+            || context.team_cs > 0
+            || context.enemy_cs > 0;
+        if !has_signals {
+            return None;
+        }
+
+        let minute = if context.game_time > 0.0 {
+            context.game_time / 60.0
+        } else {
+            minute
+        };
+        let kda = (context.kills + context.assists) as f64 / context.deaths.max(1) as f64;
+        let cs_per_min = context.cs as f64 / minute.max(1.0);
+        let kill_diff = context.team_kills - context.enemy_kills;
+        let cs_diff = context.team_cs - context.enemy_cs;
+        let level_diff = context.team_level - context.enemy_level;
+        let kill_participation = if context.team_kills > 0 {
+            ((context.kills + context.assists) as f64 / context.team_kills as f64).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let tempo = kill_diff as f64 * 2.0
+            + level_diff * 3.0
+            + cs_diff as f64 / 80.0
+            + (kda - 2.0).clamp(-2.0, 2.0) * 0.3;
+        let state = if tempo >= 3.0 {
+            "ahead"
+        } else if tempo <= -3.0 {
+            "behind"
+        } else {
+            "even"
+        };
+        let phase = if minute < 14.0 {
+            "early"
+        } else if minute < 28.0 {
+            "mid"
+        } else {
+            "late"
+        };
+
+        let mut healers = Vec::new();
+        for champion in enemies.iter().flatten() {
+            if is_healing_champion(&champion.name) {
+                healers.push(champion.name.clone());
+            }
+        }
+        healers.sort();
+        healers.dedup();
+
+        let enemy_fed: Vec<String> = context
+            .enemy_fed
+            .iter()
+            .filter(|name| {
+                enemies
+                    .iter()
+                    .flatten()
+                    .any(|champion| champion.name.eq_ignore_ascii_case(name))
+            })
+            .take(3)
+            .cloned()
+            .collect();
+
+        let mut notes = vec![
+            format!(
+                "Equipos {}-{} ({:+})",
+                context.team_kills, context.enemy_kills, kill_diff
+            ),
+            format!(
+                "CS {}-{} ({:+})",
+                context.team_cs, context.enemy_cs, cs_diff
+            ),
+            format!(
+                "Nivel medio {:.1}-{:.1} ({:+.1})",
+                context.team_level, context.enemy_level, level_diff
+            ),
+            format!("KDA {:.1} · {:.1} CS/min", kda, cs_per_min),
+        ];
+        if !healers.is_empty() {
+            notes.push(format!("Curación enemiga: {}", healers.join(", ")));
+        }
+        if !enemy_fed.is_empty() {
+            notes.push(format!("Rivales fuertes: {}", enemy_fed.join(", ")));
+        }
+
+        Some(GameAnalysis {
+            state,
+            phase,
+            kills: context.kills,
+            deaths: context.deaths,
+            assists: context.assists,
+            cs: context.cs,
+            level: context.level,
+            game_time: context.game_time,
+            team_kills: context.team_kills,
+            enemy_kills: context.enemy_kills,
+            team_cs: context.team_cs,
+            enemy_cs: context.enemy_cs,
+            team_level: context.team_level,
+            enemy_level: context.enemy_level,
+            kill_diff,
+            cs_diff,
+            level_diff,
+            kda,
+            cs_per_min,
+            kill_participation,
+            enemy_fed,
+            healers,
+            notes,
+        })
+    }
+
+    fn context_fit(
+        &self,
+        item: &Item,
+        analysis: &GameAnalysis,
+        profile: &Value,
+        owned: &[&Item],
+    ) -> (f64, String) {
+        let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
+        let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
+        let defensive = is_defensive_item(item);
+        let offensive = is_offensive_item(item);
+        let armor = tags.contains("Armor") || stat("FlatArmorMod") > 0.0;
+        let magic_resist = tags.contains("SpellBlock") || stat("FlatSpellBlockMod") > 0.0;
+        let physical = profile
+            .get("physical")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.5);
+        let magic = profile.get("magic").and_then(Value::as_f64).unwrap_or(0.5);
+        let mut score = 0.0;
+        let mut notes = Vec::new();
+
+        if analysis.state == "behind" {
+            if defensive {
+                score += 0.20;
+                notes.push("Vas por detrás: prioriza resistencias");
+            }
+            if offensive {
+                score -= 0.05;
+            }
+        } else if analysis.state == "ahead" {
+            if offensive {
+                score += 0.10;
+                notes.push("Ventaja: acelera tu spike ofensivo");
+            }
+            if defensive {
+                score -= 0.03;
+            }
+        }
+
+        if !analysis.healers.is_empty()
+            && is_grievous_item(item)
+            && !owned.iter().any(|owned| is_grievous_item(owned))
+        {
+            score += 0.35;
+            notes.push("Antiheal contra la curación rival");
+        }
+
+        if !analysis.enemy_fed.is_empty() {
+            if physical >= 0.55 && armor {
+                score += 0.10;
+                notes.push("Armadura contra el rival fuerte");
+            }
+            if magic >= 0.55 && magic_resist {
+                score += 0.10;
+                notes.push("Resistencia mágica contra el rival fuerte");
+            }
+        }
+
+        if analysis.phase == "late" && item.gold >= 2800 {
+            score += 0.04;
+        }
+
+        (clamp(score, -0.1, 0.55), notes.join(" · "))
     }
 
     fn defensive_fit(&self, item: &Item, profile: &Value) -> (f64, String) {
@@ -1441,6 +1839,9 @@ impl Engine {
         if !candidate.defense_note.is_empty() {
             reasons.push(format!("Aporta {}", candidate.defense_note));
         }
+        if !candidate.context_note.is_empty() {
+            reasons.push(candidate.context_note.clone());
+        }
         if candidate.affordable {
             reasons.push("Puedes comprarlo ahora".to_string());
         } else {
@@ -1476,6 +1877,34 @@ impl Engine {
         })
     }
 
+    fn next_component(
+        &self,
+        candidates: &[&ItemCandidate],
+        gold: i64,
+        owned_ids: &HashSet<i64>,
+    ) -> Value {
+        for candidate in candidates.iter().take(5) {
+            for component in self.components(candidate.item, gold) {
+                let affordable = component
+                    .get("affordable")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let id = component.get("id").and_then(Value::as_i64).unwrap_or(0);
+                if affordable && id > 0 && !owned_ids.contains(&id) {
+                    return json!({
+                        "id": id,
+                        "name": component.get("name").cloned().unwrap_or(Value::Null),
+                        "icon": component.get("icon").cloned().unwrap_or(Value::Null),
+                        "gold": component.get("gold").cloned().unwrap_or(json!(0)),
+                        "affordable": true,
+                        "parent": candidate.item.name,
+                    });
+                }
+            }
+        }
+        Value::Null
+    }
+
     pub fn build_recommend(&self, req: &BuildRequest) -> Result<Value> {
         let champ = self
             .resolve_champion(&req.champion)
@@ -1499,8 +1928,12 @@ impl Engine {
         }
         let slot = owned_items.len().min(6);
         let profile = self.enemy_profile(&enemy_team);
+        let analysis = req
+            .game
+            .as_ref()
+            .and_then(|game| self.analyze_game(game, minute, &enemy_team));
         if slot >= 6 {
-            return Ok(json!({
+            let mut complete = json!({
                 "mode": "complete",
                 "champion": champion_brief(champ),
                 "role": role,
@@ -1509,7 +1942,11 @@ impl Engine {
                 "items": [],
                 "buildPlan": [],
                 "notes": ["Build completa: 6 objetos. Considera el trinket y consumibles."],
-            }));
+            });
+            if let Some(analysis) = analysis.as_ref() {
+                complete["gameAnalysis"] = analysis.to_json();
+            }
+            return Ok(complete);
         }
 
         let candidates = self.score_items(
@@ -1521,6 +1958,7 @@ impl Engine {
             &owned_items,
             gold,
             minute,
+            analysis.as_ref(),
             true,
         )?;
         let items_out: Vec<Value> = candidates
@@ -1528,7 +1966,47 @@ impl Engine {
             .take(limit)
             .map(|candidate| self.format_item(candidate, gold, slot, &role))
             .collect();
-        let next_purchase = candidates
+        let focus: Vec<&ItemCandidate> = if let Some(analysis) = analysis.as_ref() {
+            let mut preferred = if !analysis.healers.is_empty()
+                && !owned_items.iter().any(|item| is_grievous_item(item))
+            {
+                candidates
+                    .iter()
+                    .filter(|candidate| is_grievous_item(candidate.item))
+                    .collect::<Vec<_>>()
+            } else if analysis.state == "behind" {
+                candidates
+                    .iter()
+                    .filter(|candidate| is_defensive_item(candidate.item))
+                    .collect::<Vec<_>>()
+            } else if analysis.state == "ahead" {
+                candidates
+                    .iter()
+                    .filter(|candidate| is_offensive_item(candidate.item))
+                    .collect::<Vec<_>>()
+            } else {
+                candidates.iter().collect::<Vec<_>>()
+            };
+            if preferred.is_empty() {
+                preferred = candidates.iter().collect();
+            }
+            preferred.sort_by(|left, right| {
+                right
+                    .context_fit
+                    .partial_cmp(&left.context_fit)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| {
+                        right
+                            .score
+                            .partial_cmp(&left.score)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
+            });
+            preferred
+        } else {
+            candidates.iter().collect()
+        };
+        let next_purchase = focus
             .iter()
             .find(|candidate| gold >= candidate.item.gold)
             .map(|candidate| self.format_item(candidate, gold, slot, &role));
@@ -1547,6 +2025,7 @@ impl Engine {
                     &sim_owned,
                     sim_gold,
                     minute,
+                    analysis.as_ref(),
                     true,
                 )?;
                 let Some(best) = sims.first() else { break };
@@ -1590,7 +2069,19 @@ impl Engine {
             notes.push("Faltan campeones enemigos: el perfil de daño es aproximado.".to_string());
         }
 
-        Ok(json!({
+        let next_component = if analysis.is_some() && next_purchase.is_none() {
+            self.next_component(&focus, gold, &seen)
+        } else {
+            Value::Null
+        };
+        let urgency = if next_purchase.is_some() {
+            "buy"
+        } else if next_component.is_null() {
+            "save"
+        } else {
+            "component"
+        };
+        let mut output = json!({
             "mode": if self.build_model.is_some() { "model" } else { "priors" },
             "champion": champion_brief(champ),
             "role": role,
@@ -1610,7 +2101,13 @@ impl Engine {
                 "nearby": nearby,
             },
             "notes": notes,
-        }))
+        });
+        if let Some(analysis) = analysis.as_ref() {
+            output["gameAnalysis"] = analysis.to_json();
+            output["nextComponent"] = next_component;
+            output["urgency"] = json!(urgency);
+        }
+        Ok(output)
     }
 
     pub fn champion_meta(&self, role: Option<&str>) -> Result<Vec<Value>> {

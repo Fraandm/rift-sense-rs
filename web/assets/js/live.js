@@ -270,9 +270,12 @@ function renderItems(build) {
     return;
   }
   if (subtitle) {
+    const component = build?.nextComponent
+      ? ` · componente: ${build.nextComponent.name}`
+      : "";
     subtitle.textContent = `Slot ${build.slot} de 6 · ${items.length} candidatos · ${
       build.mode === "model" ? "modelo + datos" : "datos pro"
-    }`;
+    }${component}`;
   }
 
   const nextId = build?.nextPurchase?.id;
@@ -282,6 +285,58 @@ function renderItems(build) {
   }
   for (const item of items) cards.push(renderItemCard(item, item.id === nextId));
   host.innerHTML = cards.join("");
+}
+
+function renderCoach(build) {
+  const host = $("#live-coach");
+  if (!host) return;
+  const analysis = build?.gameAnalysis;
+  if (!analysis) {
+    host.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+
+  const next = build?.nextPurchase;
+  const component = build?.nextComponent;
+  const top = build?.items?.[0];
+  const nextName = next?.name || component?.name || "Ahorra oro";
+  let nextDetail;
+  if (next) {
+    nextDetail = "Puedes comprarlo ahora";
+  } else if (component) {
+    nextDetail = `Componente de ${component.parent}`;
+  } else if (top?.missingGold) {
+    nextDetail = `Faltan ${num(top.missingGold)} para ${top.name}`;
+  } else {
+    nextDetail = "Guarda oro para el siguiente spike";
+  }
+
+  const notes = (analysis.notes || []).slice(0, 3).join(" · ");
+  const extras = [];
+  if (analysis.enemyFed?.length) extras.push(`Fuertes: ${analysis.enemyFed.join(", ")}`);
+  if (analysis.healingThreat?.length) extras.push(`Curación: ${analysis.healingThreat.join(", ")}`);
+
+  host.className = `live-coach ${analysis.state || ""}`;
+  host.innerHTML = `
+    <div class="coach-copy">
+      <span class="eyebrow">Lectura de partida</span>
+      <strong>${esc(analysis.label)}</strong>
+      <div class="coach-metrics">
+        <span>KDA ${analysis.kills}/${analysis.deaths}/${analysis.assists}</span>
+        <span>${num(analysis.cs)} CS · ${analysis.csPerMin}/min</span>
+        <span>Nivel ${analysis.level}</span>
+        <span>Equipos ${analysis.teamKills}-${analysis.enemyKills}</span>
+        <span>Niveles ${analysis.teamLevel}-${analysis.enemyLevel}</span>
+      </div>
+      <p>${esc(notes)}${extras.length ? ` · ${esc(extras.join(" · "))}` : ""}</p>
+    </div>
+    <div class="coach-next">
+      <span class="eyebrow">Próxima compra</span>
+      <strong>${esc(nextName)}</strong>
+      <span>${esc(nextDetail)}</span>
+    </div>`;
+  host.classList.remove("hidden");
 }
 
 function renderVerdict(draft, build) {
@@ -311,9 +366,17 @@ function renderVerdict(draft, build) {
   }
   if (pills) {
     const profile = build?.enemyProfile;
+    const analysis = build?.gameAnalysis;
     pills.innerHTML = [
       `<span class="pill">${esc(roleLabel(live.role))}</span>`,
       `<span class="pill gold">${live.owned.length}/6 objetos</span>`,
+      analysis
+        ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
+            analysis.label
+          )}</span>`
+        : "",
+      analysis ? `<span class="pill">KDA ${analysis.kills}/${analysis.deaths}/${analysis.assists}</span>` : "",
+      analysis ? `<span class="pill">${num(analysis.cs)} CS</span>` : "",
       profile ? `<span class="pill">${profile.label === "Mixta" ? "Daño mixto" : `Rival ${profile.label}`}</span>` : "",
       `<span class="pill teal">${draft?.mode === "model" ? "DraftNet" : "Datos pro"}</span>`,
     ]
@@ -422,7 +485,7 @@ function renderNotes(build, draft) {
     rows.push(`<div class="note-box"><strong>Notas del motor</strong>${notes.map((n) => esc(n)).join("<br>")}</div>`);
   }
 
-  rows.push(`<div class="note-box"><strong>Alcance</strong>Datos de partidas profesionales (Leaguepedia). No hay conexión con el cliente de League of Legends: el oro, el minuto y el inventario los introduces tú.</div>`);
+  rows.push(`<div class="note-box"><strong>Alcance</strong>Con Auto activo, RiftSense lee el estado de la partida cada 3 segundos (KDA, CS, niveles, equipo, oro e inventario) y adapta la siguiente compra. Sin partida en curso puedes introducir los datos manualmente. Nada de esto envía compras al juego.</div>`);
   host.innerHTML = rows.join("");
 }
 
@@ -439,6 +502,7 @@ function payload() {
     owned: live.owned,
     gold: Number(live.gold) || 0,
     minute: Number(live.minute) || 0,
+    game: live.game,
     bans: state.draft.bans,
     limit: 10,
     simulate: true,
@@ -451,6 +515,7 @@ async function refresh(immediate = false) {
     lastData = null;
     renderVerdict(null, null);
     renderItems(null);
+    renderCoach(null);
     renderPlan(null);
     renderNotes(null, null);
     renderDamage(null);
@@ -469,6 +534,7 @@ async function refresh(immediate = false) {
     lastData = data;
     renderVerdict(data.draft, data.build);
     renderItems(data.build);
+    renderCoach(data.build);
     renderPlan(data.build);
     renderDamage(data.build?.enemyProfile);
     renderNotes(data.build, data.draft);
@@ -503,6 +569,7 @@ export function init() {
   renderAll();
   renderVerdict(null, null);
   renderItems(null);
+  renderCoach(null);
   renderPlan(null);
   renderNotes(null, null);
 
@@ -629,6 +696,21 @@ export function init() {
       .filter((id) => id != null);
     live.gold = 1600;
     live.minute = 9;
+    live.game = {
+      kills: 4,
+      deaths: 2,
+      assists: 5,
+      cs: 120,
+      level: 10,
+      gameTime: 540,
+      teamKills: 10,
+      enemyKills: 7,
+      teamCs: 500,
+      enemyCs: 420,
+      teamLevel: 9.6,
+      enemyLevel: 9.1,
+      enemyFed: ["Vi"],
+    };
     const source = $("#live-source");
     if (source) {
       source.textContent = "Fuente manual · ejemplo";
@@ -648,6 +730,21 @@ export function init() {
     live.owned = [];
     live.gold = 0;
     live.minute = 6;
+    live.game = {
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      cs: 0,
+      level: 1,
+      gameTime: 0,
+      teamKills: 0,
+      enemyKills: 0,
+      teamCs: 0,
+      enemyCs: 0,
+      teamLevel: 0,
+      enemyLevel: 0,
+      enemyFed: [],
+    };
     lastData = null;
     const source = $("#live-source");
     if (source) {
@@ -689,6 +786,22 @@ export async function applyClientState(mapped) {
     .slice(0, 6);
   live.gold = Math.max(0, Math.min(100000, Number(mapped.gold) || 0));
   live.minute = Math.max(0, Math.min(45, Number(mapped.minute) || 0));
+  const scores = mapped.scores || {};
+  live.game = {
+    kills: Number(mapped.kills ?? scores.kills) || 0,
+    deaths: Number(mapped.deaths ?? scores.deaths) || 0,
+    assists: Number(mapped.assists ?? scores.assists) || 0,
+    cs: Number(mapped.cs ?? scores.cs) || 0,
+    level: Number(mapped.level) || 1,
+    gameTime: Number(mapped.gameTime) || 0,
+    teamKills: Number(mapped.teamKills) || 0,
+    enemyKills: Number(mapped.enemyKills) || 0,
+    teamCs: Number(mapped.teamCs) || 0,
+    enemyCs: Number(mapped.enemyCs) || 0,
+    teamLevel: Number(mapped.teamLevel) || 0,
+    enemyLevel: Number(mapped.enemyLevel) || 0,
+    enemyFed: Array.isArray(mapped.enemyFed) ? mapped.enemyFed.filter(Boolean) : [],
+  };
 
   renderAll();
   const source = $("#live-source");
