@@ -81,9 +81,85 @@ function ownIndex() {
 }
 
 const ARENA_STARTER_IDS = new Set([2051, 3112, 3177, 3184]);
+const SUPPORT_ITEM_IDS = new Set([3865, 3866, 3867, 3869, 3870, 3871, 3876, 3877]);
+const SUPPORT_FINAL_IDS = new Set([3869, 3870, 3871, 3876, 3877]);
+const TIER3_BOOTS = new Map([
+  [3006, 3172],
+  [3008, 3168],
+  [3009, 3170],
+  [3020, 3175],
+  [3047, 3174],
+  [3111, 3173],
+  [3158, 3171],
+]);
 
 function isArenaStarter(id) {
   return ARENA_STARTER_IDS.has(Number(id));
+}
+
+function slotCapFor(mode, role, minute, ownedLength) {
+  return mode === "classic" &&
+    role === "BOT" &&
+    (Number(minute) >= 16 || Number(ownedLength) >= 7)
+    ? 7
+    : 6;
+}
+
+function maxSlots() {
+  return slotCapFor(live.mode, live.role, live.minute, live.owned.length);
+}
+
+function botQuestDone() {
+  return live.mode === "classic" && live.role === "BOT" && Number(live.minute) >= 16;
+}
+
+function regularItemCount() {
+  return live.owned.filter((ownedId) => !itemById(ownedId)?.boots).length;
+}
+
+function bootsUpgrade(id) {
+  return TIER3_BOOTS.get(Number(id)) || null;
+}
+
+function currentBoots() {
+  return live.owned
+    .map((ownedId) => itemById(ownedId))
+    .find((item) => item && item.boots);
+}
+
+function isMidBootsUpgrade(id) {
+  const boots = currentBoots();
+  return Boolean(
+    boots &&
+      live.mode === "classic" &&
+      live.role === "MID" &&
+      Number(live.minute) >= 16 &&
+      bootsUpgrade(boots.id) === Number(id)
+  );
+}
+
+function currentSupportItem() {
+  return live.owned
+    .map((ownedId) => itemById(ownedId))
+    .find((item) => item && SUPPORT_ITEM_IDS.has(Number(item.id)));
+}
+
+function supportStepAllowed(id) {
+  const numeric = Number(id);
+  if (!SUPPORT_ITEM_IDS.has(numeric)) return true;
+  if (live.mode !== "classic" || live.role !== "SUPPORT") return false;
+  const current = currentSupportItem();
+  if (!current) return numeric === 3865;
+  switch (Number(current.id)) {
+    case 3865:
+      return numeric === 3866;
+    case 3866:
+      return numeric === 3867;
+    case 3867:
+      return SUPPORT_FINAL_IDS.has(numeric);
+    default:
+      return false;
+  }
 }
 
 function confidenceFor(build) {
@@ -152,6 +228,7 @@ function changeRole(role) {
   const oldChamp = live.champion;
   if (oldChamp && live.allies[oldIdx] === oldChamp) live.allies[oldIdx] = null;
   live.role = role;
+  live.roleQuestBoots = null;
   if (oldChamp) live.allies[newIdx] = oldChamp;
   renderAll();
   refresh(true);
@@ -164,6 +241,7 @@ function setMode(mode) {
   if (champion && live.allies[oldIdx] === champion) live.allies[oldIdx] = null;
   live.mode = mode;
   live.modeLabel = modeLabel(mode);
+  live.roleQuestBoots = null;
   if (champion) live.allies[ownIndex()] = champion;
   applyModeLayout();
   renderAll();
@@ -171,23 +249,54 @@ function setMode(mode) {
 }
 
 function addItem(id) {
-  if (live.owned.length >= 6) {
-    toast("El inventario ya tiene 6 objetos.", "error");
+  const numeric = Number(id);
+  const item = itemById(numeric);
+  if (live.owned.includes(numeric)) return;
+  if (!supportStepAllowed(numeric)) {
+    toast("Ese objeto de soporte no es la siguiente mejora de la cadena.", "error");
     return;
   }
-  if (live.owned.includes(Number(id))) return;
-  const item = itemById(id);
-  if (item?.boots && live.owned.some((ownedId) => itemById(ownedId)?.boots)) {
+  if (isMidBootsUpgrade(numeric)) {
+    const boots = currentBoots();
+    live.owned = live.owned.map((ownedId) =>
+      Number(ownedId) === Number(boots.id) ? numeric : ownedId
+    );
+    renderInventory();
+    refresh(true);
+    return;
+  }
+  const supportItem = currentSupportItem();
+  if (SUPPORT_ITEM_IDS.has(numeric) && supportItem) {
+    live.owned = live.owned.map((ownedId) =>
+      Number(ownedId) === Number(supportItem.id) ? numeric : ownedId
+    );
+    renderInventory();
+    refresh(true);
+    return;
+  }
+  const cap = maxSlots();
+  if (live.owned.length >= cap) {
+    toast(`El inventario ya tiene ${cap} objetos.`, "error");
+    return;
+  }
+  if (cap === 7 && botQuestDone() && !item?.boots && regularItemCount() >= 6) {
+    toast("La septima ranura esta reservada para las botas de role quest.", "error");
+    return;
+  }
+  if (item?.boots && currentBoots()) {
     toast("Ya llevas unas botas. Vende las actuales antes de comprar otras.", "error");
     return;
   }
-  live.owned.push(Number(id));
+  live.owned.push(numeric);
+  if (item?.boots) live.roleQuestBoots = numeric;
   renderInventory();
   refresh(true);
 }
 
 function removeItem(index) {
+  const removed = live.owned[index];
   live.owned.splice(index, 1);
+  if (itemById(removed)?.boots) live.roleQuestBoots = null;
   renderInventory();
   refresh(true);
 }
@@ -199,9 +308,42 @@ function buyItem(id, price = null, name = "") {
     meta.itemsById.set(id, item);
   }
   if (!item) return;
+  const numeric = Number(id);
+  if (!supportStepAllowed(numeric)) {
+    toast("Ese objeto de soporte no es la siguiente mejora de la cadena.", "error");
+    return;
+  }
+  if (isMidBootsUpgrade(numeric)) {
+    const boots = currentBoots();
+    live.owned = live.owned.map((ownedId) =>
+      Number(ownedId) === Number(boots.id) ? numeric : ownedId
+    );
+    renderInventory();
+    refresh(true);
+    return;
+  }
+  const supportItem = currentSupportItem();
+  if (SUPPORT_ITEM_IDS.has(numeric) && supportItem) {
+    live.owned = live.owned.map((ownedId) =>
+      Number(ownedId) === Number(supportItem.id) ? numeric : ownedId
+    );
+    renderInventory();
+    refresh(true);
+    return;
+  }
   const cost = Number(price ?? item.gold) || 0;
-  if (live.owned.length >= 6) {
+  const cap = maxSlots();
+  if (live.owned.length >= cap) {
     toast("Inventario completo.", "error");
+    return;
+  }
+  if (cap === 7 && botQuestDone() && !item.boots && regularItemCount() >= 6) {
+    toast("La septima ranura esta reservada para las botas de role quest.", "error");
+    return;
+  }
+  if (live.owned.includes(numeric)) return;
+  if (item.boots && currentBoots()) {
+    toast("Ya llevas unas botas. Vende las actuales antes de comprar otras.", "error");
     return;
   }
   if (live.gold < cost) {
@@ -209,7 +351,8 @@ function buyItem(id, price = null, name = "") {
     return;
   }
   live.gold = Math.max(0, live.gold - cost);
-  live.owned.push(Number(id));
+  live.owned.push(numeric);
+  if (item.boots) live.roleQuestBoots = numeric;
   const input = $("#live-gold");
   if (input) input.value = String(live.gold);
   renderInventory();
@@ -315,8 +458,9 @@ function renderMiniSlots() {
 function renderInventory() {
   const host = $("#live-inventory");
   if (!host) return;
+  const cap = maxSlots();
   const slots = [];
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < cap; i += 1) {
     const item = itemById(live.owned[i]);
     if (item) {
       slots.push(`<div class="inv-slot filled" data-inv-index="${i}">
@@ -328,15 +472,18 @@ function renderInventory() {
       )}"><svg class="icon" style="width:9px;height:9px"><use href="#i-close"/></svg></button>
       </div>`);
     } else {
+      const label =
+        cap === 7 && i === 6 ? "Botas · role quest" : `Objeto ${i + 1}`;
       slots.push(`<button type="button" class="inv-slot" data-inv-add="${i}" aria-label="Añadir objeto">
         <svg class="icon"><use href="#i-plus"/></svg>
-        <span class="inv-name">Objeto ${i + 1}</span>
+        <span class="inv-name">${label}</span>
       </button>`);
     }
   }
+  host.classList.toggle("slots-7", cap === 7);
   host.innerHTML = slots.join("");
   const count = $("#live-slot-count");
-  if (count) count.textContent = `${live.owned.length} / 6`;
+  if (count) count.textContent = `${live.owned.length} / ${cap}`;
   const gold = $("#live-gold");
   if (gold && document.activeElement !== gold) gold.value = String(live.gold);
   const minute = $("#live-minute");
@@ -364,10 +511,28 @@ function componentsHTML(components = []) {
 }
 
 function renderItemCard(item, isNext = false) {
-  const disabled = !item.affordable || live.owned.length >= 6;
-  const label = live.owned.length >= 6 ? "Lleno" : item.affordable ? "Comprar" : "Sin oro";
-  const actionNote = item.affordable ? "disponible" : `faltan ${num(item.missingGold)}`;
+  const cap = maxSlots();
+  const freeSupport =
+    SUPPORT_ITEM_IDS.has(Number(item.id)) && Number(item.id) !== 3865;
+  const disabled =
+    !item.affordable || (live.owned.length >= cap && !item.replacement);
+  const label = item.replacement || freeSupport
+    ? "Mejorar"
+    : live.owned.length >= cap
+      ? "Lleno"
+      : item.affordable
+        ? "Comprar"
+        : "Sin oro";
+  const actionNote = item.replacement
+    ? "mejora gratuita"
+    : freeSupport
+      ? "mejora de quest"
+      : item.affordable
+        ? "disponible"
+        : `faltan ${num(item.missingGold)}`;
   const signals = [
+    item.replacement ? "Role quest" : "",
+    freeSupport ? "Soporte" : "",
     item.modelProb ? `BuildNet ${pct(item.modelProb, 1)}` : "",
     item.winrate ? `WR ${pct(item.winrate, 1)}` : "",
   ].filter(Boolean);
@@ -408,12 +573,15 @@ function renderItems(build) {
     return;
   }
   if (build?.mode === "complete") {
+    const cap = Number(build?.slotCap) || maxSlots();
     host.innerHTML = emptyState(
       "i-trophy",
       "Build completa",
       live.mode === "arena"
         ? "Ya tienes 6 objetos de Arena."
-        : "Ya tienes 6 objetos. Reserva oro para el trinket y consumibles."
+        : cap === 7
+          ? "Ya tienes 6 objetos completos y las botas en la ranura de role quest."
+          : "Ya tienes 6 objetos. Reserva oro para el trinket y consumibles."
     );
     if (subtitle) subtitle.textContent = "Inventario lleno";
     return;
@@ -437,15 +605,18 @@ function renderItems(build) {
           : build.mode === "model"
             ? "modelo + datos"
             : "datos pro";
-    subtitle.textContent = `${modeText}Slot ${build.slot} de 6 · ${items.length} candidatos · ${strategy}${component}`;
+    const cap = Number(build?.slotCap) || maxSlots();
+    subtitle.textContent = `${modeText}Slot ${build.slot} de ${cap} · ${items.length} candidatos · ${strategy}${component}`;
   }
 
   const nextId = build?.nextPurchase?.id;
   const cards = [];
-  if (build?.nextPurchase && !items.some((item) => item.id === nextId)) {
+  if (build?.nextPurchase) {
     cards.push(renderItemCard(build.nextPurchase, true));
   }
-  for (const item of items) cards.push(renderItemCard(item, item.id === nextId));
+  for (const item of items) {
+    if (item.id !== nextId) cards.push(renderItemCard(item, false));
+  }
   host.innerHTML = cards.join("");
 }
 
@@ -464,7 +635,9 @@ function renderCoach(build) {
   const top = build?.items?.[0];
   const nextName = next?.name || component?.name || "Ahorra oro";
   let nextDetail;
-  if (next) {
+  if (next?.replacement) {
+    nextDetail = "Mejora gratuita de la role quest";
+  } else if (next) {
     nextDetail = "Puedes comprarlo ahora";
   } else if (component) {
     nextDetail = `Componente de ${component.parent}`;
@@ -539,7 +712,7 @@ function renderVerdict(draft, build) {
       const analysis = build?.gameAnalysis;
       pills.innerHTML = [
         `<span class="pill gold">${esc(build?.modeLabel || modeLabel(mode))}</span>`,
-        `<span class="pill">${live.owned.length}/6 objetos</span>`,
+        `<span class="pill">${live.owned.length}/${Number(build?.slotCap) || maxSlots()} objetos</span>`,
         `<span class="pill ${confidenceFor(build).tone}">Confianza ${confidenceFor(build).label}</span>`,
         analysis
           ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
@@ -575,7 +748,7 @@ function renderVerdict(draft, build) {
     const analysis = build?.gameAnalysis;
     pills.innerHTML = [
       `<span class="pill">${esc(roleLabel(live.role))}</span>`,
-      `<span class="pill gold">${live.owned.length}/6 objetos</span>`,
+      `<span class="pill gold">${live.owned.length}/${Number(build?.slotCap) || maxSlots()} objetos</span>`,
       `<span class="pill ${confidenceFor(build).tone}">Confianza ${confidenceFor(build).label}</span>`,
       analysis
         ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
@@ -676,6 +849,12 @@ function renderNotes(build, draft) {
     rows.push(`<div class="note-box mode-note"><strong>${esc(build.modeLabel || modeLabel(mode))}</strong>${build.modeNotes
       .map((note) => esc(note))
       .join("<br>")}</div>`);
+  }
+  if (classic && live.role === "BOT" && maxSlots() === 7) {
+    rows.push(`<div class="note-box good"><strong>Role quest del bot completada</strong>Las botas ocupan la septima ranura dedicada: puedes llevar 6 objetos completos ademas de las botas. Antes de completar la quest, las botas siguen ocupando una ranura normal.</div>`);
+  }
+  if (classic && live.role === "SUPPORT") {
+    rows.push(`<div class="note-box"><strong>Objeto de soporte</strong>World Atlas y sus mejoras ocupan una ranura normal de inventario. La role quest de support anade una ranura aparte para wards de control, no para el objeto de soporte.</div>`);
   }
   if (live.owned.length >= 6 && mode !== "classic") {
     const starter = live.owned
@@ -1021,6 +1200,7 @@ export function init() {
     live.arenaEnemies = [];
     live.arenaTeamKnown = false;
     live.owned = [];
+    live.roleQuestBoots = null;
     live.gold = 0;
     live.minute = 6;
     live.game = {
@@ -1098,11 +1278,30 @@ export async function applyClientState(mapped) {
       tags: [],
     });
   }
-  live.owned = (Array.isArray(mapped.owned) ? mapped.owned : [])
-    .filter((id) => itemById(id))
-    .slice(0, 6);
-  live.gold = Math.max(0, Math.min(100000, Number(mapped.gold) || 0));
+  const mappedOwned = (Array.isArray(mapped.owned) ? mapped.owned : []).filter((id) =>
+    itemById(id)
+  );
   live.minute = Math.max(0, Math.min(45, Number(mapped.minute) || 0));
+  const mappedBoots = mappedOwned
+    .map((id) => itemById(id))
+    .find((item) => item && item.boots);
+  if (mappedBoots) live.roleQuestBoots = Number(mappedBoots.id);
+  const questDone = live.mode === "classic" && live.role === "BOT" && live.minute >= 16;
+  if (
+    questDone &&
+    !mappedBoots &&
+    live.roleQuestBoots &&
+    itemById(live.roleQuestBoots) &&
+    !mappedOwned.includes(Number(live.roleQuestBoots))
+  ) {
+    // El cliente deja de exponer el slot 8 al completar la role quest. Si
+    // vimos las botas antes, las mantenemos en la septima ranura.
+    mappedOwned.push(Number(live.roleQuestBoots));
+  }
+  if (!questDone && !mappedBoots) live.roleQuestBoots = null;
+  const cap = slotCapFor(live.mode, live.role, live.minute, mappedOwned.length);
+  live.owned = mappedOwned.slice(0, cap);
+  live.gold = Math.max(0, Math.min(100000, Number(mapped.gold) || 0));
   const scores = mapped.scores || {};
   live.game = {
     kills: Number(mapped.kills ?? scores.kills) || 0,

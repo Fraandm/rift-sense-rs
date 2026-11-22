@@ -22,6 +22,7 @@ export const state = {
     allies: [null, null, null, null, null],
     enemies: [null, null, null, null, null],
     owned: [],
+    roleQuestBoots: null,
     gold: 0,
     minute: 6,
     game: {

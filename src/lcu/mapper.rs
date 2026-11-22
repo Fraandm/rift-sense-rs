@@ -534,6 +534,26 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
                     .is_some_and(|item| engine.is_tracked_item(item))
         })
         .collect();
+    // La API local puede omitir la ranura de role quest (slot 8). Si expone
+    // `roleBoundItem`, lo añadimos como última pieza para no perder las botas
+    // del bot tras completar la quest.
+    let role_bound = me.get("roleBoundItem").and_then(Value::as_i64).unwrap_or(0);
+    if role_bound > 0
+        && !raw_items
+            .iter()
+            .any(|item| item.get("itemID").and_then(Value::as_i64) == Some(role_bound))
+    {
+        if let Some(item) = engine.resolve_item(&ItemRef::Int(role_bound)) {
+            if engine.is_tracked_item(item) {
+                raw_items.push(json!({
+                    "itemID": role_bound,
+                    "displayName": item.name.clone(),
+                    "price": item.gold,
+                    "slot": 7,
+                }));
+            }
+        }
+    }
     raw_items.sort_by_key(|item| item.get("slot").and_then(Value::as_i64).unwrap_or(0));
     let items: Vec<Value> = raw_items
         .iter()

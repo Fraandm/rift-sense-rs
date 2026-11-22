@@ -206,6 +206,10 @@ struct ItemCandidate<'a> {
     score: f64,
     affordable: bool,
     missing_gold: i64,
+    /// Sustituye un objeto actual (botas tier 3 o mejora de soporte) en vez
+    /// de ocupar una ranura nueva.
+    replacement: bool,
+    replaces: Option<i64>,
 }
 
 #[derive(Clone, Debug)]
@@ -1503,9 +1507,10 @@ impl Engine {
         enemy_team: &[Option<&Champion>],
         owned: &[&'a Item],
         gold: i64,
-        _minute: f64,
+        minute: f64,
         analysis: Option<&GameAnalysis>,
         mode: GameMode,
+        capacity: usize,
         stable: bool,
         use_model: bool,
     ) -> Result<Vec<ItemCandidate<'a>>> {
@@ -1515,7 +1520,9 @@ impl Engine {
         let mut pool: Vec<&'a Item> = self
             .items
             .iter()
-            .filter(|item| self.mode_item_legal(item, mode, slot))
+            .filter(|item| {
+                self.mode_item_legal(item, mode, slot) && role_item_legal(item, role, mode, owned)
+            })
             .collect();
         if mode == GameMode::Mayhem {
             for extra in &self.extra_items {
@@ -1602,21 +1609,43 @@ impl Engine {
             vec![0.0; self.items.len() + 1]
         };
 
+        let owned_boots = owned.iter().find(|item| item.boots).copied();
+        let current_support = owned.iter().find(|item| is_support_item(item.id)).copied();
+        let regular_count = owned.iter().filter(|item| !item.boots).count();
+        // Cuando el bot completa la role quest, el cliente deja de exponer las
+        // botas: se mueven a la ranura dedicada (slot 8). En ese caso no hay
+        // que recomendar botas ni contar una ranura normal extra.
+        let bot_quest_boots =
+            mode == GameMode::Classic && role == "BOT" && capacity > 6 && owned_boots.is_none();
         let mut candidates = Vec::new();
         for item in pool {
             let item_id = item.id;
             if owned_ids.contains(&item_id) {
                 continue;
             }
-            if slot >= 6 {
+            let is_upgrade = mode == GameMode::Classic
+                && role == "MID"
+                && role_quest_done(mode, role, minute)
+                && owned_boots.and_then(|owned| tier3_boots_upgrade(owned.id)) == Some(item.id);
+            let support_upgrade = is_support_item(item.id) && item.id != 3865;
+            let support_start = mode == GameMode::Classic
+                && role == "SUPPORT"
+                && item.id == 3865
+                && current_support.is_none();
+            if item.boots && (owned_boots.is_some() || bot_quest_boots) && !is_upgrade {
                 continue;
             }
-            if item.boots && owned.iter().any(|owned| owned.boots) {
+            if capacity > 6 && role == "BOT" && !item.boots && regular_count >= 6 {
+                continue;
+            }
+            if slot >= capacity && !is_upgrade && !support_upgrade {
                 continue;
             }
             let prior = self.item_prior(&champ.name, role, item_id);
             let avg_slot = prior.avg_slot;
-            let slot_fit = if prior.scope == "none" {
+            let slot_fit = if is_upgrade || support_upgrade {
+                0.90
+            } else if prior.scope == "none" {
                 0.30
             } else {
                 (-0.5 * ((avg_slot - slot as f64) / 1.6).powi(2)).exp()
@@ -1627,7 +1656,24 @@ impl Engine {
             let (context_fit, context_note) = analysis
                 .map(|analysis| self.context_fit(item, analysis, &profile, owned))
                 .unwrap_or((0.0, String::new()));
-            let (mode_fit, mode_note) = self.item_mode_fit(item, champ, mode, slot);
+            let (mut mode_fit, mut mode_note) = self.item_mode_fit(item, champ, mode, slot);
+            let replaces = if is_upgrade {
+                owned_boots.map(|owned| owned.id)
+            } else if support_upgrade {
+                current_support.map(|owned| owned.id)
+            } else {
+                None
+            };
+            if is_upgrade {
+                mode_fit = 1.0;
+                mode_note = "Mejora gratuita de botas (role quest MID)".to_string();
+            } else if support_upgrade {
+                mode_fit = 0.8;
+                mode_note = "Mejora de la quest de soporte (sin coste)".to_string();
+            } else if support_start {
+                mode_fit = 1.0;
+                mode_note = "Objeto de soporte inicial".to_string();
+            }
             let model_prob = if item.idx > 0 {
                 probs.get(item.idx as usize).copied().unwrap_or(0.0) as f64
             } else {
@@ -1647,10 +1693,16 @@ impl Engine {
                 context_note,
                 mode_fit,
                 mode_note,
-                price: self.mode_price(item, mode, slot),
+                price: if is_upgrade || support_upgrade {
+                    0
+                } else {
+                    self.mode_price(item, mode, slot)
+                },
                 score: 0.0,
                 affordable: false,
                 missing_gold: 0,
+                replacement: replaces.is_some(),
+                replaces,
             });
         }
         if candidates.is_empty() {
@@ -1766,6 +1818,20 @@ impl Engine {
             if mode == GameMode::Arena && is_arena_starter(candidate.item.id) && slot == 0 {
                 candidate.score = clamp(candidate.score + 8.0, 1.0, 96.0);
             }
+            if candidate.replacement {
+                // La mejora de botas de mid es gratuita y siempre correcta;
+                // las mejoras de soporte también sustituyen, pero compiten
+                // entre las cinco opciones finales.
+                if candidate.item.boots {
+                    candidate.score = 96.0;
+                } else {
+                    candidate.score = clamp(candidate.score + 18.0, 1.0, 96.0);
+                }
+            } else if candidate.item.id == 3865 && role == "SUPPORT" {
+                // World Atlas es obligatorio al empezar como support; debe
+                // verse aunque todavía no haya oro para comprarlo.
+                candidate.score = 96.0;
+            }
             candidate.affordable = gold >= candidate.price;
             candidate.missing_gold = (candidate.price - gold).max(0);
         }
@@ -1774,6 +1840,15 @@ impl Engine {
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+        if mode == GameMode::Classic && role == "SUPPORT" && current_support.is_none() {
+            if let Some(index) = candidates
+                .iter()
+                .position(|candidate| candidate.item.id == 3865)
+            {
+                let start = candidates.remove(index);
+                candidates.insert(0, start);
+            }
+        }
         Ok(candidates)
     }
 
@@ -2180,6 +2255,11 @@ impl Engine {
         let item = candidate.item;
         let prior_n = candidate.prior_n;
         let avg_slot = candidate.avg_slot;
+        let display_slot = if candidate.replacement {
+            slot.max(1)
+        } else {
+            slot + 1
+        };
         let typical_minute = self
             .timings
             .get(item.id.to_string())
@@ -2224,7 +2304,7 @@ impl Engine {
         } else {
             reasons.push(format!("Te faltan {} de oro", candidate.missing_gold));
         }
-        let components = if mode.uses_components() {
+        let components = if mode.uses_components() && !candidate.replacement {
             self.components(item, gold)
         } else {
             Vec::new()
@@ -2254,7 +2334,9 @@ impl Engine {
             "modelProb": round(candidate.model_prob, 5),
             "components": components,
             "reasons": reasons,
-            "slot": slot + 1,
+            "slot": display_slot,
+            "replacement": candidate.replacement,
+            "replaces": candidate.replaces,
         })
     }
 
@@ -2327,28 +2409,51 @@ impl Engine {
         let mut seen = HashSet::new();
         for value in req.owned.iter().take(8) {
             if let Some(item) = self.resolve_item(value) {
-                if self.is_tracked_item(item) && seen.insert(item.id) {
+                let counted = match item.id {
+                    id if is_support_item(id) => mode == GameMode::Classic && role == "SUPPORT",
+                    id if is_jungle_pet(id) => role == "JUNGLE",
+                    _ => true,
+                };
+                if counted && self.is_tracked_item(item) && seen.insert(item.id) {
                     owned_items.push(item);
                 }
             }
         }
-        let slot = owned_items.len().min(6);
+        let capacity = build_capacity(mode, &role, minute, owned_items.len());
+        let slot = owned_items.len();
+        let regular_count = owned_items.iter().filter(|item| !item.boots).count();
         let profile = self.enemy_profile(&enemy_team);
         let analysis = req
             .game
             .as_ref()
             .and_then(|game| self.analyze_game(game, minute, &enemy_team, mode));
-        if slot >= 6 {
-            let complete_note = if mode == GameMode::Arena {
-                "Build completa: 6 objetos de Arena."
-            } else {
-                "Build completa: 6 objetos. Considera el trinket y consumibles."
+        let has_boots_upgrade = mode == GameMode::Classic
+            && role == "MID"
+            && role_quest_done(mode, &role, minute)
+            && owned_items
+                .iter()
+                .any(|item| item.boots && tier3_boots_upgrade(item.id).is_some());
+        let has_support_upgrade = mode == GameMode::Classic
+            && role == "SUPPORT"
+            && owned_items
+                .iter()
+                .any(|item| matches!(item.id, 3865..=3867));
+        let bot_build_full =
+            mode == GameMode::Classic && role == "BOT" && capacity > 6 && regular_count >= 6;
+        if (slot >= capacity || bot_build_full) && !has_boots_upgrade && !has_support_upgrade {
+            let complete_note = match (mode, role.as_str(), capacity) {
+                (GameMode::Arena, _, _) => "Build completa: 6 objetos de Arena.".to_string(),
+                (_, "BOT", 7) => {
+                    "Build completa: 6 objetos + botas en la ranura de role quest.".to_string()
+                }
+                _ => "Build completa: 6 objetos. Considera el trinket y consumibles.".to_string(),
             };
             let mut complete = json!({
                 "mode": "complete",
                 "champion": champion_brief(champ),
                 "role": role,
-                "slot": 6,
+                "slot": capacity,
+                "slotCap": capacity,
                 "enemyProfile": profile,
                 "items": [],
                 "buildPlan": [],
@@ -2376,6 +2481,7 @@ impl Engine {
             minute,
             analysis.as_ref(),
             mode,
+            capacity,
             stable,
             true,
         )?;
@@ -2440,7 +2546,7 @@ impl Engine {
         if req.simulate {
             let mut sim_owned = owned_items.clone();
             let mut sim_gold = gold;
-            for _ in 0..(6 - slot) {
+            for _ in 0..capacity.saturating_sub(slot) {
                 let sims = self.score_items(
                     champ,
                     &role,
@@ -2452,6 +2558,7 @@ impl Engine {
                     minute,
                     analysis.as_ref(),
                     mode,
+                    capacity,
                     stable,
                     true,
                 )?;
@@ -2475,16 +2582,34 @@ impl Engine {
                 if best.prior_n >= 20 {
                     reasons.push(format!("Winrate {}", pct(best.winrate, 1)));
                 }
+                if best.replacement {
+                    reasons.push("Mejora gratuita de la role quest".to_string());
+                }
+                let plan_slot = if best.replacement {
+                    sim_owned.len()
+                } else {
+                    sim_owned.len() + 1
+                };
                 build_plan.push(json!({
                     "id": item.id,
                     "name": item.name,
                     "icon": item.icon,
                     "gold": best.price,
-                    "slot": sim_owned.len() + 1,
+                    "slot": plan_slot,
+                    "replacement": best.replacement,
                     "score": round(best.score, 1),
                     "reasons": reasons,
                 }));
-                sim_owned.push(item);
+                if let Some(replaces) = best.replaces {
+                    if let Some(existing) = sim_owned.iter_mut().find(|owned| owned.id == replaces)
+                    {
+                        *existing = item;
+                    } else {
+                        sim_owned.push(item);
+                    }
+                } else {
+                    sim_owned.push(item);
+                }
                 sim_gold = (sim_gold - best.price).max(0);
             }
         }
@@ -2528,7 +2653,8 @@ impl Engine {
             "role": role,
             "roleLabel": self.role_labels.get(&role).cloned().unwrap_or_else(|| role.clone()),
             "side": if side == 0 { "blue" } else { "red" },
-            "slot": slot + 1,
+            "slot": (slot + 1).min(capacity),
+            "slotCap": capacity,
             "gold": gold,
             "minute": minute,
             "enemyProfile": profile,
@@ -2536,7 +2662,7 @@ impl Engine {
             "nextPurchase": next_purchase.unwrap_or(Value::Null),
             "buildPlan": build_plan,
             "powerSpike": {
-                "slot": slot + 1,
+                "slot": (slot + 1).min(capacity),
                 "n": spike.map(|value| value.n).unwrap_or(0),
                 "winrate": spike.map(|value| value.winrate),
                 "nearby": nearby,
@@ -2836,6 +2962,18 @@ impl Engine {
 
 const MAYHEM_ITEM_IDS: [i64; 3] = [3039, 123430, 124011];
 const ARENA_STARTER_IDS: [i64; 4] = [2051, 3112, 3177, 3184];
+const SUPPORT_ITEM_IDS: [i64; 8] = [3865, 3866, 3867, 3869, 3870, 3871, 3876, 3877];
+const SUPPORT_FINAL_IDS: [i64; 5] = [3869, 3870, 3871, 3876, 3877];
+/// Botas tier 2 -> tier 3 que la role quest de mid mejora gratis.
+const TIER3_BOOTS: [(i64, i64); 7] = [
+    (3006, 3172), // Berserker's Greaves -> Gunmetal Greaves
+    (3008, 3168), // Gluttonous Greaves -> Immortal Path
+    (3009, 3170), // Boots of Swiftness -> Swiftmarch
+    (3020, 3175), // Sorcerer's Shoes -> Spellslinger's Shoes
+    (3047, 3174), // Plated Steelcaps -> Armored Advance
+    (3111, 3173), // Mercury's Treads -> Chainlaced Crushers
+    (3158, 3171), // Ionian Boots of Lucidity -> Crimson Lucidity
+];
 
 fn is_mayhem_item(item_id: i64) -> bool {
     MAYHEM_ITEM_IDS.contains(&item_id)
@@ -2843,6 +2981,81 @@ fn is_mayhem_item(item_id: i64) -> bool {
 
 fn is_arena_starter(item_id: i64) -> bool {
     ARENA_STARTER_IDS.contains(&item_id)
+}
+
+fn is_support_item(item_id: i64) -> bool {
+    SUPPORT_ITEM_IDS.contains(&item_id)
+}
+
+fn is_support_final(item_id: i64) -> bool {
+    SUPPORT_FINAL_IDS.contains(&item_id)
+}
+
+fn is_jungle_pet(item_id: i64) -> bool {
+    matches!(item_id, 1101..=1103)
+}
+
+fn is_doran_item(item: &Item) -> bool {
+    compact_name(&item.name).starts_with("doran")
+}
+
+/// Reglas de inventario que dependen del rol, no solo del mapa.
+///
+/// - En Grieta, el objeto de soporte solo lo puede llevar el support y su
+///   cadena de mejora es secuencial.
+/// - Las mascotas de jungla solo las lleva el jungla.
+/// - Doran y World Atlas no pueden convivir: el support no recibe Doran.
+fn role_item_legal(item: &Item, role: &str, mode: GameMode, owned: &[&Item]) -> bool {
+    if mode != GameMode::Classic {
+        return true;
+    }
+    if is_support_item(item.id) {
+        if role != "SUPPORT" {
+            return false;
+        }
+        let current = owned
+            .iter()
+            .find(|owned| is_support_item(owned.id))
+            .map(|owned| owned.id);
+        return match current {
+            None => item.id == 3865,
+            Some(3865) => item.id == 3866,
+            Some(3866) => item.id == 3867,
+            Some(3867) => is_support_final(item.id),
+            Some(_) => false,
+        };
+    }
+    if is_jungle_pet(item.id) {
+        return role == "JUNGLE";
+    }
+    if is_doran_item(item) {
+        return role != "SUPPORT";
+    }
+    true
+}
+
+/// Ranuras de build disponibles. El bot tiene seis ranuras normales y,
+/// tras completar la role quest, una septima dedicada a las botas.
+fn build_capacity(mode: GameMode, role: &str, minute: f64, owned_len: usize) -> usize {
+    if mode == GameMode::Classic
+        && role == "BOT"
+        && (role_quest_done(mode, role, minute) || owned_len >= 7)
+    {
+        7
+    } else {
+        6
+    }
+}
+
+fn tier3_boots_upgrade(item_id: i64) -> Option<i64> {
+    TIER3_BOOTS
+        .iter()
+        .find(|(tier2, _)| *tier2 == item_id)
+        .map(|(_, tier3)| *tier3)
+}
+
+fn role_quest_done(mode: GameMode, role: &str, minute: f64) -> bool {
+    mode == GameMode::Classic && matches!(role, "MID" | "BOT") && minute >= 16.0
 }
 
 fn item_from_meta(item: &MetaItem) -> Item {
@@ -2913,4 +3126,88 @@ fn round(value: f64, decimals: i32) -> f64 {
 
 fn pct(value: f64, decimals: usize) -> String {
     format!("{:.*}%", decimals, value * 100.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn item(id: i64, name: &str, boots: bool) -> Item {
+        Item {
+            idx: 0,
+            id,
+            name: name.to_string(),
+            icon: String::new(),
+            gold: 400,
+            tags: Vec::new(),
+            stats: HashMap::new(),
+            from: Vec::new(),
+            into: Vec::new(),
+            boots,
+        }
+    }
+
+    #[test]
+    fn support_chain_only_advances_one_step() {
+        let world = item(3865, "World Atlas", false);
+        let compass = item(3866, "Runic Compass", false);
+        let bounty = item(3867, "Bounty of Worlds", false);
+        let dream = item(3870, "Dream Maker", false);
+        let none: Vec<&Item> = Vec::new();
+        assert!(role_item_legal(&world, "SUPPORT", GameMode::Classic, &none));
+        assert!(!role_item_legal(
+            &compass,
+            "SUPPORT",
+            GameMode::Classic,
+            &none
+        ));
+        let owned_world = vec![&world];
+        assert!(role_item_legal(
+            &compass,
+            "SUPPORT",
+            GameMode::Classic,
+            &owned_world
+        ));
+        assert!(!role_item_legal(
+            &bounty,
+            "SUPPORT",
+            GameMode::Classic,
+            &owned_world
+        ));
+        let owned_compass = vec![&compass];
+        assert!(role_item_legal(
+            &bounty,
+            "SUPPORT",
+            GameMode::Classic,
+            &owned_compass
+        ));
+        let owned_bounty = vec![&bounty];
+        assert!(role_item_legal(
+            &dream,
+            "SUPPORT",
+            GameMode::Classic,
+            &owned_bounty
+        ));
+        assert!(!role_item_legal(&world, "MID", GameMode::Classic, &none));
+    }
+
+    #[test]
+    fn bot_capacity_uses_role_quest_window() {
+        assert_eq!(build_capacity(GameMode::Classic, "BOT", 15.0, 6), 6);
+        assert_eq!(build_capacity(GameMode::Classic, "BOT", 16.0, 6), 7);
+        assert_eq!(build_capacity(GameMode::Classic, "BOT", 10.0, 7), 7);
+        assert_eq!(build_capacity(GameMode::Classic, "MID", 20.0, 6), 6);
+        assert_eq!(build_capacity(GameMode::Arena, "BOT", 20.0, 6), 6);
+    }
+
+    #[test]
+    fn mid_boots_upgrade_is_exact() {
+        assert_eq!(tier3_boots_upgrade(3006), Some(3172));
+        assert_eq!(tier3_boots_upgrade(3008), Some(3168));
+        assert_eq!(tier3_boots_upgrade(3158), Some(3171));
+        assert_eq!(tier3_boots_upgrade(1001), None);
+        assert!(role_quest_done(GameMode::Classic, "MID", 16.0));
+        assert!(!role_quest_done(GameMode::Classic, "MID", 15.9));
+        assert!(!role_quest_done(GameMode::Arena, "MID", 20.0));
+    }
 }

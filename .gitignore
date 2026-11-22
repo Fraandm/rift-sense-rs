@@ -4,6 +4,7 @@ target/
 __pycache__/
 *.pyc
 *.py
+!scripts/export_onnx.py
 perf_results.json
 startup_results.json
 parity_rust.json

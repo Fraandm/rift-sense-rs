@@ -26,16 +26,16 @@ ejecutarla.
 
 La paridad comprobada cubre un draft de ejemplo y una build de ejemplo:
 12 recomendaciones, 10 objetos y análisis en vivo, con **0 diferencias**
-frente a la API Python en el contrato base. La 1.0 añade recomendaciones
+frente a la API Python en el contrato base. La 1.0.1 añade recomendaciones
 estables y funciones locales sin cambiar ese contrato.
 
 ## Datos actuales
 
 - Data Dragon **16.23.1** (parche **26.23**).
-- **41.171** partidas válidas; **366** del parche actual (8 profesionales y
-  358 Flex high elo de EUW1, KR, NA1 y LA1).
-- Modelos reentrenados y exportados el **2026-11-21** con vocabulario de
-  173 campeones y 205 objetos.
+- **41.211** partidas validas; **238** del parche actual.
+- Modelos reentrenados y exportados el **2026-11-22** con vocabulario de
+  **173 campeones** y **213 objetos** (incluye los 8 objetos de la
+  quest de soporte).
 
 Resultados de rendimiento frente a la app original: [`PERFORMANCE.md`](PERFORMANCE.md).
 
@@ -55,6 +55,27 @@ variaciones de contexto:
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni
 envía inputs al juego.
+
+## Inventario por rol
+
+- **Bot:** las botas se mueven a la ranura de role quest al completar la
+  quest. La build pasa a ser de 6 objetos completos + botas (7 piezas) y la
+  interfaz muestra 7 huecos.
+- **Support:** World Atlas, Runic Compass, Bounty of Worlds y las cinco
+  mejoras finales forman una cadena que BuildNet puede recomendar. El objeto
+  de soporte ocupa una ranura normal; la ranura de role quest del support es
+  solo para wards de control.
+- **Mid:** las botas tier 2 se mejoran gratis a tier 3 al completar la role
+  quest. RiftSense ofrece la mejora como sustitucion, sin ocupar otra ranura.
+- **Jungla:** las mascotas de jungla solo se recomiendan al jungla.
+- **Doran:** no se recomienda al support porque no puede convivir con World
+  Atlas.
+
+La API local de Riot no expone la ranura 8 de role quest. Si el bot completa
+la quest y las botas desaparecen del inventario visible, RiftSense conserva
+las ultimas botas vistas; si la app arranca despues de completarla, la septima
+ranura queda etiquetada como botas y el motor no gasta una ranura normal en
+ellas.
 
 ## ARAM, ARAM: Mayhem y Arena
 
@@ -242,8 +263,17 @@ checkpoints PyTorch del proyecto original. La validación contra PyTorch dio una
 diferencia máxima de `5.96e-08` en draft y `2.86e-06` en build. El runtime usa
 `tract-onnx`, por lo que la inferencia es 100 % Rust.
 
-Para regenerar los modelos hace falta el proyecto original y su script de
-exportación; no se incluye aquí.
+Para regenerar BuildNet desde los checkpoints del proyecto original:
+
+```powershell
+python -m lolanalyzer.data.build_dataset --priors-scope all
+python -m lolanalyzer.models.train_build --epochs 16
+python scripts/export_onnx.py --root "C:\ruta\a\Analizador LOL" --only build
+```
+
+`scripts/export_onnx.py` escribe `models/build_net.onnx` y actualiza
+`models/manifest.json` con el tamano del vocabulario. DraftNet solo necesita
+reexportarse si cambia el vocabulario de campeones.
 
 ## Paridad con Python
 

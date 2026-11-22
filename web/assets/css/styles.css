@@ -950,6 +950,7 @@ input[type="range"]::-moz-range-thumb {
 .build-head p, .reco-head p { font-size: 11px; color: var(--muted-2); margin-top: 2px; }
 
 .inventory { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; }
+.inventory.slots-7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 
 .inv-slot {
   position: relative;
@@ -1561,7 +1562,7 @@ input[type="range"]::-moz-range-thumb {
   .gauge { width: 104px; height: 104px; }
   .gauge-label strong { font-size: 24px; }
   .live-hero-copy h2 { font-size: 19px; }
-  .inventory { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .inventory, .inventory.slots-7 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .inv-slot { aspect-ratio: 1.3 / 1; }
   .item-reco { grid-template-columns: 38px minmax(0, 1fr) auto; }
   .item-action { grid-column: 2 / -1; flex-direction: row; align-items: center; justify-content: flex-end; }

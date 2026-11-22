@@ -2,6 +2,7 @@
   "draft": "draft_net.onnx",
   "build": "build_net.onnx",
   "draft_n_champions": 173,
-  "build_n_items": 205,
-  "exported_at": "2026-11-21T21:08:02.611967+00:00"
+  "build_n_items": 213,
+  "exported_at": "2026-11-22T21:52:15.243300+00:00",
+  "build_n_champions": 173
 }
