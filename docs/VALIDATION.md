@@ -19,7 +19,11 @@ cargo build --bins
 ```
 
 The installer validator checks SHA-256, Authenticode, silent install, version,
-local health endpoint and uninstall.
+local health endpoint and uninstall. Run it in a clean VM or Windows Sandbox:
+the installer uses the same `AppId` as the real application, so validating on a
+machine with a real installation can remove its Start menu shortcut during the
+temporary uninstall. The script now refuses to run in that case unless
+`-AllowExistingInstall` is explicitly passed.
 
 ## Manual matrix
 

@@ -3,12 +3,18 @@ param(
   [string]$Installer,
   [string]$ExpectedSha256 = "",
   [int]$Port = 8399,
-  [switch]$RequireSignature
+  [switch]$RequireSignature,
+  [switch]$AllowExistingInstall
 )
 
 $ErrorActionPreference = "Stop"
 $installer = (Resolve-Path $Installer).Path
 if (-not (Test-Path $installer)) { throw "No existe el instalador: $installer" }
+
+$mainInstall = Join-Path $env:LOCALAPPDATA "Programs\RiftSense"
+if ((Test-Path (Join-Path $mainInstall "riftsense.exe")) -and (-not $AllowExistingInstall)) {
+  throw "Hay una instalación real en $mainInstall. El instalador comparte AppId y la desinstalación de la copia de prueba puede borrar los accesos directos reales. Valida en una VM/Windows Sandbox o usa -AllowExistingInstall bajo tu responsabilidad."
+}
 
 $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
 if ($ExpectedSha256 -and $hash -ne $ExpectedSha256.ToLower()) {
