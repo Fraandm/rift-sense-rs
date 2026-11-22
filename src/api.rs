@@ -403,6 +403,7 @@ async fn diagnostics(State(state): State<SharedState>) -> Json<Value> {
             "build": engine.build_model.is_some(),
             "notes": engine.model_notes,
         },
+        "data": engine.data_status(),
         "paths": {
             "root": state.paths.root.display().to_string(),
             "models": state.paths.models.display().to_string(),

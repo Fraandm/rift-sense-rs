@@ -1770,3 +1770,5 @@ input[type="range"]::-moz-range-thumb {
 .note-box.mode-note { border-color: rgba(200, 170, 110, 0.28); background: rgba(200, 170, 110, 0.055); }
 .note-box.mode-note strong { color: var(--gold-2); }
 #live-modes .chip { min-width: 58px; justify-content: center; }
+
+.fineprint.bad { color: #ff9aa3; }

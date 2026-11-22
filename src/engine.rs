@@ -2571,6 +2571,34 @@ impl Engine {
         Ok(rows)
     }
 
+    pub fn dataset_age_days(&self) -> Option<i64> {
+        let end = self
+            .summary
+            .get("dateRange")
+            .and_then(Value::as_array)
+            .and_then(|range| range.get(1))
+            .and_then(Value::as_str)?;
+        let date = chrono::NaiveDate::parse_from_str(end, "%Y-%m-%d").ok()?;
+        Some((chrono::Utc::now().date_naive() - date).num_days())
+    }
+
+    pub fn data_status(&self) -> Value {
+        let age = self.dataset_age_days();
+        json!({
+            "patch": self.patch,
+            "dateRange": self.summary.get("dateRange").cloned().unwrap_or(json!([])),
+            "games": self.summary.get("games").cloned().unwrap_or(json!(0)),
+            "ageDays": age,
+            "fresh": age.map(|days| days <= 45).unwrap_or(false),
+            "maxAgeDays": 45,
+            "models": {
+                "draft": self.draft_model.is_some(),
+                "build": self.build_model.is_some(),
+                "notes": self.model_notes,
+            },
+        })
+    }
+
     pub fn meta_payload(&self) -> Result<Value> {
         let champion_stats = self.champion_meta(None)?;
         let stats_by_name: HashMap<String, Value> = champion_stats

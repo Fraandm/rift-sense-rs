@@ -1,6 +1,7 @@
 /* Preferencias persistentes: interfaz, arranque con Windows y bandeja. */
 
 import { api } from "./api.js";
+import { state } from "./state.js";
 import { $, toast } from "./ui.js";
 
 const STORAGE_KEY = "riftsense.settings.v1";
@@ -72,6 +73,22 @@ function apply() {
   if (aboutPatch) aboutPatch.textContent = $("#status-patch")?.textContent || "—";
   const aboutGames = $("#settings-about-games");
   if (aboutGames) aboutGames.textContent = $("#status-games")?.textContent || "—";
+  const dataNote = $("#settings-data-note");
+  if (dataNote) {
+    const end = state.meta?.dataset?.dateRange?.[1];
+    const timestamp = end ? Date.parse(end) : NaN;
+    if (Number.isFinite(timestamp)) {
+      const days = Math.max(0, Math.floor((Date.now() - timestamp) / 86400000));
+      dataNote.textContent =
+        days > 45
+          ? `Datos hasta ${end} (${days} días). Actualiza datos y modelos antes de confiar en las recomendaciones.`
+          : `Datos hasta ${end} (${days} días). Dentro de la ventana de 45 días.`;
+      dataNote.classList.toggle("bad", days > 45);
+    } else {
+      dataNote.textContent = "No se pudo leer la fecha del dataset.";
+      dataNote.classList.add("bad");
+    }
+  }
 
   window.dispatchEvent(
     new CustomEvent("riftsense:advanced", { detail: { visible: current.showAdvanced } })

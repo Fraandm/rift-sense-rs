@@ -19,6 +19,7 @@ function updateStatus(payload, health) {
   const patch = $("#status-patch");
   const games = $("#status-games");
   const models = $("#status-models");
+  const data = $("#status-data");
   const dataset = payload?.dataset || health?.dataset || {};
   const draftReady = payload?.models?.draft ?? false;
   const buildReady = payload?.models?.build ?? false;
@@ -27,6 +28,12 @@ function updateStatus(payload, health) {
   if (patch) patch.textContent = payload?.patch || "—";
   if (games) games.textContent = dataset.games ? num(dataset.games) : "—";
   if (models) models.textContent = `${count}/2`;
+  const end = dataset.dateRange?.[1];
+  if (data) data.textContent = end || "—";
+  const days = end ? Math.floor((Date.now() - Date.parse(end)) / 86400000) : NaN;
+  if (Number.isFinite(days) && days > 45) {
+    toast(`Los datos tienen ${days} días. Actualiza el dataset y los modelos para evitar recomendaciones desactualizadas.`, "info", 9000);
+  }
   if (dot) dot.className = "status-dot ok";
   if (text) text.textContent = count === 2 ? "Motor neuronal listo" : count === 1 ? "Modelo parcial" : "Modo datos pro";
 }
