@@ -173,6 +173,8 @@ RiftSense y se distribuyen para uso personal no comercial. Consulta
 - [`PRIVACY.md`](PRIVACY.md): qué se guarda, qué se lee y qué sale a la red.
 - [`SECURITY.md`](SECURITY.md): cómo reportar vulnerabilidades y el modelo de
   seguridad de la API local.
+- [`docs/VALIDATION.md`](docs/VALIDATION.md): matriz de validación real y
+  criterios de salida para 1.0.
 
 RiftSense no está afiliado a Riot Games. No lee memoria del juego, no inyecta
 código, no automatiza compras ni envía inputs.
