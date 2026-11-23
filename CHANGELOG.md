@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.2.0
+
+Objetivo legendario fijo en la build en vivo.
+
+### Build en vivo
+
+- Nueva tarjeta **Objetivo legendario**: fija el siguiente objeto completo y
+  muestra dos alternativas, incluso cuando el inventario está lleno de
+  componentes.
+- Calcula qué componentes del inventario se reutilizan, el coste real de
+  completar el legendario y cuánto oro falta; indica si libera huecos.
+- El botón **Completar** consume los componentes y descuenta solo el coste de
+  mejora cuando se usa el inventario manual.
+- El inventario cuenta correctamente componentes duplicados (por ejemplo, dos
+  Needlessly Large Rod).
+- Si hay un objetivo asequible se prioriza; si no, se muestra el mejor con el
+  oro que falta.
+- `nextLegendary` y `legendaryOptions` se añaden a `/api/live` y `/api/build`.
+- Tests nuevos para recetas anidadas y componentes duplicados.
+
+### Notas
+
+- La build ya no se marca como completa solo porque haya seis componentes;
+  primero busca un legendario que los reutilice.
+
+### Instalador
+
+- `RiftSense-Setup-1.2.0.exe`, 27.525.228 bytes, SHA-256
+  `35abcedf974007b6667a27cfa58944baf045c16b258d308abd1a642835265c72`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.2.0`, health `ok` y LCU
+  conectado.
+
 ## 1.1.0
 
 Reconocimiento de modo en Draft, resumen post-partida y correcciones manuales.

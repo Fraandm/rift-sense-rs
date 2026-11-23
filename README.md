@@ -50,7 +50,10 @@ variaciones de contexto:
 - la lista muestra `BuildNet %` y `WR %` de cada candidato;
 - el contexto solo ajusta alternativas;
 - el antiheal aparece como sugerencia situacional separada;
-- si el objeto completo no entra en oro, se sugiere el componente asequible.
+- si el objeto completo no entra en oro, se sugiere el componente asequible;
+- cuando el inventario se llena de componentes, la tarjeta **Objetivo
+  legendario** fija el siguiente objeto completo, calcula el coste de mejora
+  reutilizando lo que ya llevas y muestra dos alternativas.
 
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni

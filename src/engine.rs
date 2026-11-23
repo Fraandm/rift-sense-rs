@@ -187,6 +187,14 @@ struct ItemPriorInfo {
     scope: &'static str,
 }
 
+#[derive(Clone, Debug, Default)]
+struct RecipeProgress {
+    /// Objetos que ya tienes y que se consumen al completar el legendario.
+    owned: Vec<i64>,
+    /// Oro ya invertido en esos objetos.
+    owned_gold: i64,
+}
+
 #[derive(Clone, Debug)]
 struct ItemCandidate<'a> {
     item: &'a Item,
@@ -206,6 +214,9 @@ struct ItemCandidate<'a> {
     score: f64,
     affordable: bool,
     missing_gold: i64,
+    /// Progreso de receta cuando el inventario está lleno y se recomienda
+    /// completar un legendario en vez de comprar un objeto nuevo.
+    recipe: Option<RecipeProgress>,
     /// Sustituye un objeto actual (botas tier 3 o mejora de soporte) en vez
     /// de ocupar una ranura nueva.
     replacement: bool,
@@ -1364,6 +1375,25 @@ impl Engine {
             || name.contains("statbonus"))
     }
 
+    /// Un objeto final de build (legendario), no un componente ni una bota.
+    fn is_legendary_item(&self, item: &Item) -> bool {
+        if item.boots || is_support_item(item.id) || is_arena_starter(item.id) {
+            return false;
+        }
+        if !self.is_tracked_item(item) {
+            return false;
+        }
+        self.all_items_by_id
+            .get(&item.id)
+            .map(|meta| meta.into.is_empty() && meta.depth >= 2 && item.gold >= 2000)
+            .unwrap_or_else(|| item.into.is_empty() && item.gold >= 2000)
+    }
+
+    /// Componente que puede formar parte de un legendario.
+    fn is_upgrade_material(&self, item: &Item) -> bool {
+        !self.is_legendary_item(item) && !item.boots && !is_support_item(item.id)
+    }
+
     fn mode_item_legal(&self, item: &Item, mode: GameMode, slot: usize) -> bool {
         if mode == GameMode::Classic {
             return true;
@@ -1513,6 +1543,7 @@ impl Engine {
         capacity: usize,
         stable: bool,
         use_model: bool,
+        allow_full_upgrades: bool,
     ) -> Result<Vec<ItemCandidate<'a>>> {
         let owned_ids: HashSet<i64> = owned.iter().map(|item| item.id).collect();
         let slot = owned.len();
@@ -1638,9 +1669,25 @@ impl Engine {
             if capacity > 6 && role == "BOT" && !item.boots && regular_count >= 6 {
                 continue;
             }
-            if slot >= capacity && !is_upgrade && !support_upgrade {
+            if slot >= capacity && !is_upgrade && !support_upgrade && !allow_full_upgrades {
                 continue;
             }
+            if allow_full_upgrades
+                && !is_upgrade
+                && !support_upgrade
+                && !self.is_legendary_item(item)
+            {
+                continue;
+            }
+            let recipe = if allow_full_upgrades && !is_upgrade && !support_upgrade {
+                let progress = recipe_progress(item, owned, &self.all_items_by_id);
+                if progress.owned.is_empty() {
+                    continue;
+                }
+                Some(progress)
+            } else {
+                None
+            };
             let prior = self.item_prior(&champ.name, role, item_id);
             let avg_slot = prior.avg_slot;
             let slot_fit = if is_upgrade || support_upgrade {
@@ -1693,7 +1740,9 @@ impl Engine {
                 context_note,
                 mode_fit,
                 mode_note,
-                price: if is_upgrade || support_upgrade {
+                price: if let Some(recipe) = &recipe {
+                    (item.gold - recipe.owned_gold).max(0)
+                } else if is_upgrade || support_upgrade {
                     0
                 } else {
                     self.mode_price(item, mode, slot)
@@ -1701,6 +1750,7 @@ impl Engine {
                 score: 0.0,
                 affordable: false,
                 missing_gold: 0,
+                recipe,
                 replacement: replaces.is_some(),
                 replaces,
             });
@@ -1831,6 +1881,15 @@ impl Engine {
                 // World Atlas es obligatorio al empezar como support; debe
                 // verse aunque todavía no haya oro para comprarlo.
                 candidate.score = 96.0;
+            }
+            if let Some(recipe) = &candidate.recipe {
+                // Completar un legendario con objetos que ya llevas es más
+                // valioso que comprar otro objeto desde cero.
+                candidate.score = clamp(
+                    candidate.score + 6.0 + 3.0 * recipe.owned.len() as f64,
+                    1.0,
+                    96.0,
+                );
             }
             candidate.affordable = gold >= candidate.price;
             candidate.missing_gold = (candidate.price - gold).max(0);
@@ -2215,6 +2274,44 @@ impl Engine {
         (clamp(score, 0.0, 1.5), note)
     }
 
+    fn item_brief(&self, id: i64) -> Value {
+        if let Some(item) = self.all_items_by_id.get(&id) {
+            return json!({
+                "id": id,
+                "name": item.name,
+                "icon": item.icon,
+                "gold": item.gold,
+            });
+        }
+        if let Some(index) = self.item_by_id.get(&id) {
+            let item = &self.items[*index];
+            return json!({
+                "id": id,
+                "name": item.name,
+                "icon": item.icon,
+                "gold": item.gold,
+            });
+        }
+        if let Some(index) = self.extra_item_by_id.get(&id) {
+            let item = &self.extra_items[*index];
+            return json!({
+                "id": id,
+                "name": item.name,
+                "icon": item.icon,
+                "gold": item.gold,
+            });
+        }
+        json!({"id": id, "name": format!("Objeto {id}"), "icon": "", "gold": 0})
+    }
+
+    fn recipe_components(&self, progress: &RecipeProgress) -> Vec<Value> {
+        progress
+            .owned
+            .iter()
+            .map(|id| self.item_brief(*id))
+            .collect()
+    }
+
     fn components(&self, item: &Item, gold: i64) -> Vec<Value> {
         let mut components: Vec<Value> = Vec::new();
         for id in &item.from {
@@ -2255,7 +2352,8 @@ impl Engine {
         let item = candidate.item;
         let prior_n = candidate.prior_n;
         let avg_slot = candidate.avg_slot;
-        let display_slot = if candidate.replacement {
+        let is_upgrade = candidate.recipe.is_some();
+        let display_slot = if is_upgrade || candidate.replacement {
             slot.max(1)
         } else {
             slot + 1
@@ -2300,15 +2398,44 @@ impl Engine {
             reasons.push("Precio de Arena: objeto completo".to_string());
         }
         if candidate.affordable {
-            reasons.push("Puedes comprarlo ahora".to_string());
+            reasons.push(if is_upgrade {
+                "Puedes completarlo ahora".to_string()
+            } else {
+                "Puedes comprarlo ahora".to_string()
+            });
         } else {
             reasons.push(format!("Te faltan {} de oro", candidate.missing_gold));
         }
-        let components = if mode.uses_components() && !candidate.replacement {
+        if let Some(recipe) = &candidate.recipe {
+            reasons.push(format!(
+                "Reutiliza {} objeto(s) de tu inventario",
+                recipe.owned.len()
+            ));
+            let freed = recipe.owned.len().saturating_sub(1);
+            if freed > 0 {
+                reasons.push(format!("Libera {freed} hueco(s) al completarlo"));
+            }
+        }
+        let components = if mode.uses_components() && !candidate.replacement && !is_upgrade {
             self.components(item, gold)
         } else {
             Vec::new()
         };
+        let owned_components: Vec<Value> = candidate
+            .recipe
+            .as_ref()
+            .map(|recipe| self.recipe_components(recipe))
+            .unwrap_or_default();
+        let consumes: Vec<i64> = candidate
+            .recipe
+            .as_ref()
+            .map(|recipe| recipe.owned.clone())
+            .unwrap_or_default();
+        let freed_slots = candidate
+            .recipe
+            .as_ref()
+            .map(|recipe| recipe.owned.len().saturating_sub(1))
+            .unwrap_or(0);
         if !candidate.affordable && mode.uses_components() {
             if let Some(cheap) = components.iter().find(|component| {
                 component.get("affordable").and_then(Value::as_bool) == Some(true)
@@ -2323,6 +2450,11 @@ impl Engine {
             "name": item.name,
             "icon": item.icon,
             "gold": candidate.price,
+            "fullGold": item.gold,
+            "upgrade": is_upgrade,
+            "ownedComponents": owned_components,
+            "consumes": consumes,
+            "freesSlots": freed_slots,
             "tags": item.tags,
             "score": round(candidate.score, 1),
             "affordable": candidate.affordable,
@@ -2337,6 +2469,48 @@ impl Engine {
             "slot": display_slot,
             "replacement": candidate.replacement,
             "replaces": candidate.replaces,
+        })
+    }
+
+    fn legendary_cost(&self, candidate: &ItemCandidate, owned: &[&Item], mode: GameMode) -> i64 {
+        let recipe = candidate
+            .recipe
+            .clone()
+            .unwrap_or_else(|| recipe_progress(candidate.item, owned, &self.all_items_by_id));
+        if mode.uses_components() {
+            (candidate.item.gold - recipe.owned_gold).max(0)
+        } else {
+            candidate.item.gold
+        }
+    }
+
+    fn format_legendary(
+        &self,
+        candidate: &ItemCandidate,
+        gold: i64,
+        owned: &[&Item],
+        mode: GameMode,
+    ) -> Value {
+        let recipe = candidate
+            .recipe
+            .clone()
+            .unwrap_or_else(|| recipe_progress(candidate.item, owned, &self.all_items_by_id));
+        let cost = self.legendary_cost(candidate, owned, mode);
+        let owned_components = self.recipe_components(&recipe);
+        let freed_slots = recipe.owned.len().saturating_sub(1);
+        json!({
+            "id": candidate.item.id,
+            "name": candidate.item.name,
+            "icon": candidate.item.icon,
+            "gold": candidate.item.gold,
+            "cost": cost,
+            "missingGold": (cost - gold).max(0),
+            "ownedGold": recipe.owned_gold,
+            "affordable": gold >= cost,
+            "score": round(candidate.score, 1),
+            "ownedComponents": owned_components,
+            "freesSlots": freed_slots,
+            "needsSlot": recipe.owned.is_empty(),
         })
     }
 
@@ -2406,7 +2580,6 @@ impl Engine {
         let stable = req.stable;
 
         let mut owned_items: Vec<&Item> = Vec::new();
-        let mut seen = HashSet::new();
         for value in req.owned.iter().take(8) {
             if let Some(item) = self.resolve_item(value) {
                 let counted = match item.id {
@@ -2414,7 +2587,7 @@ impl Engine {
                     id if is_jungle_pet(id) => role == "JUNGLE",
                     _ => true,
                 };
-                if counted && self.is_tracked_item(item) && seen.insert(item.id) {
+                if counted && self.is_tracked_item(item) {
                     owned_items.push(item);
                 }
             }
@@ -2440,7 +2613,14 @@ impl Engine {
                 .any(|item| matches!(item.id, 3865..=3867));
         let bot_build_full =
             mode == GameMode::Classic && role == "BOT" && capacity > 6 && regular_count >= 6;
-        if (slot >= capacity || bot_build_full) && !has_boots_upgrade && !has_support_upgrade {
+        let full_inventory = slot >= capacity || bot_build_full;
+        let has_upgrade_material = owned_items
+            .iter()
+            .any(|item| self.is_upgrade_material(item));
+        // Con el inventario lleno de componentes no damos la build por
+        // terminada: buscamos un legendario que reutilice esos componentes.
+        let full_upgrades = full_inventory && mode.uses_components() && has_upgrade_material;
+        if full_inventory && !has_boots_upgrade && !has_support_upgrade && !full_upgrades {
             let complete_note = match (mode, role.as_str(), capacity) {
                 (GameMode::Arena, _, _) => "Build completa: 6 objetos de Arena.".to_string(),
                 (_, "BOT", 7) => {
@@ -2454,6 +2634,7 @@ impl Engine {
                 "role": role,
                 "slot": capacity,
                 "slotCap": capacity,
+                "fullInventory": true,
                 "enemyProfile": profile,
                 "items": [],
                 "buildPlan": [],
@@ -2484,6 +2665,7 @@ impl Engine {
             capacity,
             stable,
             true,
+            full_upgrades,
         )?;
         let items_out: Vec<Value> = candidates
             .iter()
@@ -2541,6 +2723,26 @@ impl Engine {
             next_candidate.map(|candidate| self.format_item(candidate, gold, slot, &role, mode));
         let antiheal_source =
             next_candidate.is_some_and(|candidate| is_grievous_for_champion(candidate.item, champ));
+        let legendary_pool: Vec<&ItemCandidate> = candidates
+            .iter()
+            .filter(|candidate| self.is_legendary_item(candidate.item))
+            .collect();
+        let target_legendary = legendary_pool
+            .iter()
+            .copied()
+            .find(|candidate| gold >= self.legendary_cost(candidate, &owned_items, mode))
+            .or_else(|| legendary_pool.first().copied());
+        let next_legendary = target_legendary
+            .map(|candidate| self.format_legendary(candidate, gold, &owned_items, mode));
+        let legendary_options: Vec<Value> = legendary_pool
+            .iter()
+            .copied()
+            .filter(|candidate| {
+                target_legendary.is_none_or(|target| candidate.item.id != target.item.id)
+            })
+            .take(2)
+            .map(|candidate| self.format_legendary(candidate, gold, &owned_items, mode))
+            .collect();
 
         let mut build_plan = Vec::new();
         if req.simulate {
@@ -2561,6 +2763,7 @@ impl Engine {
                     capacity,
                     stable,
                     true,
+                    false,
                 )?;
                 let best = if mode == GameMode::Arena {
                     if sim_owned.is_empty() {
@@ -2629,18 +2832,32 @@ impl Engine {
         }
         let mut notes = self.model_notes.clone();
         if candidates.is_empty() {
-            notes.push("No hay objetos candidatos con los filtros actuales.".to_string());
+            notes.push(if full_upgrades {
+                "No hay mejoras directas con los componentes actuales; vende uno para seguir la build."
+                    .to_string()
+            } else {
+                "No hay objetos candidatos con los filtros actuales.".to_string()
+            });
+        }
+        if full_upgrades {
+            notes.push(
+                "Inventario lleno: completa un legendario reutilizando los componentes que ya tienes."
+                    .to_string(),
+            );
         }
         if profile.get("known").and_then(Value::as_i64).unwrap_or(0) < 5 {
             notes.push("Faltan campeones enemigos: el perfil de daño es aproximado.".to_string());
         }
 
-        let next_component = if analysis.is_some() && next_purchase.is_none() {
-            self.next_component(&focus, gold, &seen, mode)
+        let owned_ids: HashSet<i64> = owned_items.iter().map(|item| item.id).collect();
+        let next_component = if analysis.is_some() && !full_upgrades && next_purchase.is_none() {
+            self.next_component(&focus, gold, &owned_ids, mode)
         } else {
             Value::Null
         };
-        let urgency = if next_purchase.is_some() {
+        let urgency = if full_upgrades {
+            "upgrade"
+        } else if next_purchase.is_some() {
             "buy"
         } else if next_component.is_null() {
             "save"
@@ -2655,11 +2872,14 @@ impl Engine {
             "side": if side == 0 { "blue" } else { "red" },
             "slot": (slot + 1).min(capacity),
             "slotCap": capacity,
+            "fullInventory": full_inventory,
             "gold": gold,
             "minute": minute,
             "enemyProfile": profile,
             "items": items_out,
             "nextPurchase": next_purchase.unwrap_or(Value::Null),
+            "nextLegendary": next_legendary.unwrap_or(Value::Null),
+            "legendaryOptions": legendary_options,
             "buildPlan": build_plan,
             "powerSpike": {
                 "slot": (slot + 1).min(capacity),
@@ -3073,6 +3293,43 @@ fn item_from_meta(item: &MetaItem) -> Item {
     }
 }
 
+fn recipe_progress(
+    target: &Item,
+    owned: &[&Item],
+    items: &HashMap<i64, MetaItem>,
+) -> RecipeProgress {
+    let mut counts: HashMap<i64, usize> = HashMap::new();
+    for item in owned {
+        *counts.entry(item.id).or_insert(0) += 1;
+    }
+    let mut progress = RecipeProgress::default();
+    for child in &target.from {
+        consume_recipe(*child, &mut counts, items, &mut progress);
+    }
+    progress
+}
+
+fn consume_recipe(
+    id: i64,
+    counts: &mut HashMap<i64, usize>,
+    items: &HashMap<i64, MetaItem>,
+    progress: &mut RecipeProgress,
+) {
+    if let Some(count) = counts.get_mut(&id) {
+        if *count > 0 {
+            *count -= 1;
+            progress.owned.push(id);
+            progress.owned_gold += items.get(&id).map(|item| item.gold).unwrap_or(0);
+            return;
+        }
+    }
+    if let Some(meta) = items.get(&id) {
+        for child in &meta.from {
+            consume_recipe(*child, counts, items, progress);
+        }
+    }
+}
+
 fn champion_brief(champ: &Champion) -> Value {
     json!({
         "id": champ.id,
@@ -3189,6 +3446,47 @@ mod tests {
             &owned_bounty
         ));
         assert!(!role_item_legal(&world, "MID", GameMode::Classic, &none));
+    }
+
+    fn meta_item(id: i64, name: &str, gold: i64, from: Vec<i64>) -> MetaItem {
+        MetaItem {
+            id,
+            name: name.to_string(),
+            gold,
+            from,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn recipe_counts_duplicate_components_and_nested_parts() {
+        let mut items = HashMap::new();
+        items.insert(1058, meta_item(1058, "Needlessly Large Rod", 1200, vec![]));
+        items.insert(1052, meta_item(1052, "Amplifying Tome", 400, vec![]));
+        items.insert(1027, meta_item(1027, "Sapphire Crystal", 350, vec![]));
+        items.insert(
+            3802,
+            meta_item(3802, "Lost Chapter", 1200, vec![1052, 1027]),
+        );
+
+        let rod_a = item(1058, "Needlessly Large Rod", false);
+        let rod_b = item(1058, "Needlessly Large Rod", false);
+        let amp = item(1052, "Amplifying Tome", false);
+        let sapphire = item(1027, "Sapphire Crystal", false);
+
+        let mut rabadon = item(3089, "Rabadon's Deathcap", false);
+        rabadon.gold = 3500;
+        rabadon.from = vec![1058, 1058];
+        let progress = recipe_progress(&rabadon, &[&rod_a, &rod_b, &amp], &items);
+        assert_eq!(progress.owned, vec![1058, 1058]);
+        assert_eq!(progress.owned_gold, 2400);
+
+        let mut ludens = item(6655, "Luden's Echo", false);
+        ludens.gold = 2750;
+        ludens.from = vec![3802];
+        let progress = recipe_progress(&ludens, &[&amp, &sapphire], &items);
+        assert_eq!(progress.owned, vec![1052, 1027]);
+        assert_eq!(progress.owned_gold, 750);
     }
 
     #[test]

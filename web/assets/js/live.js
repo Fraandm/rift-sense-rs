@@ -327,7 +327,7 @@ function removeItem(index) {
   refresh(true);
 }
 
-function buyItem(id, price = null, name = "") {
+function buyItem(id, price = null, name = "", consumes = []) {
   let item = itemById(id);
   if (!item && name) {
     item = { id, name, icon: `${id}.png`, gold: Number(price) || 0, tags: [] };
@@ -359,15 +359,26 @@ function buyItem(id, price = null, name = "") {
   }
   const cost = Number(price ?? item.gold) || 0;
   const cap = maxSlots();
-  if (live.owned.length >= cap) {
+  const nextOwned = [...live.owned];
+  for (const consumeId of Array.isArray(consumes) ? consumes.map(Number) : []) {
+    const index = nextOwned.indexOf(consumeId);
+    if (index < 0) {
+      toast("Tu inventario cambió; vuelve a leer la recomendación.", "info");
+      refresh(true);
+      return;
+    }
+    nextOwned.splice(index, 1);
+  }
+  if (nextOwned.length >= cap) {
     toast("Inventario completo.", "error");
     return;
   }
-  if (cap === 7 && botQuestDone() && !item.boots && regularItemCount() >= 6) {
+  const nextRegular = nextOwned.filter((ownedId) => !itemById(ownedId)?.boots).length;
+  if (cap === 7 && botQuestDone() && !item.boots && nextRegular >= 6) {
     toast("La septima ranura esta reservada para las botas de role quest.", "error");
     return;
   }
-  if (live.owned.includes(numeric)) return;
+  if (nextOwned.includes(numeric)) return;
   if (item.boots && currentBoots()) {
     toast("Ya llevas unas botas. Vende las actuales antes de comprar otras.", "error");
     return;
@@ -377,6 +388,7 @@ function buyItem(id, price = null, name = "") {
     return;
   }
   live.gold = Math.max(0, live.gold - cost);
+  live.owned = nextOwned;
   live.owned.push(numeric);
   if (item.boots) live.roleQuestBoots = numeric;
   const input = $("#live-gold");
@@ -618,43 +630,150 @@ function componentsHTML(components = []) {
     .join("")}</div>`;
 }
 
+function ownedComponentsHTML(components = []) {
+  if (!components.length) return "";
+  return `<div class="components">${components
+    .slice(0, 5)
+    .map(
+      (c) => `<span class="comp ok" title="${esc(c.name)} · ${num(c.gold)} oro">
+        ${c.icon ? `<img src="${esc(iconUrl("item", c.icon))}" alt="" loading="lazy" data-fallback="hide">` : ""}
+        ${esc(c.name)}
+      </span>`
+    )
+    .join("")}</div>`;
+}
+
+function legendaryCardHTML(target, options) {
+  const owned = target.ownedComponents || [];
+  const cost = Number(target.cost ?? target.missingGold) || 0;
+  const missing = Number(target.missingGold) || 0;
+  const freed = Number(target.freesSlots) || 0;
+  const freeSlot = live.owned.length < maxSlots();
+  const needsNewSlot = target.needsSlot && !freeSlot;
+  const detail = target.needsSlot
+    ? freeSlot
+      ? "Ocupa un hueco libre"
+      : "Necesitas un hueco libre"
+    : freed > 0
+      ? `Libera ${freed} hueco${freed === 1 ? "" : "s"}`
+      : "Se completa en el mismo hueco";
+  const priceLine = target.needsSlot
+    ? `${num(cost)} oro${target.affordable ? "" : ` · te faltan ${num(missing)}`}`
+    : `${num(cost)} oro para completar${target.affordable ? "" : ` · te faltan ${num(missing)}`}`;
+  const badge = needsNewSlot
+    ? `<span class="badge">Falta un hueco</span>`
+    : target.affordable
+      ? `<span class="badge teal">Listo para completar</span>`
+      : `<span class="badge">Faltan ${num(missing)}</span>`;
+  const optionsHTML = (options || []).length
+    ? `<div class="legendary-options"><span class="label">Otras opciones</span>${options
+        .slice(0, 2)
+        .map((option) => {
+          const optionSlotBlocked = option.needsSlot && live.owned.length >= maxSlots();
+          const optionReady = option.affordable && !optionSlotBlocked;
+          const optionCost = Number(option.cost ?? option.missingGold) || 0;
+          return `<button type="button" class="legendary-option" data-buy="${option.id}" data-buy-gold="${optionCost}" data-buy-name="${esc(
+            option.name
+          )}" data-buy-consumes="${(option.ownedComponents || [])
+            .map((component) => component.id)
+            .join(",")}" ${optionReady ? "" : "disabled"}>
+            ${avatarHTML(option, "sm", "item")}
+            <strong>${esc(option.name)}</strong>
+            <small>${
+              optionSlotBlocked
+                ? "Falta hueco"
+                : option.affordable
+                  ? "Completar"
+                  : `Faltan ${num(option.missingGold)}`
+            }</small>
+          </button>`;
+        })
+        .join("")}</div>`
+    : "";
+  return `<div class="legendary-head">
+      <span class="eyebrow">Objetivo legendario</span>
+      ${badge}
+    </div>
+    <div class="legendary-body">
+      <div class="legendary-main">
+        ${avatarHTML(target, "lg", "item")}
+        <div class="legendary-copy">
+          <strong>${esc(target.name)}</strong>
+          <p>${esc(detail)} · ${esc(priceLine)}</p>
+          ${ownedComponentsHTML(owned) || `<p class="fineprint">Aún no tienes componentes para este objeto.</p>`}
+        </div>
+        <button type="button" class="btn tiny" data-buy="${target.id}" data-buy-gold="${cost}" data-buy-name="${esc(
+          target.name
+        )}" data-buy-consumes="${owned.map((component) => component.id).join(",")}" ${
+          target.affordable && !needsNewSlot ? "" : "disabled"
+        }>Completar</button>
+      </div>
+      ${optionsHTML}
+    </div>`;
+}
+
+function renderLegendary(build) {
+  const host = $("#live-legendary");
+  if (!host) return;
+  const target = build?.nextLegendary;
+  if (!live.champion || !target) {
+    host.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+  host.innerHTML = legendaryCardHTML(target, build.legendaryOptions || []);
+  host.classList.remove("hidden");
+}
+
 function renderItemCard(item, isNext = false) {
   const cap = maxSlots();
   const freeSupport =
     SUPPORT_ITEM_IDS.has(Number(item.id)) && Number(item.id) !== 3865;
+  const isUpgrade = Boolean(item.upgrade);
   const disabled =
-    !item.affordable || (live.owned.length >= cap && !item.replacement);
+    !item.affordable ||
+    (!isUpgrade && live.owned.length >= cap && !item.replacement);
   const label = item.replacement || freeSupport
     ? "Mejorar"
-    : live.owned.length >= cap
-      ? "Lleno"
-      : item.affordable
-        ? "Comprar"
-        : "Sin oro";
+    : isUpgrade
+      ? "Completar"
+      : live.owned.length >= cap
+        ? "Lleno"
+        : item.affordable
+          ? "Comprar"
+          : "Sin oro";
   const actionNote = item.replacement
     ? "mejora gratuita"
     : freeSupport
       ? "mejora de quest"
-      : item.affordable
-        ? "disponible"
-        : `faltan ${num(item.missingGold)}`;
+      : isUpgrade
+        ? item.affordable
+          ? "completa el legendario"
+          : `faltan ${num(item.missingGold)}`
+        : item.affordable
+          ? "disponible"
+          : `faltan ${num(item.missingGold)}`;
   const signals = [
+    isUpgrade ? "Completa legendario" : "",
     item.replacement ? "Role quest" : "",
     freeSupport ? "Soporte" : "",
     item.modelProb ? `BuildNet ${pct(item.modelProb, 1)}` : "",
     item.winrate ? `WR ${pct(item.winrate, 1)}` : "",
   ].filter(Boolean);
+  const components = isUpgrade
+    ? ownedComponentsHTML(item.ownedComponents)
+    : componentsHTML(item.components);
   return `<article class="item-reco ${isNext ? "next-buy" : ""}">
     ${avatarHTML(item, "", "item")}
     <div class="item-reco-main">
       <div class="item-reco-title">
         <strong>${esc(item.name)}</strong>
-        <span class="item-cost"><svg class="icon"><use href="#i-gold"/></svg>${num(item.gold)}</span>
-        ${isNext ? `<span class="reason" style="color:var(--teal);border-color:rgba(10,200,185,.3)">Compra ahora</span>` : ""}
+        <span class="item-cost" title="${isUpgrade ? `${num(item.fullGold)} oro total` : ""}"><svg class="icon"><use href="#i-gold"/></svg>${num(item.gold)}</span>
+        ${isNext ? `<span class="reason" style="color:var(--teal);border-color:rgba(10,200,185,.3)">${isUpgrade ? "Completar ahora" : "Compra ahora"}</span>` : ""}
       </div>
       <div class="item-reasons">${itemReasons(item.reasons, [`Score ${Math.round(item.score)}`])}</div>
       ${signals.length ? `<div class="item-signals">${signals.map((signal) => `<span>${esc(signal)}</span>`).join("")}</div>` : ""}
-      ${componentsHTML(item.components)}
+      ${components}
     </div>
     <div class="item-side">
       <strong>${Math.round(item.score)}</strong>
@@ -662,7 +781,7 @@ function renderItemCard(item, isNext = false) {
       <div class="score-bar"><i style="width:${Math.max(3, Math.min(100, item.score))}%"></i></div>
     </div>
     <div class="item-action">
-      <button type="button" class="btn tiny" data-buy="${item.id}" data-buy-gold="${item.gold}" data-buy-name="${esc(item.name)}" ${disabled ? "disabled" : ""}>${label}</button>
+      <button type="button" class="btn tiny" data-buy="${item.id}" data-buy-gold="${item.gold}" data-buy-name="${esc(item.name)}" data-buy-consumes="${(item.consumes || []).join(",")}" ${disabled ? "disabled" : ""}>${label}</button>
       <small>${actionNote}</small>
     </div>
   </article>`;
@@ -675,6 +794,7 @@ function renderItems(build) {
   const status = $("#live-reco-status");
   if (!host) return;
   setModeBadge(badge, build?.mode);
+  renderLegendary(build);
 
   if (!live.champion) {
     host.innerHTML = emptyState("i-brain", "Elige tu campeón", "RiftSense necesita el campeón para buscar builds con contexto.");
@@ -685,7 +805,7 @@ function renderItems(build) {
     renderMobileBuy(null);
     return;
   }
-  if (build?.mode === "complete") {
+  if (build?.mode === "complete" && !build?.nextLegendary) {
     const cap = Number(build?.slotCap) || maxSlots();
     host.innerHTML = emptyState(
       "i-trophy",
@@ -705,12 +825,14 @@ function renderItems(build) {
   }
   const items = build?.items || [];
   if (!items.length) {
-    host.innerHTML = emptyState("i-info", "Sin recomendaciones", "Añade rivales o revisa el inventario.");
-    if (subtitle) subtitle.textContent = "Sin candidatos";
+    host.innerHTML = build?.nextLegendary
+      ? `<p class="summary-empty">No hay más mejoras directas con los componentes actuales; vende uno para seguir la build.</p>`
+      : emptyState("i-info", "Sin recomendaciones", "Añade rivales o revisa el inventario.");
+    if (subtitle) subtitle.textContent = build?.nextLegendary ? "Inventario lleno · objetivo legendario" : "Sin candidatos";
     if (status) status.textContent = "";
     lastAnnouncedPurchase = "";
     lastItemsSignature = "";
-    renderMobileBuy(null);
+    renderMobileBuy(build);
     return;
   }
   if (subtitle) {
@@ -727,7 +849,11 @@ function renderItems(build) {
             ? "modelo + datos"
             : "datos pro";
     const cap = Number(build?.slotCap) || maxSlots();
-    subtitle.textContent = `${modeText}Slot ${build.slot} de ${cap} · ${items.length} candidatos · ${strategy}${component}`;
+    const full =
+      build?.fullInventory && build?.nextLegendary
+        ? " · Inventario lleno: completa un legendario"
+        : "";
+    subtitle.textContent = `${modeText}Slot ${build.slot} de ${cap} · ${items.length} candidatos · ${strategy}${component}${full}`;
   }
 
   const nextId = build?.nextPurchase?.id;
@@ -746,6 +872,11 @@ function renderItems(build) {
     mode: build?.mode,
     source: build?.recommendationSource,
     component: build?.nextComponent?.id || 0,
+    fullInventory: Boolean(build?.fullInventory),
+    legendary: build?.nextLegendary?.id || 0,
+    legendaryMissing: build?.nextLegendary?.missingGold || 0,
+    legendaryAffordable: Boolean(build?.nextLegendary?.affordable),
+    legendaryOptions: (build?.legendaryOptions || []).map((option) => option.id),
     expanded: itemsExpanded,
     owned: live.owned,
     items: items.map((item) => [
@@ -773,9 +904,12 @@ function renderItems(build) {
 
   const purchase = build?.nextPurchase;
   if (status) {
+    const target = build?.nextLegendary;
     const message = purchase
       ? `Siguiente compra: ${purchase.name}, ${num(purchase.gold)} de oro.`
-      : "";
+      : target
+        ? `Objetivo legendario: ${target.name}, te faltan ${num(target.missingGold)} de oro.`
+        : "";
     if (message && message !== lastAnnouncedPurchase) {
       status.textContent = message;
       lastAnnouncedPurchase = message;
@@ -791,9 +925,10 @@ function renderMobileBuy(build) {
   const host = $("#live-mobile-buy");
   if (!host) return;
   const item = build?.nextPurchase;
+  const consumes = (item?.consumes || []).join(",");
   const signature =
     live.champion && item && build?.mode !== "complete"
-      ? `${item.id}|${item.gold}|${item.affordable}|${item.replacement}|${item.replaces}`
+      ? `${item.id}|${item.gold}|${item.affordable}|${item.replacement}|${item.replaces}|${item.upgrade}|${consumes}`
       : "none";
   if (signature === lastMobileBuySignature) return;
   lastMobileBuySignature = signature;
@@ -802,18 +937,18 @@ function renderMobileBuy(build) {
     host.innerHTML = "";
     return;
   }
-  const label = item.replacement ? "Mejorar" : "Comprar";
+  const label = item.replacement ? "Mejorar" : item.upgrade ? "Completar" : "Comprar";
   host.innerHTML = `
     <div class="live-mobile-buy-main">
       ${avatarHTML(item, "", "item")}
       <div class="live-mobile-buy-copy">
-        <small>Próxima compra</small>
+        <small>${item.upgrade ? "Completar legendario" : "Próxima compra"}</small>
         <strong>${esc(item.name)}</strong>
       </div>
     </div>
     <div class="live-mobile-buy-side">
       <span>${num(item.gold)} oro</span>
-      <button type="button" class="btn tiny" data-buy="${item.id}" data-buy-gold="${item.gold}" data-buy-name="${esc(item.name)}" ${
+      <button type="button" class="btn tiny" data-buy="${item.id}" data-buy-gold="${item.gold}" data-buy-name="${esc(item.name)}" data-buy-consumes="${consumes}" ${
         item.affordable ? "" : "disabled"
       }>${label}</button>
     </div>`;
@@ -1335,6 +1470,20 @@ export function init() {
     if (id != null) addItem(id);
   });
 
+  const buyFromButton = (button) => {
+    if (!button || button.disabled) return;
+    const consumes = (button.dataset.buyConsumes || "")
+      .split(",")
+      .filter(Boolean)
+      .map(Number);
+    buyItem(
+      Number(button.dataset.buy),
+      Number(button.dataset.buyGold),
+      button.dataset.buyName || "",
+      consumes
+    );
+  };
+
   $("#live-items")?.addEventListener("click", (event) => {
     const more = event.target.closest("[data-items-more]");
     if (more) {
@@ -1342,15 +1491,15 @@ export function init() {
       renderItems(lastData?.build);
       return;
     }
-    const button = event.target.closest("[data-buy]");
-    if (!button || button.disabled) return;
-    buyItem(Number(button.dataset.buy), Number(button.dataset.buyGold), button.dataset.buyName || "");
+    buyFromButton(event.target.closest("[data-buy]"));
+  });
+
+  $("#live-legendary")?.addEventListener("click", (event) => {
+    buyFromButton(event.target.closest("[data-buy]"));
   });
 
   $("#live-mobile-buy")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-buy]");
-    if (!button || button.disabled) return;
-    buyItem(Number(button.dataset.buy), Number(button.dataset.buyGold), button.dataset.buyName || "");
+    buyFromButton(event.target.closest("[data-buy]"));
   });
 
   $("#live-gold")?.addEventListener("input", (event) => {
