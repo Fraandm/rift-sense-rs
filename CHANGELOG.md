@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.6.0
+
+Runas recomendadas y correcciones de coherencia en las builds.
+
+### Runas
+
+- Nueva tarjeta **Runas recomendadas** en Draft para tu pick o para el mejor
+  pick del rol.
+- Página completa: árbol principal, keystone, tres runas primarias, árbol
+  secundario, dos runas y tres fragmentos.
+- Catálogo generado desde Data Dragon y páginas históricas de 359 partidas
+  recientes (160 campeones, 272 combinaciones campeón/rol).
+- Si no hay muestra suficiente, reglas por campeón, rol, clase y daño.
+- Ajustes contra el rival: fragmento de armadura/RM según el perfil enemigo y
+  **Derribado** contra dos o más tanques.
+- La tarjeta indica si la página viene del histórico o de reglas, la muestra y
+  avisa cuando es orientativa.
+
+### Builds
+
+- Los objetos deben encajar con el daño del campeón. Warwick ya no recibe
+  Rylai's ni otros objetos AP puros; Kai'Sa, Gwen y los híbridos conservan sus
+  objetos AP cuando tienen muestra propia.
+- **Filo del Infinito** y **Rabadon** se penalizan como primera compra. En 33
+  ADC probados, ninguno lo recomienda como primer objeto.
+- La posición temporal de cada objeto se usa para no adelantar compras que
+  suelen completarse más tarde.
+- Las botas salen de la lista principal y se muestran solo en su tarjeta, sin
+  competir con el primer objeto.
+- El overlay usa la misma `nextPurchase` que la app, así que muestra el
+  componente asequible y no el legendario de la lista.
+
+### Validación
+
+- 33 tests Rust; `cargo fmt`, `clippy -D warnings` y `node --check`.
+- 33 ADC comprobados sin Filo del Infinito como primera compra.
+- Warwick TOP/JUNGLE/MID/SUPPORT comprobado sin Rylai's.
+- Tarjeta de runas probada en Chromium a 1440 px y 390 px.
+- Overlay verificado contra la misma `nextPurchase` de la app.
+
+### Instalador
+
+- `RiftSense-Setup-1.6.0.exe`, 27.674.512 bytes, SHA-256
+  `a497d8bd986dcd2b993a37c5ddec0446eaeb031a88c5f9900b38339fed738178`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.6.0`, health `ok` y LCU
+  conectado.
+
 ## 1.5.1
 
 Ajuste de precisión en antiheal y reducción de escudos.

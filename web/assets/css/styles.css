@@ -2122,3 +2122,105 @@ input[type="range"]::-moz-range-thumb {
 
 .item-signals { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
 .item-signals span { padding: 2px 6px; border: 1px solid rgba(255,255,255,.08); border-radius: 5px; color: var(--muted-2); font-size: 10px; }
+
+/* ------------------------------------------------------------------ */
+/* Runas                                                               */
+/* ------------------------------------------------------------------ */
+.rune-card { margin-top: 16px; }
+.rune-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 12px;
+}
+.rune-tree-panel {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.022);
+}
+.rune-tree-panel.secondary { background: rgba(10, 200, 185, 0.025); }
+.rune-tree-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.rune-tree-head img { width: 22px; height: 22px; object-fit: contain; }
+.rune-tree-head strong { font-size: 12px; color: var(--text); }
+.rune-keystone { margin-top: 10px; }
+.rune-list, .rune-shards { display: flex; flex-wrap: wrap; gap: 10px; }
+.rune-list { margin-top: 9px; }
+.rune-node {
+  width: 62px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.rune-node img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.28);
+}
+.rune-node.keystone img {
+  width: 52px;
+  height: 52px;
+  border-color: rgba(214, 180, 116, 0.55);
+  box-shadow: 0 0 0 3px rgba(214, 180, 116, 0.08);
+}
+.rune-node small {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.15;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.rune-node.keystone small { color: var(--text); font-size: 10px; font-weight: 600; }
+.rune-list.secondary .rune-node img { width: 34px; height: 34px; }
+.rune-shards {
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.rune-shards .label {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.rune-shard img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+}
+.rune-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rune-notes li {
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 9.5px;
+}
+@media (max-width: 760px) {
+  .rune-layout { grid-template-columns: 1fr; }
+  .rune-node { width: 58px; }
+}

@@ -126,7 +126,14 @@ function renderComplete(build) {
 }
 
 function renderBuild(build) {
-  const next = Array.isArray(build?.items) ? build.items[0] : null;
+  // La app muestra nextPurchase (el componente que puedes pagar ahora) antes
+  // que el primer legendario de la lista. El overlay debe usar la misma fuente.
+  const next =
+    build?.nextPurchase ||
+    (Array.isArray(build?.items) ? build.items[0] : null) ||
+    build?.nextLegendary ||
+    build?.nextComponent ||
+    null;
   if (build?.mode === "complete" || (!next && build?.fullInventory)) {
     renderComplete(build);
     return;

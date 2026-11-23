@@ -142,6 +142,11 @@ export function iconUrl(kind, file) {
   return base ? `${base}/${kind}/${file}` : "";
 }
 
+export function runeIconUrl(file) {
+  if (!file) return "";
+  return `https://ddragon.leagueoflegends.com/cdn/img/${file}`;
+}
+
 export function championRoleGames(champ, role) {
   return champ?.roles?.[role]?.n || 0;
 }

@@ -70,7 +70,14 @@ variaciones de contexto:
 - el antiheal y la reducción de escudos solo se priorizan con señales
   relevantes: curación por objetos o campeones dedicados/fuertes, y varios
   portadores de escudo, escudos de equipo o escudos apilados. Un solo Eclipse
-  no basta para recomendar Colmillo de Serpiente.
+  no basta para recomendar Colmillo de Serpiente;
+- los objetos deben encajar con el daño del campeón: un Warwick no recibe
+  objetos AP puros como Rylai's, salvo que tenga una muestra propia que lo
+  respalde;
+- **Filo del Infinito** y **Sombrero mortal de Rabadon** se penalizan como
+  primera compra y se reservan para el segundo o tercer objeto;
+- las botas no compiten en la lista principal: tienen su propia tarjeta y no
+  desplazan a los objetos de build.
 
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni
@@ -92,6 +99,22 @@ desactivar en **Ajustes > Overlay en partida**, desde la bandeja del sistema o
 con **Ctrl+Shift+O**. Está pensado para jugar en ventana sin bordes; en pantalla
 completa exclusiva Windows puede impedir que cualquier ventana normal se dibuje
 encima del juego.
+
+## Runas recomendadas
+
+La pestaña **Draft** incluye una tarjeta de runas para tu pick o, si aún no
+elegiste, para el mejor pick del rol:
+
+- página completa con árbol principal, keystone, tres runas primarias, árbol
+  secundario, dos runas y los tres fragmentos;
+- páginas construidas a partir de partidas recientes del scraper de Riot,
+  indicando muestra y winrate cuando hay datos suficientes;
+- si no hay muestra, reglas por campeón, rol y clase (marksman, mago, tanque,
+  asesino, support);
+- ajustes por rival: fragmento de armadura o RM según el perfil enemigo y
+  **Derribado** contra dos o más tanques;
+- los iconos usan el CDN de Data Dragon y el catálogo se genera con
+  `scripts/build-rune-data.py`.
 
 ## Inventario por rol
 

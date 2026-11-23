@@ -11,5 +11,6 @@ pub mod lcu;
 pub mod logging;
 pub mod mode;
 pub mod model;
+pub mod runes;
 pub mod settings;
 pub mod update;

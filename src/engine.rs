@@ -8,6 +8,7 @@ use crate::config::Paths;
 use crate::data::{Catalog, Champion, Item, MetaItem, norm_name};
 use crate::mode::GameMode;
 use crate::model::{BuildModel, DraftModel};
+use crate::runes::RuneCatalog;
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(untagged)]
@@ -236,6 +237,7 @@ struct ItemCandidate<'a> {
     context_note: String,
     mode_fit: f64,
     mode_note: String,
+    order_penalty: f64,
     price: i64,
     score: f64,
     affordable: bool,
@@ -524,11 +526,26 @@ fn enemy_threat_label(kills: i64, deaths: i64, assists: i64, gold: i64) -> &'sta
 
 fn item_matches_champion_damage(item: &Item, champ: &Champion) -> bool {
     let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
+    let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
     let physical = stat("FlatPhysicalDamageMod") > 0.0
         || stat("PercentAttackSpeedMod") > 0.0
-        || stat("FlatCritChanceMod") > 0.0;
-    let magic = stat("FlatMagicDamageMod") > 0.0;
-    match champ.damage.as_str() {
+        || stat("FlatCritChanceMod") > 0.0
+        || stat("PercentArmorPenetrationMod") > 0.0
+        || stat("FlatArmorPenetrationMod") > 0.0
+        || tags.contains("Damage")
+        || tags.contains("ArmorPenetration")
+        || tags.contains("CriticalStrike");
+    let magic = stat("FlatMagicDamageMod") > 0.0
+        || stat("PercentMagicPenetrationMod") > 0.0
+        || stat("FlatMagicPenetrationMod") > 0.0
+        || tags.contains("SpellDamage")
+        || tags.contains("MagicPenetration");
+    let effective_damage = if champ.damage == "MIXTO" && champ.info.magic > champ.info.attack + 1 {
+        "AP"
+    } else {
+        champ.damage.as_str()
+    };
+    match effective_damage {
         "AD" => !magic || physical,
         "AP" => !physical || magic,
         _ => true,
@@ -703,6 +720,7 @@ pub struct Engine {
     pub icon_base: String,
     pub draft_model: Option<DraftModel>,
     pub build_model: Option<BuildModel>,
+    pub runes: RuneCatalog,
     pub model_notes: Vec<String>,
 }
 
@@ -714,6 +732,13 @@ impl Engine {
         let manifest = crate::data::read_manifest(&paths.models);
 
         let mut model_notes = Vec::new();
+        let runes = match RuneCatalog::load() {
+            Ok(runes) => runes,
+            Err(error) => {
+                model_notes.push(format!("No se pudo cargar el catálogo de runas: {error}"));
+                RuneCatalog::default()
+            }
+        };
         let mut draft_model = None;
         let mut build_model = None;
 
@@ -807,6 +832,7 @@ impl Engine {
             icon_base: catalog.icon_base,
             draft_model,
             build_model,
+            runes,
             model_notes,
         })
     }
@@ -1204,6 +1230,14 @@ impl Engine {
                 "Tu campeón ya está fijado: quítalo del slot para comparar alternativas."
                     .to_string(),
             );
+            let runes = self
+                .rune_recommendation(my_champ, &role, &enemy_team)
+                .map(|mut value| {
+                    if let Some(object) = value.as_object_mut() {
+                        object.insert("focus".to_string(), json!("myChampion"));
+                    }
+                    value
+                });
             return Ok(json!({
                 "mode": mode,
                 "role": role,
@@ -1216,6 +1250,7 @@ impl Engine {
                     "games": edge.n,
                     "presence": round(edge.presence, 4),
                 },
+                "runeRecommendation": runes,
                 "knownAllies": team_names(&ally_team),
                 "knownEnemies": team_names(&enemy_team),
                 "bans": ban_list.iter().map(|champ| champ.name.clone()).collect::<Vec<_>>(),
@@ -1395,6 +1430,7 @@ impl Engine {
         let model_confidence = 0.25 + 0.75 * (known_picks as f64 / 10.0);
 
         let mut rows: Vec<(f64, Value)> = Vec::with_capacity(candidates.len());
+        let mut top_champ: Option<(&Champion, f64)> = None;
         for (i, (champ, edge)) in candidates.iter().enumerate() {
             let composite = weight("model") * z_model[i] * model_confidence
                 + weight("prior") * z_prior[i]
@@ -1402,6 +1438,9 @@ impl Engine {
                 + weight("synergy") * z_synergy[i]
                 + weight("meta") * z_meta[i];
             let score = clamp(50.0 + 18.0 * composite, 1.0, 99.0);
+            if top_champ.is_none_or(|(_, best)| score > best) {
+                top_champ = Some((*champ, score));
+            }
             let matchup = &matchups[i];
             let synergy = &synergies[i];
             let mut reasons = Vec::new();
@@ -1478,6 +1517,22 @@ impl Engine {
             .map(|(_, value)| value)
             .collect();
         let exclude = self.exclude_names(&ban_list, &ally_team, &enemy_team);
+        let rune_focus = my_selected.or_else(|| top_champ.map(|(champ, _)| champ));
+        let runes = rune_focus
+            .and_then(|champ| self.rune_recommendation(champ, &role, &enemy_team))
+            .map(|mut value| {
+                if let Some(object) = value.as_object_mut() {
+                    object.insert(
+                        "focus".to_string(),
+                        json!(if my_selected.is_some() {
+                            "myChampion"
+                        } else {
+                            "recommendation"
+                        }),
+                    );
+                }
+                value
+            });
 
         Ok(json!({
             "mode": mode,
@@ -1485,6 +1540,7 @@ impl Engine {
             "roleLabel": self.role_labels.get(&role).cloned().unwrap_or_else(|| role.clone()),
             "side": if side == 0 { "blue" } else { "red" },
             "baselineWinProbability": round(base_user_p, 4),
+            "runeRecommendation": runes,
             "knownAllies": team_names(&ally_team),
             "knownEnemies": team_names(&enemy_team),
             "bans": ban_list.iter().map(|champ| champ.name.clone()).collect::<Vec<_>>(),
@@ -1800,6 +1856,60 @@ impl Engine {
         (score, "Exclusivo de ARAM: Mayhem".to_string())
     }
 
+    fn champion_item_prior_n(&self, champion: &str, role: &str, item_id: i64) -> i64 {
+        self.priors
+            .champions
+            .get(champion)
+            .and_then(|champion| champion.items.get(role))
+            .and_then(|items| items.get(&item_id.to_string()))
+            .map(|item| item.n)
+            .unwrap_or(0)
+    }
+
+    fn item_typical_minute(&self, item_id: i64, role: &str) -> Option<f64> {
+        let slots = self
+            .timings
+            .get(item_id.to_string())?
+            .get(role)?
+            .as_object()?;
+        slots
+            .values()
+            .filter_map(|slot| {
+                let n = slot.get("n").and_then(Value::as_i64).unwrap_or(0);
+                if n < 3 {
+                    return None;
+                }
+                slot.get("median").and_then(Value::as_f64)
+            })
+            .min_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal))
+    }
+
+    fn item_order_penalty(
+        &self,
+        item: &Item,
+        role: &str,
+        minute: f64,
+        slot: usize,
+        mode: GameMode,
+    ) -> f64 {
+        if mode != GameMode::Classic || slot >= 2 {
+            return 0.0;
+        }
+        let mut penalty = 0.0;
+        if let Some(typical) = self.item_typical_minute(item.id, role) {
+            if minute + 1.5 < typical {
+                penalty += ((typical - minute) * 1.8).clamp(0.0, 16.0);
+            }
+        }
+        if slot <= 1 && minute < 18.0 {
+            let name = compact_name(&item.name);
+            if name.contains("infinityedge") || name.contains("rabadonsdeathcap") {
+                penalty += 22.0;
+            }
+        }
+        penalty
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn score_items<'a>(
         &'a self,
@@ -1825,7 +1935,11 @@ impl Engine {
             .items
             .iter()
             .filter(|item| {
-                self.mode_item_legal(item, mode, slot) && role_item_legal(item, role, mode, owned)
+                !item.boots
+                    && self.mode_item_legal(item, mode, slot)
+                    && role_item_legal(item, role, mode, owned)
+                    && (item_matches_champion_damage(item, champ)
+                        || self.champion_item_prior_n(&champ.name, role, item.id) >= 20)
             })
             .collect();
         if mode == GameMode::Mayhem {
@@ -1999,6 +2113,7 @@ impl Engine {
             } else {
                 0.0
             };
+            let order_penalty = self.item_order_penalty(item, role, minute, slot, mode);
             candidates.push(ItemCandidate {
                 item,
                 model_prob,
@@ -2013,6 +2128,7 @@ impl Engine {
                 context_note,
                 mode_fit,
                 mode_note,
+                order_penalty,
                 price: if let Some(recipe) = &recipe {
                     (item.gold - recipe.owned_gold).max(0)
                 } else if is_upgrade || support_upgrade {
@@ -2137,7 +2253,7 @@ impl Engine {
                 + weight("defense") * z_def[i]
                 + weight("context") * z_context[i]
                 + weight("mode") * z_mode[i];
-            candidate.score = clamp(50.0 + 11.0 * composite, 1.0, 96.0);
+            candidate.score = clamp(50.0 + 11.0 * composite - candidate.order_penalty, 1.0, 96.0);
             if mode == GameMode::Arena && is_arena_starter(candidate.item.id) && slot == 0 {
                 candidate.score = clamp(candidate.score + 8.0, 1.0, 96.0);
             }
@@ -2229,6 +2345,28 @@ impl Engine {
             "label": label,
             "known": enemies.iter().filter(|champ| champ.is_some()).count(),
         })
+    }
+
+    fn rune_recommendation(
+        &self,
+        champ: &Champion,
+        role: &str,
+        enemies: &[Option<&Champion>],
+    ) -> Option<Value> {
+        let profile = self.enemy_profile(enemies);
+        let physical = profile
+            .get("physical")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.5);
+        let magic = profile.get("magic").and_then(Value::as_f64).unwrap_or(0.5);
+        let tanks = enemies
+            .iter()
+            .flatten()
+            .filter(|champ| champ.tags.iter().any(|tag| tag == "Tank"))
+            .count();
+        let known = enemies.iter().filter(|champ| champ.is_some()).count();
+        self.runes
+            .recommend(champ, role, physical, magic, tanks, known)
     }
 
     fn item_prior(&self, champ_name: &str, role: &str, item_id: i64) -> ItemPriorInfo {
@@ -3107,6 +3245,9 @@ impl Engine {
         }
         if !candidate.mode_note.is_empty() {
             reasons.push(candidate.mode_note.clone());
+        }
+        if candidate.order_penalty > 0.0 {
+            reasons.push("Mejor como objeto posterior".to_string());
         }
         if mode == GameMode::Arena {
             reasons.push("Precio de Arena: objeto completo".to_string());
@@ -4624,6 +4765,45 @@ mod tests {
         assert_eq!(enemy_threat_label(2, 1, 12, 3500), "Fuerte");
         assert_eq!(enemy_threat_label(0, 0, 3, 1500), "Activo");
         assert_eq!(enemy_threat_label(0, 2, 0, 900), "Normal");
+    }
+
+    fn champion_for_damage(damage: &str, tags: &[&str], attack: i64, magic: i64) -> Champion {
+        Champion {
+            idx: 0,
+            id: "Test".to_string(),
+            key: 0,
+            name: "Test".to_string(),
+            icon: String::new(),
+            tags: tags.iter().map(|tag| tag.to_string()).collect(),
+            damage: damage.to_string(),
+            info: crate::data::ChampionInfo {
+                attack,
+                magic,
+                ..Default::default()
+            },
+        }
+    }
+
+    #[test]
+    fn rejects_off_damage_items() {
+        let ad = champion_for_damage("AD", &["Fighter"], 7, 4);
+        let ap = champion_for_damage("AP", &["Mage"], 4, 7);
+        let mut rylai = item(3116, "Rylai's Crystal Scepter", false);
+        rylai.tags = vec!["Health".to_string(), "SpellDamage".to_string()];
+        rylai.stats.insert("FlatMagicDamageMod".to_string(), 70.0);
+        let mut infinity = item(3031, "Infinity Edge", false);
+        infinity.tags = vec!["Damage".to_string(), "CriticalStrike".to_string()];
+        infinity
+            .stats
+            .insert("FlatPhysicalDamageMod".to_string(), 70.0);
+        let mut spellslinger = item(3175, "Spellslinger's Shoes", true);
+        spellslinger.tags = vec!["Boots".to_string(), "MagicPenetration".to_string()];
+
+        assert!(!item_matches_champion_damage(&rylai, &ad));
+        assert!(!item_matches_champion_damage(&spellslinger, &ad));
+        assert!(item_matches_champion_damage(&infinity, &ad));
+        assert!(item_matches_champion_damage(&rylai, &ap));
+        assert!(!item_matches_champion_damage(&infinity, &ap));
     }
 
     #[test]

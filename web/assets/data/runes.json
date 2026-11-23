@@ -1,0 +1,6611 @@
+{
+  "patch": "16.23.1",
+  "source": "Riot match cache",
+  "matches": 359,
+  "trees": [
+    {
+      "id": 8100,
+      "key": "Domination",
+      "name": "Dominación",
+      "icon": "perk-images/Styles/7200_Domination.png"
+    },
+    {
+      "id": 8300,
+      "key": "Inspiration",
+      "name": "Inspiración",
+      "icon": "perk-images/Styles/7203_Whimsy.png"
+    },
+    {
+      "id": 8000,
+      "key": "Precision",
+      "name": "Precisión",
+      "icon": "perk-images/Styles/7201_Precision.png"
+    },
+    {
+      "id": 8400,
+      "key": "Resolve",
+      "name": "Valor",
+      "icon": "perk-images/Styles/7204_Resolve.png"
+    },
+    {
+      "id": 8200,
+      "key": "Sorcery",
+      "name": "Brujería",
+      "icon": "perk-images/Styles/7202_Sorcery.png"
+    }
+  ],
+  "runes": [
+    {
+      "id": 8112,
+      "key": "Electrocute",
+      "name": "Electrocutar",
+      "icon": "perk-images/Styles/Domination/Electrocute/Electrocute.png",
+      "tree": 8100,
+      "slot": 0
+    },
+    {
+      "id": 8128,
+      "key": "DarkHarvest",
+      "name": "Cosecha oscura",
+      "icon": "perk-images/Styles/Domination/DarkHarvest/DarkHarvest.png",
+      "tree": 8100,
+      "slot": 0
+    },
+    {
+      "id": 9923,
+      "key": "HailOfBlades",
+      "name": "Lluvia de cuchillas",
+      "icon": "perk-images/Styles/Domination/HailOfBlades/HailOfBlades.png",
+      "tree": 8100,
+      "slot": 0
+    },
+    {
+      "id": 8126,
+      "key": "CheapShot",
+      "name": "Golpe bajo",
+      "icon": "perk-images/Styles/Domination/CheapShot/CheapShot.png",
+      "tree": 8100,
+      "slot": 1
+    },
+    {
+      "id": 8139,
+      "key": "TasteOfBlood",
+      "name": "Sabor a sangre",
+      "icon": "perk-images/Styles/Domination/TasteOfBlood/GreenTerror_TasteOfBlood.png",
+      "tree": 8100,
+      "slot": 1
+    },
+    {
+      "id": 8143,
+      "key": "SuddenImpact",
+      "name": "Impacto repentino",
+      "icon": "perk-images/Styles/Domination/SuddenImpact/SuddenImpact.png",
+      "tree": 8100,
+      "slot": 1
+    },
+    {
+      "id": 8137,
+      "key": "SixthSense",
+      "name": "Sexto sentido",
+      "icon": "perk-images/Styles/Domination/SixthSense/SixthSense.png",
+      "tree": 8100,
+      "slot": 2
+    },
+    {
+      "id": 8140,
+      "key": "GrislyMementos",
+      "name": "Recuerdo macabro",
+      "icon": "perk-images/Styles/Domination/GrislyMementos/GrislyMementos.png",
+      "tree": 8100,
+      "slot": 2
+    },
+    {
+      "id": 8141,
+      "key": "DeepWard",
+      "name": "Guardián de profundidad",
+      "icon": "perk-images/Styles/Domination/DeepWard/DeepWard.png",
+      "tree": 8100,
+      "slot": 2
+    },
+    {
+      "id": 8135,
+      "key": "TreasureHunter",
+      "name": "Cazador de tesoros",
+      "icon": "perk-images/Styles/Domination/TreasureHunter/TreasureHunter.png",
+      "tree": 8100,
+      "slot": 3
+    },
+    {
+      "id": 8105,
+      "key": "RelentlessHunter",
+      "name": "Cazador incesante",
+      "icon": "perk-images/Styles/Domination/RelentlessHunter/RelentlessHunter.png",
+      "tree": 8100,
+      "slot": 3
+    },
+    {
+      "id": 8106,
+      "key": "UltimateHunter",
+      "name": "Cazador definitivo",
+      "icon": "perk-images/Styles/Domination/UltimateHunter/UltimateHunter.png",
+      "tree": 8100,
+      "slot": 3
+    },
+    {
+      "id": 8351,
+      "key": "GlacialAugment",
+      "name": "Mejora glacial",
+      "icon": "perk-images/Styles/Inspiration/GlacialAugment/GlacialAugment.png",
+      "tree": 8300,
+      "slot": 0
+    },
+    {
+      "id": 8360,
+      "key": "UnsealedSpellbook",
+      "name": "Libro de hechizos",
+      "icon": "perk-images/Styles/Inspiration/UnsealedSpellbook/UnsealedSpellbook.png",
+      "tree": 8300,
+      "slot": 0
+    },
+    {
+      "id": 8369,
+      "key": "FirstStrike",
+      "name": "Primer golpe",
+      "icon": "perk-images/Styles/Inspiration/FirstStrike/FirstStrike.png",
+      "tree": 8300,
+      "slot": 0
+    },
+    {
+      "id": 8306,
+      "key": "HextechFlashtraption",
+      "name": "Destello hextech",
+      "icon": "perk-images/Styles/Inspiration/HextechFlashtraption/HextechFlashtraption.png",
+      "tree": 8300,
+      "slot": 1
+    },
+    {
+      "id": 8304,
+      "key": "MagicalFootwear",
+      "name": "Calzado mágico",
+      "icon": "perk-images/Styles/Inspiration/MagicalFootwear/MagicalFootwear.png",
+      "tree": 8300,
+      "slot": 1
+    },
+    {
+      "id": 8321,
+      "key": "CashBack",
+      "name": "Reembolso",
+      "icon": "perk-images/Styles/Inspiration/CashBack/CashBack2.png",
+      "tree": 8300,
+      "slot": 1
+    },
+    {
+      "id": 8313,
+      "key": "PerfectTiming",
+      "name": "Tónico triple",
+      "icon": "perk-images/Styles/Inspiration/PerfectTiming/AlchemistCabinet.png",
+      "tree": 8300,
+      "slot": 2
+    },
+    {
+      "id": 8352,
+      "key": "TimeWarpTonic",
+      "name": "Tónico de distorsión temporal",
+      "icon": "perk-images/Styles/Inspiration/TimeWarpTonic/TimeWarpTonic.png",
+      "tree": 8300,
+      "slot": 2
+    },
+    {
+      "id": 8345,
+      "key": "BiscuitDelivery",
+      "name": "Entrega de galletas",
+      "icon": "perk-images/Styles/Inspiration/BiscuitDelivery/BiscuitDelivery.png",
+      "tree": 8300,
+      "slot": 2
+    },
+    {
+      "id": 8347,
+      "key": "CosmicInsight",
+      "name": "Perspicacia cósmica",
+      "icon": "perk-images/Styles/Inspiration/CosmicInsight/CosmicInsight.png",
+      "tree": 8300,
+      "slot": 3
+    },
+    {
+      "id": 8410,
+      "key": "ApproachVelocity",
+      "name": "Velocidad de acercamiento",
+      "icon": "perk-images/Styles/Resolve/ApproachVelocity/ApproachVelocity.png",
+      "tree": 8300,
+      "slot": 3
+    },
+    {
+      "id": 8316,
+      "key": "JackOfAllTrades",
+      "name": "Manitas",
+      "icon": "perk-images/Styles/Inspiration/JackOfAllTrades/JackofAllTrades2.png",
+      "tree": 8300,
+      "slot": 3
+    },
+    {
+      "id": 8005,
+      "key": "PressTheAttack",
+      "name": "Ataque intensificado",
+      "icon": "perk-images/Styles/Precision/PressTheAttack/PressTheAttack.png",
+      "tree": 8000,
+      "slot": 0
+    },
+    {
+      "id": 8008,
+      "key": "LethalTempo",
+      "name": "Compás letal",
+      "icon": "perk-images/Styles/Precision/LethalTempo/LethalTempoTemp.png",
+      "tree": 8000,
+      "slot": 0
+    },
+    {
+      "id": 8021,
+      "key": "FleetFootwork",
+      "name": "Pies veloces",
+      "icon": "perk-images/Styles/Precision/FleetFootwork/FleetFootwork.png",
+      "tree": 8000,
+      "slot": 0
+    },
+    {
+      "id": 8010,
+      "key": "Conqueror",
+      "name": "Conquistador",
+      "icon": "perk-images/Styles/Precision/Conqueror/Conqueror.png",
+      "tree": 8000,
+      "slot": 0
+    },
+    {
+      "id": 9101,
+      "key": "AbsorbLife",
+      "name": "Absorber vida",
+      "icon": "perk-images/Styles/Precision/AbsorbLife/AbsorbLife.png",
+      "tree": 8000,
+      "slot": 1
+    },
+    {
+      "id": 9111,
+      "key": "Triumph",
+      "name": "Triunfo",
+      "icon": "perk-images/Styles/Precision/Triumph.png",
+      "tree": 8000,
+      "slot": 1
+    },
+    {
+      "id": 8009,
+      "key": "PresenceOfMind",
+      "name": "Claridad mental",
+      "icon": "perk-images/Styles/Precision/PresenceOfMind/PresenceOfMind.png",
+      "tree": 8000,
+      "slot": 1
+    },
+    {
+      "id": 9104,
+      "key": "LegendAlacrity",
+      "name": "Leyenda: Presteza",
+      "icon": "perk-images/Styles/Precision/LegendAlacrity/LegendAlacrity.png",
+      "tree": 8000,
+      "slot": 2
+    },
+    {
+      "id": 9105,
+      "key": "LegendHaste",
+      "name": "Leyenda: Velocidad",
+      "icon": "perk-images/Styles/Precision/LegendHaste/LegendHaste.png",
+      "tree": 8000,
+      "slot": 2
+    },
+    {
+      "id": 9103,
+      "key": "LegendBloodline",
+      "name": "Leyenda: Linaje",
+      "icon": "perk-images/Styles/Precision/LegendBloodline/LegendBloodline.png",
+      "tree": 8000,
+      "slot": 2
+    },
+    {
+      "id": 8014,
+      "key": "CoupDeGrace",
+      "name": "Golpe de gracia",
+      "icon": "perk-images/Styles/Precision/CoupDeGrace/CoupDeGrace.png",
+      "tree": 8000,
+      "slot": 3
+    },
+    {
+      "id": 8017,
+      "key": "CutDown",
+      "name": "Derribado",
+      "icon": "perk-images/Styles/Precision/CutDown/CutDown.png",
+      "tree": 8000,
+      "slot": 3
+    },
+    {
+      "id": 8299,
+      "key": "LastStand",
+      "name": "Último esfuerzo",
+      "icon": "perk-images/Styles/Sorcery/LastStand/LastStand.png",
+      "tree": 8000,
+      "slot": 3
+    },
+    {
+      "id": 8437,
+      "key": "GraspOfTheUndying",
+      "name": "Garras del inmortal",
+      "icon": "perk-images/Styles/Resolve/GraspOfTheUndying/GraspOfTheUndying.png",
+      "tree": 8400,
+      "slot": 0
+    },
+    {
+      "id": 8439,
+      "key": "Aftershock",
+      "name": "Reverberacción",
+      "icon": "perk-images/Styles/Resolve/VeteranAftershock/VeteranAftershock.png",
+      "tree": 8400,
+      "slot": 0
+    },
+    {
+      "id": 8465,
+      "key": "Guardian",
+      "name": "Protector",
+      "icon": "perk-images/Styles/Resolve/Guardian/Guardian.png",
+      "tree": 8400,
+      "slot": 0
+    },
+    {
+      "id": 8446,
+      "key": "Demolish",
+      "name": "Demoler",
+      "icon": "perk-images/Styles/Resolve/Demolish/Demolish.png",
+      "tree": 8400,
+      "slot": 1
+    },
+    {
+      "id": 8463,
+      "key": "FontOfLife",
+      "name": "Fuente de vida",
+      "icon": "perk-images/Styles/Resolve/FontOfLife/FontOfLife.png",
+      "tree": 8400,
+      "slot": 1
+    },
+    {
+      "id": 8401,
+      "key": "ShieldBash",
+      "name": "Golpe de escudo",
+      "icon": "perk-images/Styles/Resolve/MirrorShell/MirrorShell.png",
+      "tree": 8400,
+      "slot": 1
+    },
+    {
+      "id": 8429,
+      "key": "Conditioning",
+      "name": "Condicionamiento",
+      "icon": "perk-images/Styles/Resolve/Conditioning/Conditioning.png",
+      "tree": 8400,
+      "slot": 2
+    },
+    {
+      "id": 8444,
+      "key": "SecondWind",
+      "name": "Fuerzas renovadas",
+      "icon": "perk-images/Styles/Resolve/SecondWind/SecondWind.png",
+      "tree": 8400,
+      "slot": 2
+    },
+    {
+      "id": 8473,
+      "key": "BonePlating",
+      "name": "Revestimiento de huesos",
+      "icon": "perk-images/Styles/Resolve/BonePlating/BonePlating.png",
+      "tree": 8400,
+      "slot": 2
+    },
+    {
+      "id": 8451,
+      "key": "Overgrowth",
+      "name": "Sobrecrecimiento",
+      "icon": "perk-images/Styles/Resolve/Overgrowth/Overgrowth.png",
+      "tree": 8400,
+      "slot": 3
+    },
+    {
+      "id": 8453,
+      "key": "Revitalize",
+      "name": "Revitalizar",
+      "icon": "perk-images/Styles/Resolve/Revitalize/Revitalize.png",
+      "tree": 8400,
+      "slot": 3
+    },
+    {
+      "id": 8242,
+      "key": "Unflinching",
+      "name": "Inquebrantable",
+      "icon": "perk-images/Styles/Sorcery/Unflinching/Unflinching.png",
+      "tree": 8400,
+      "slot": 3
+    },
+    {
+      "id": 8214,
+      "key": "SummonAery",
+      "name": "Invocar a Aery",
+      "icon": "perk-images/Styles/Sorcery/SummonAery/SummonAery.png",
+      "tree": 8200,
+      "slot": 0
+    },
+    {
+      "id": 8229,
+      "key": "ArcaneComet",
+      "name": "Cometa arcano",
+      "icon": "perk-images/Styles/Sorcery/ArcaneComet/ArcaneComet.png",
+      "tree": 8200,
+      "slot": 0
+    },
+    {
+      "id": 8230,
+      "key": "PhaseRush",
+      "name": "Tensión del saqueador de tormentas",
+      "icon": "perk-images/Styles/Sorcery/PhaseRush/StormraidersSurgeRuneIcon2.png",
+      "tree": 8200,
+      "slot": 0
+    },
+    {
+      "id": 8992,
+      "key": "DeathfireTouch",
+      "name": "Toque de muerte ígnea",
+      "icon": "perk-images/Styles/Sorcery/DeathfireTouch/DEATHFIRE_TOUCH_KEYSTONE.png",
+      "tree": 8200,
+      "slot": 0
+    },
+    {
+      "id": 8224,
+      "key": "NullifyingOrb",
+      "name": "Arcanólogo axiomático",
+      "icon": "perk-images/Styles/Sorcery/NullifyingOrb/Axiom_Arcanist.png",
+      "tree": 8200,
+      "slot": 1
+    },
+    {
+      "id": 8226,
+      "key": "ManaflowBand",
+      "name": "Banda de maná",
+      "icon": "perk-images/Styles/Sorcery/ManaflowBand/ManaflowBand.png",
+      "tree": 8200,
+      "slot": 1
+    },
+    {
+      "id": 8275,
+      "key": "NimbusCloak",
+      "name": "Capa del nimbo",
+      "icon": "perk-images/Styles/Sorcery/NimbusCloak/6361.png",
+      "tree": 8200,
+      "slot": 1
+    },
+    {
+      "id": 8210,
+      "key": "Transcendence",
+      "name": "Trascendencia",
+      "icon": "perk-images/Styles/Sorcery/Transcendence/Transcendence.png",
+      "tree": 8200,
+      "slot": 2
+    },
+    {
+      "id": 8234,
+      "key": "Celerity",
+      "name": "Celeridad",
+      "icon": "perk-images/Styles/Sorcery/Celerity/CelerityTemp.png",
+      "tree": 8200,
+      "slot": 2
+    },
+    {
+      "id": 8233,
+      "key": "AbsoluteFocus",
+      "name": "Concentración absoluta",
+      "icon": "perk-images/Styles/Sorcery/AbsoluteFocus/AbsoluteFocus.png",
+      "tree": 8200,
+      "slot": 2
+    },
+    {
+      "id": 8237,
+      "key": "Scorch",
+      "name": "Piroláser",
+      "icon": "perk-images/Styles/Sorcery/Scorch/Scorch.png",
+      "tree": 8200,
+      "slot": 3
+    },
+    {
+      "id": 8232,
+      "key": "Waterwalking",
+      "name": "Caminar sobre agua",
+      "icon": "perk-images/Styles/Sorcery/Waterwalking/Waterwalking.png",
+      "tree": 8200,
+      "slot": 3
+    },
+    {
+      "id": 8236,
+      "key": "GatheringStorm",
+      "name": "Se avecina tormenta",
+      "icon": "perk-images/Styles/Sorcery/GatheringStorm/GatheringStorm.png",
+      "tree": 8200,
+      "slot": 3
+    }
+  ],
+  "statShards": [
+    {
+      "id": 5001,
+      "name": "Vida por nivel",
+      "icon": "perk-images/StatMods/StatModsHealthScalingIcon.png"
+    },
+    {
+      "id": 5002,
+      "name": "Armadura",
+      "icon": "perk-images/StatMods/StatModsArmorIcon.png"
+    },
+    {
+      "id": 5003,
+      "name": "Resistencia mágica",
+      "icon": "perk-images/StatMods/StatModsMagicResIcon.png"
+    },
+    {
+      "id": 5005,
+      "name": "Velocidad de ataque",
+      "icon": "perk-images/StatMods/StatModsAttackSpeedIcon.png"
+    },
+    {
+      "id": 5007,
+      "name": "Aceleración de habilidades",
+      "icon": "perk-images/StatMods/StatModsCDRScalingIcon.png"
+    },
+    {
+      "id": 5008,
+      "name": "Fuerza adaptable",
+      "icon": "perk-images/StatMods/StatModsAdaptiveForceIcon.png"
+    },
+    {
+      "id": 5011,
+      "name": "Vida",
+      "icon": "perk-images/StatMods/StatModsHealthPlusIcon.png"
+    },
+    {
+      "id": 5013,
+      "name": "Tenacidad y ralentización",
+      "icon": "perk-images/StatMods/StatModsTenacityIcon.png"
+    }
+  ],
+  "championPages": {
+    "Aatrox": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8451,
+          8473
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 1
+      }
+    },
+    "Ahri": {
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8139,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8226,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 18,
+        "wins": 11
+      },
+      "TOP": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8139,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8226,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Akali": {
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8143,
+          8137,
+          8106
+        ],
+        "secondaryRunes": [
+          8451,
+          8444
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 3
+      },
+      "TOP": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8143,
+          8137,
+          8106
+        ],
+        "secondaryRunes": [
+          8451,
+          8444
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Akshan": {
+      "MID": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8009,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8233,
+          8236
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8009,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8233,
+          8236
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 5
+      }
+    },
+    "Alistar": {
+      "SUPPORT": {
+        "keystone": 8360,
+        "primaryTree": 8300,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8306,
+          8345,
+          8347
+        ],
+        "secondaryRunes": [
+          8275,
+          8234
+        ],
+        "shards": [
+          5007,
+          5011,
+          5001
+        ],
+        "n": 10,
+        "wins": 9
+      }
+    },
+    "Ambessa": {
+      "JUNGLE": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8143,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8444,
+          8401
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8444,
+          8242
+        ],
+        "secondaryRunes": [
+          8347,
+          8345
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Anivia": {
+      "MID": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Annie": {
+      "MID": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 3
+      },
+      "SUPPORT": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8126,
+          8141,
+          8105
+        ],
+        "secondaryRunes": [
+          8226,
+          8234
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 3,
+        "wins": 3
+      },
+      "TOP": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8137,
+          8105
+        ],
+        "secondaryRunes": [
+          8451,
+          8473
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 3
+      }
+    },
+    "Aphelios": {
+      "BOT": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 2
+      }
+    },
+    "Ashe": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8410
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 1
+      }
+    },
+    "AurelionSol": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 2
+      },
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8233,
+          8236
+        ],
+        "secondaryRunes": [
+          8009,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 2
+      },
+      "SUPPORT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          8009
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "TOP": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Aurora": {
+      "BOT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8226,
+          8237
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8226,
+          8237
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8226,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 9,
+        "wins": 3
+      }
+    },
+    "Azir": {
+      "MID": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8014
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Bard": {
+      "SUPPORT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8126,
+          8141,
+          8135
+        ],
+        "secondaryRunes": [
+          8304,
+          8316
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 10,
+        "wins": 4
+      }
+    },
+    "Belveth": {
+      "JUNGLE": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8014
+        ],
+        "secondaryRunes": [
+          8347,
+          8321
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Blitzcrank": {
+      "SUPPORT": {
+        "keystone": 8351,
+        "primaryTree": 8300,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8306,
+          8345,
+          8347
+        ],
+        "secondaryRunes": [
+          8473,
+          8242
+        ],
+        "shards": [
+          5007,
+          5001,
+          5011
+        ],
+        "n": 5,
+        "wins": 1
+      }
+    },
+    "Braum": {
+      "SUPPORT": {
+        "keystone": 8465,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8463,
+          8473,
+          8242
+        ],
+        "secondaryRunes": [
+          8345,
+          8347
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 4,
+        "wins": 2
+      }
+    },
+    "Caitlyn": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8304,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Camille": {
+      "SUPPORT": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8143,
+          8141,
+          8135
+        ],
+        "secondaryRunes": [
+          8473,
+          8401
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 4
+      },
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8473,
+          8451
+        ],
+        "secondaryRunes": [
+          8304,
+          8345
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Cassiopeia": {
+      "BOT": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5008,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "MID": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5008,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8014,
+          8009
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Chogath": {
+      "JUNGLE": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8126,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8224,
+          8234
+        ],
+        "shards": [
+          5008,
+          5001,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8126,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8224,
+          8234
+        ],
+        "shards": [
+          5008,
+          5001,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Corki": {
+      "BOT": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8009,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Darius": {
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8234,
+          8236
+        ],
+        "secondaryRunes": [
+          9111,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 5,
+        "wins": 4
+      }
+    },
+    "Diana": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 6,
+        "wins": 2
+      }
+    },
+    "DrMundo": {
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8446,
+          8444,
+          8451
+        ],
+        "secondaryRunes": [
+          8410,
+          8304
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 5,
+        "wins": 3
+      }
+    },
+    "Draven": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 2
+      }
+    },
+    "Ekko": {
+      "BOT": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8140,
+          8105
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 3
+      },
+      "JUNGLE": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8347,
+          8321
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8140,
+          8105
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 20,
+        "wins": 14
+      },
+      "SUPPORT": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8141,
+          8135
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8140,
+          8105
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Elise": {
+      "JUNGLE": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8210,
+          8232
+        ],
+        "secondaryRunes": [
+          9104,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 4,
+        "wins": 2
+      },
+      "SUPPORT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8141,
+          8105
+        ],
+        "secondaryRunes": [
+          8014,
+          9111
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 0
+      },
+      "TOP": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8137,
+          8105
+        ],
+        "secondaryRunes": [
+          8275,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Ezreal": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8316
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 16,
+        "wins": 6
+      },
+      "MID": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Fiora": {
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8275,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8444,
+          8242
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Fizz": {
+      "JUNGLE": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          9111,
+          9105,
+          8014
+        ],
+        "secondaryRunes": [
+          8143,
+          8135
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8226,
+          8210
+        ],
+        "shards": [
+          5007,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Galio": {
+      "MID": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8444,
+          8242
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Gangplank": {
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8275,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8242,
+          8473
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 6
+      }
+    },
+    "Garen": {
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8224,
+          8234
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "Gnar": {
+      "TOP": {
+        "keystone": 8021,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9101,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 6,
+        "wins": 2
+      }
+    },
+    "Gragas": {
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8345,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Graves": {
+      "JUNGLE": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8137,
+          8135
+        ],
+        "secondaryRunes": [
+          9104,
+          9111
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 7,
+        "wins": 4
+      }
+    },
+    "Gwen": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8410,
+          8321
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8321,
+          8345,
+          8316
+        ],
+        "secondaryRunes": [
+          8236,
+          8233
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8009,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8473,
+          8242
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Hecarim": {
+      "JUNGLE": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8234,
+          8232
+        ],
+        "secondaryRunes": [
+          9111,
+          9105
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 6,
+        "wins": 2
+      }
+    },
+    "Heimerdinger": {
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8009,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8233,
+          8237
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "Hwei": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 3
+      },
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Illaoi": {
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8009,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8446,
+          8473
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Irelia": {
+      "MID": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8143,
+          8135
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8316,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Ivern": {
+      "JUNGLE": {
+        "keystone": 8351,
+        "primaryTree": 8300,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8463,
+          8453
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Janna": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8126,
+          8105
+        ],
+        "shards": [
+          5007,
+          5011,
+          5001
+        ],
+        "n": 3,
+        "wins": 3
+      }
+    },
+    "JarvanIV": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8014
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 5,
+        "wins": 2
+      }
+    },
+    "Jax": {
+      "MID": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8009,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8275,
+          8210
+        ],
+        "shards": [
+          5005,
+          5008,
+          5013
+        ],
+        "n": 4,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8473,
+          8242
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Jayce": {
+      "JUNGLE": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 6,
+        "wins": 3
+      },
+      "MID": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8313,
+          8321
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 3
+      },
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8313,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 3
+      }
+    },
+    "Jhin": {
+      "BOT": {
+        "keystone": 8021,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 12,
+        "wins": 3
+      }
+    },
+    "Jinx": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "KSante": {
+      "TOP": {
+        "keystone": 8439,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8444,
+          8242
+        ],
+        "secondaryRunes": [
+          8345,
+          8347
+        ],
+        "shards": [
+          5005,
+          5001,
+          5011
+        ],
+        "n": 3,
+        "wins": 3
+      }
+    },
+    "Kaisa": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 1
+      }
+    },
+    "Kalista": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8143,
+          8135
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 4
+      }
+    },
+    "Karma": {
+      "MID": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8009
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "SUPPORT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8275,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8313,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Karthus": {
+      "BOT": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8224,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8299
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 22,
+        "wins": 11
+      },
+      "JUNGLE": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8224,
+          8233,
+          8236
+        ],
+        "secondaryRunes": [
+          8126,
+          8106
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 4,
+        "wins": 3
+      },
+      "TOP": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8224,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8299
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Katarina": {
+      "BOT": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8451,
+          8473
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 6,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Kayn": {
+      "JUNGLE": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Kennen": {
+      "BOT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8139,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8237,
+          8275
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8139,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8233,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Khazix": {
+      "JUNGLE": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8275,
+          8234,
+          8232
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 7,
+        "wins": 3
+      }
+    },
+    "Kindred": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8014
+        ],
+        "secondaryRunes": [
+          8347,
+          8321
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 5,
+        "wins": 1
+      }
+    },
+    "Kled": {
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8446,
+          8444,
+          8451
+        ],
+        "secondaryRunes": [
+          9104,
+          8299
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "KogMaw": {
+      "BOT": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8233,
+          8236
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8236
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Leblanc": {
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8137,
+          8106
+        ],
+        "secondaryRunes": [
+          8226,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 8,
+        "wins": 6
+      },
+      "SUPPORT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8139,
+          8141,
+          8106
+        ],
+        "secondaryRunes": [
+          8237,
+          8210
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8237,
+          8226
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 3
+      }
+    },
+    "LeeSin": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8014
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 13,
+        "wins": 6
+      },
+      "SUPPORT": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8141,
+          8105
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Leona": {
+      "SUPPORT": {
+        "keystone": 8439,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8463,
+          8473,
+          8242
+        ],
+        "secondaryRunes": [
+          8306,
+          8347
+        ],
+        "shards": [
+          5007,
+          5011,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Lillia": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5007,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Lissandra": {
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 0
+      }
+    },
+    "Locke": {
+      "BOT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8143,
+          8140,
+          8105
+        ],
+        "secondaryRunes": [
+          8444,
+          8242
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "JUNGLE": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8140,
+          8105
+        ],
+        "secondaryRunes": [
+          9111,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8137,
+          8135
+        ],
+        "secondaryRunes": [
+          8017,
+          9111
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Lucian": {
+      "BOT": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "MID": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8451,
+          8473
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8347,
+          8345
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 2
+      }
+    },
+    "Lulu": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8275,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 10,
+        "wins": 7
+      }
+    },
+    "Lux": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8226,
+          8210,
+          8236
+        ],
+        "secondaryRunes": [
+          8106,
+          8126
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "SUPPORT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Malphite": {
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8444,
+          8451
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8401,
+          8429,
+          8451
+        ],
+        "secondaryRunes": [
+          8226,
+          8210
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Maokai": {
+      "SUPPORT": {
+        "keystone": 8439,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8463,
+          8444,
+          8242
+        ],
+        "secondaryRunes": [
+          8347,
+          8345
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8446,
+          8444,
+          8451
+        ],
+        "secondaryRunes": [
+          8210,
+          8226
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 4,
+        "wins": 2
+      }
+    },
+    "Mel": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 0
+      }
+    },
+    "Milio": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8275,
+          8210,
+          8236
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "MissFortune": {
+      "BOT": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "MonkeyKing": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 8,
+        "wins": 4
+      }
+    },
+    "Mordekaiser": {
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8444,
+          8473
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 3
+      }
+    },
+    "Naafiri": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 20,
+        "wins": 11
+      }
+    },
+    "Nami": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8453
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 5,
+        "wins": 0
+      }
+    },
+    "Nasus": {
+      "MID": {
+        "keystone": 8021,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8313,
+          8410
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 4,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8021,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8444,
+          8242
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Nautilus": {
+      "SUPPORT": {
+        "keystone": 8439,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8473,
+          8242
+        ],
+        "secondaryRunes": [
+          8345,
+          8347
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 6,
+        "wins": 3
+      }
+    },
+    "Neeko": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "SUPPORT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8275,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Nidalee": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 20,
+        "wins": 14
+      }
+    },
+    "Nilah": {
+      "BOT": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8347,
+          8321
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 0
+      }
+    },
+    "Nocturne": {
+      "JUNGLE": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8140,
+          8106
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Nunu": {
+      "JUNGLE": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8224,
+          8210,
+          8232
+        ],
+        "secondaryRunes": [
+          9111,
+          9105
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 14,
+        "wins": 8
+      }
+    },
+    "Olaf": {
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8345,
+          8410
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "Orianna": {
+      "MID": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 3
+      }
+    },
+    "Ornn": {
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8446,
+          8444,
+          8451
+        ],
+        "secondaryRunes": [
+          8345,
+          8304
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 12,
+        "wins": 6
+      }
+    },
+    "Pantheon": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          8009
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 6,
+        "wins": 6
+      },
+      "SUPPORT": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8126,
+          8105
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "TOP": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8009,
+          9105,
+          8014
+        ],
+        "secondaryRunes": [
+          8237,
+          8210
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Poppy": {
+      "SUPPORT": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8137,
+          8105
+        ],
+        "secondaryRunes": [
+          8306,
+          8347
+        ],
+        "shards": [
+          5008,
+          5013,
+          5001
+        ],
+        "n": 8,
+        "wins": 3
+      }
+    },
+    "Pyke": {
+      "SUPPORT": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8126,
+          8137,
+          8106
+        ],
+        "secondaryRunes": [
+          8473,
+          8242
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 5,
+        "wins": 4
+      }
+    },
+    "Qiyana": {
+      "JUNGLE": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8143,
+          8106
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 10,
+        "wins": 5
+      },
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8009,
+          8299
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Quinn": {
+      "JUNGLE": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          9104,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 4,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8234,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5013
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Rakan": {
+      "SUPPORT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8143,
+          8141,
+          8106
+        ],
+        "secondaryRunes": [
+          8242,
+          8473
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "RekSai": {
+      "JUNGLE": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 6,
+        "wins": 2
+      }
+    },
+    "Rell": {
+      "SUPPORT": {
+        "keystone": 8439,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8473,
+          8242
+        ],
+        "secondaryRunes": [
+          8347,
+          8306
+        ],
+        "shards": [
+          5007,
+          5011,
+          5001
+        ],
+        "n": 8,
+        "wins": 4
+      }
+    },
+    "Renata": {
+      "SUPPORT": {
+        "keystone": 8465,
+        "primaryTree": 8400,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8401,
+          8473,
+          8242
+        ],
+        "secondaryRunes": [
+          8105,
+          8137
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 10,
+        "wins": 5
+      }
+    },
+    "Renekton": {
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8473,
+          8242
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 2
+      }
+    },
+    "Rengar": {
+      "JUNGLE": {
+        "keystone": 8021,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8143,
+          8106
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 6,
+        "wins": 1
+      }
+    },
+    "Riven": {
+      "BOT": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8321,
+          8316
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8321,
+          8316
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 6,
+        "wins": 5
+      },
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8321,
+          8316
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Rumble": {
+      "TOP": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8275,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8242
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Ryze": {
+      "MID": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Samira": {
+      "BOT": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8316
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 13,
+        "wins": 7
+      }
+    },
+    "Sejuani": {
+      "JUNGLE": {
+        "keystone": 8439,
+        "primaryTree": 8400,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8463,
+          8429,
+          8451
+        ],
+        "secondaryRunes": [
+          8126,
+          8106
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Senna": {
+      "SUPPORT": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8234,
+          8236
+        ],
+        "secondaryRunes": [
+          8304,
+          8316
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 1
+      }
+    },
+    "Seraphine": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Sett": {
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8401,
+          8444
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 1
+      }
+    },
+    "Shaco": {
+      "JUNGLE": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8137,
+          8105
+        ],
+        "secondaryRunes": [
+          8304,
+          8410
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 5
+      }
+    },
+    "Shen": {
+      "JUNGLE": {
+        "keystone": 8465,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8429,
+          8453
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "SUPPORT": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8141,
+          8106
+        ],
+        "secondaryRunes": [
+          8306,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8401,
+          8444,
+          8453
+        ],
+        "secondaryRunes": [
+          8126,
+          8106
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Shyvana": {
+      "JUNGLE": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8473,
+          8451
+        ],
+        "secondaryRunes": [
+          8347,
+          8345
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Singed": {
+      "MID": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8275,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8126,
+          8106
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "TOP": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8275,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Sion": {
+      "MID": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8446,
+          8429,
+          8451
+        ],
+        "secondaryRunes": [
+          8347,
+          8410
+        ],
+        "shards": [
+          5005,
+          5001,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8446,
+          8444,
+          8451
+        ],
+        "secondaryRunes": [
+          8304,
+          8345
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Sivir": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 2
+      }
+    },
+    "Skarner": {
+      "JUNGLE": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          8429,
+          8451
+        ],
+        "secondaryRunes": [
+          8410,
+          8304
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "Smolder": {
+      "BOT": {
+        "keystone": 8021,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 2
+      }
+    },
+    "Sona": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8234,
+          8236
+        ],
+        "secondaryRunes": [
+          8304,
+          8316
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "Soraka": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8224,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8453
+        ],
+        "shards": [
+          5007,
+          5008,
+          5013
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Swain": {
+      "BOT": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8210,
+          8226
+        ],
+        "shards": [
+          5007,
+          5011,
+          5001
+        ],
+        "n": 3,
+        "wins": 0
+      },
+      "SUPPORT": {
+        "keystone": 8351,
+        "primaryTree": 8300,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8304,
+          8313,
+          8410
+        ],
+        "secondaryRunes": [
+          8234,
+          8224
+        ],
+        "shards": [
+          5007,
+          5013,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8451,
+          8429
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 5,
+        "wins": 0
+      }
+    },
+    "Sylas": {
+      "BOT": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9111
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 8,
+        "wins": 7
+      },
+      "MID": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8009,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8444,
+          8242
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      },
+      "SUPPORT": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8140,
+          8105
+        ],
+        "secondaryRunes": [
+          8347,
+          8345
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 9,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Syndra": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      },
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8347,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 6,
+        "wins": 4
+      }
+    },
+    "Taliyah": {
+      "JUNGLE": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8126,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 5,
+        "wins": 3
+      },
+      "MID": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "SUPPORT": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8139,
+          8141,
+          8105
+        ],
+        "secondaryRunes": [
+          8017,
+          8009
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Talon": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Taric": {
+      "SUPPORT": {
+        "keystone": 8465,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8463,
+          8429,
+          8242
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5005,
+          5013,
+          5001
+        ],
+        "n": 5,
+        "wins": 2
+      }
+    },
+    "Teemo": {
+      "TOP": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8242,
+          8473
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 0
+      }
+    },
+    "Thresh": {
+      "SUPPORT": {
+        "keystone": 8439,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8463,
+          8473,
+          8242
+        ],
+        "secondaryRunes": [
+          8345,
+          8347
+        ],
+        "shards": [
+          5007,
+          5011,
+          5001
+        ],
+        "n": 10,
+        "wins": 5
+      }
+    },
+    "Tristana": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 9,
+        "wins": 4
+      },
+      "TOP": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8451,
+          8473
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 4,
+        "wins": 2
+      }
+    },
+    "Trundle": {
+      "JUNGLE": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8014
+        ],
+        "secondaryRunes": [
+          8410,
+          8304
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Tryndamere": {
+      "MID": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8446,
+          8444,
+          8453
+        ],
+        "secondaryRunes": [
+          9104,
+          8299
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          9104,
+          8299
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 3
+      }
+    },
+    "TwistedFate": {
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 4,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8313,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Twitch": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8009,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8106,
+          8143
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 6,
+        "wins": 5
+      },
+      "SUPPORT": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8143,
+          8106
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Udyr": {
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8401,
+          9105,
+          8453
+        ],
+        "secondaryRunes": [
+          8410,
+          8345
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 0
+      }
+    },
+    "Varus": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8313,
+          8316
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Vayne": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8347,
+          8321
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "MID": {
+        "keystone": 8005,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8234,
+          8226
+        ],
+        "shards": [
+          5008,
+          5001,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          9101,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8275,
+          8234
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Veigar": {
+      "BOT": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8226,
+          8210
+        ],
+        "shards": [
+          5007,
+          5011,
+          5001
+        ],
+        "n": 3,
+        "wins": 3
+      },
+      "MID": {
+        "keystone": 8360,
+        "primaryTree": 8300,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8226,
+          8210
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Velkoz": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 11,
+        "wins": 6
+      },
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "SUPPORT": {
+        "keystone": 8128,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8126,
+          8141,
+          8105
+        ],
+        "secondaryRunes": [
+          8226,
+          8237
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 4,
+        "wins": 3
+      }
+    },
+    "Vex": {
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8126,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8237,
+          8226
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Vi": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Viego": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8014
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 7,
+        "wins": 5
+      },
+      "MID": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8143,
+          8140,
+          8135
+        ],
+        "secondaryRunes": [
+          8316,
+          8321
+        ],
+        "shards": [
+          5005,
+          5008,
+          5013
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Viktor": {
+      "BOT": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8473,
+          8401
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8992,
+        "primaryTree": 8200,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8401,
+          8473
+        ],
+        "shards": [
+          5005,
+          5011,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      }
+    },
+    "Vladimir": {
+      "MID": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8210,
+          8236
+        ],
+        "secondaryRunes": [
+          8299,
+          9105
+        ],
+        "shards": [
+          5007,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8234,
+          8236
+        ],
+        "secondaryRunes": [
+          8299,
+          9105
+        ],
+        "shards": [
+          5007,
+          5001,
+          5001
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Volibear": {
+      "TOP": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8233,
+          8236
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Warwick": {
+      "TOP": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          8009,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8453,
+          8473
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "Xayah": {
+      "BOT": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8009,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Xerath": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8236
+        ],
+        "secondaryRunes": [
+          8313,
+          8321
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 3
+      },
+      "MID": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8233,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8017
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "XinZhao": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8304,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "SUPPORT": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8143,
+          8137,
+          8105
+        ],
+        "secondaryRunes": [
+          9111,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Yasuo": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 0
+      },
+      "MID": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8473,
+          8451
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9101,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8401,
+          8473
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      }
+    },
+    "Yone": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9101,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8401,
+          8444
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 4,
+        "wins": 3
+      },
+      "MID": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9101,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8401,
+          8444
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 3
+      },
+      "TOP": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8400,
+        "primaryRunes": [
+          9101,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8401,
+          8444
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 7,
+        "wins": 2
+      }
+    },
+    "Yorick": {
+      "TOP": {
+        "keystone": 8437,
+        "primaryTree": 8400,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8446,
+          8444,
+          8451
+        ],
+        "secondaryRunes": [
+          8410,
+          8345
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 0
+      }
+    },
+    "Yunara": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 20,
+        "wins": 12
+      }
+    },
+    "Yuumi": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8321,
+          8347
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 3
+      }
+    },
+    "Zaahen": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8299
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 4,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 9923,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8143,
+          8140,
+          8106
+        ],
+        "secondaryRunes": [
+          8275,
+          8210
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 4,
+        "wins": 1
+      }
+    },
+    "Zac": {
+      "JUNGLE": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9105,
+          8299
+        ],
+        "secondaryRunes": [
+          8347,
+          8304
+        ],
+        "shards": [
+          5007,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Zed": {
+      "BOT": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8237,
+          8275
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "JUNGLE": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8143,
+          8135
+        ],
+        "shards": [
+          5005,
+          5008,
+          5001
+        ],
+        "n": 3,
+        "wins": 1
+      },
+      "MID": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          8275,
+          8237
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 4
+      },
+      "TOP": {
+        "keystone": 8369,
+        "primaryTree": 8300,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8321,
+          8313,
+          8347
+        ],
+        "secondaryRunes": [
+          9105,
+          8017
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      }
+    },
+    "Zeri": {
+      "BOT": {
+        "keystone": 8008,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9103,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 6,
+        "wins": 3
+      },
+      "TOP": {
+        "keystone": 8010,
+        "primaryTree": 8000,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          9111,
+          9104,
+          8017
+        ],
+        "secondaryRunes": [
+          8321,
+          8313
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 3
+      }
+    },
+    "Ziggs": {
+      "BOT": {
+        "keystone": 8229,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8009,
+          8014
+        ],
+        "shards": [
+          5008,
+          5008,
+          5001
+        ],
+        "n": 2,
+        "wins": 0
+      }
+    },
+    "Zilean": {
+      "SUPPORT": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8300,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8313,
+          8304
+        ],
+        "shards": [
+          5007,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 1
+      },
+      "TOP": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8226,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          9105,
+          8009
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      }
+    },
+    "Zoe": {
+      "MID": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8200,
+        "primaryRunes": [
+          8139,
+          8137,
+          8105
+        ],
+        "secondaryRunes": [
+          8275,
+          8237
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 3,
+        "wins": 2
+      },
+      "SUPPORT": {
+        "keystone": 8230,
+        "primaryTree": 8200,
+        "secondaryTree": 8100,
+        "primaryRunes": [
+          8275,
+          8234,
+          8237
+        ],
+        "secondaryRunes": [
+          8143,
+          8105
+        ],
+        "shards": [
+          5008,
+          5008,
+          5011
+        ],
+        "n": 2,
+        "wins": 2
+      },
+      "TOP": {
+        "keystone": 8214,
+        "primaryTree": 8200,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8275,
+          8210,
+          8237
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5005,
+          5008,
+          5011
+        ],
+        "n": 5,
+        "wins": 3
+      }
+    },
+    "Zyra": {
+      "JUNGLE": {
+        "keystone": 8112,
+        "primaryTree": 8100,
+        "secondaryTree": 8000,
+        "primaryRunes": [
+          8126,
+          8137,
+          8135
+        ],
+        "secondaryRunes": [
+          8017,
+          9105
+        ],
+        "shards": [
+          5007,
+          5008,
+          5001
+        ],
+        "n": 9,
+        "wins": 4
+      }
+    }
+  }
+}

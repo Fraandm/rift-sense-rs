@@ -1,7 +1,7 @@
 /* Vista de draft: composiciones, recomendaciones y bans. */
 
 import { api } from "./api.js";
-import { meta, state, championByName, roleLabel, ROLE_SHORT } from "./state.js";
+import { meta, state, championByName, roleLabel, runeIconUrl, ROLE_SHORT } from "./state.js";
 import {
   $,
   $$,
@@ -383,10 +383,78 @@ function renderBanPriority(items) {
     .join("");
 }
 
+function runeNode(rune, extraClass = "") {
+  return `<span class="rune-node ${extraClass}" title="${esc(rune.name)}">
+    <img src="${runeIconUrl(rune.icon)}" alt="${esc(rune.name)}" />
+    <small>${esc(rune.name)}</small>
+  </span>`;
+}
+
+function shardNode(shard) {
+  return `<span class="rune-shard" title="${esc(shard.name)}">
+    <img src="${runeIconUrl(shard.icon)}" alt="${esc(shard.name)}" />
+  </span>`;
+}
+
+function renderRunes(data) {
+  const card = $("#draft-rune-card");
+  const host = $("#draft-runes");
+  if (!card || !host) return;
+  const runes = data?.runeRecommendation;
+  if (!runes?.keystone) {
+    card.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+  const title = $("#draft-rune-title");
+  const subtitle = $("#draft-rune-subtitle");
+  const source = $("#draft-rune-source");
+  const focus = runes.focus === "myChampion" ? "Tu pick" : "Mejor pick";
+  if (title) title.textContent = `Runas para ${runes.champion?.name || "tu campeón"}`;
+  if (subtitle) {
+    subtitle.textContent = `${focus} · ${roleLabel(runes.role)} · ${
+      runes.source === "history"
+        ? `${runes.sample} partidas recientes`
+        : "Sin muestra histórica suficiente"
+    }`;
+  }
+  if (source) {
+    source.textContent = runes.source === "history" ? "Histórico" : "Base";
+    source.className = `badge ${runes.source === "history" ? "teal" : ""}`.trim();
+  }
+  const notes = (runes.notes || []).map((note) => `<li>${esc(note)}</li>`).join("");
+  host.innerHTML = `<div class="rune-layout">
+    <section class="rune-tree-panel">
+      <div class="rune-tree-head">
+        <img src="${runeIconUrl(runes.primaryTree?.icon)}" alt="" />
+        <strong>${esc(runes.primaryTree?.name || "Árbol principal")}</strong>
+      </div>
+      <div class="rune-keystone">${runeNode(runes.keystone, "keystone")}</div>
+      <div class="rune-list">${(runes.primaryRunes || []).map((rune) => runeNode(rune)).join("")}</div>
+    </section>
+    <section class="rune-tree-panel secondary">
+      <div class="rune-tree-head">
+        <img src="${runeIconUrl(runes.secondaryTree?.icon)}" alt="" />
+        <strong>${esc(runes.secondaryTree?.name || "Árbol secundario")}</strong>
+      </div>
+      <div class="rune-list secondary">${(runes.secondaryRunes || [])
+        .map((rune) => runeNode(rune))
+        .join("")}</div>
+      <div class="rune-shards">
+        <span class="label">Fragmentos</span>
+        ${(runes.shards || []).map((shard) => shardNode(shard)).join("")}
+      </div>
+    </section>
+  </div>
+  ${notes ? `<ul class="rune-notes">${notes}</ul>` : ""}`;
+  card.classList.remove("hidden");
+}
+
 function renderResponse(data) {
   lastResponse = data;
   renderVerdict(data);
   renderRecommendations(data);
+  renderRunes(data);
   renderBanPriority(data.banPriority);
 }
 
@@ -404,6 +472,7 @@ function setBusy() {
 }
 
 function renderError(err) {
+  renderRunes(null);
   const host = $("#draft-reco");
   if (host) {
     host.innerHTML = `<div class="empty-state">
@@ -437,6 +506,7 @@ async function refresh() {
     requestSeq += 1;
     renderVerdict(null);
     renderRecommendations(null);
+    renderRunes(null);
     renderBanPriority([]);
     applyModeLayout();
     return;
