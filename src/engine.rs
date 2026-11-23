@@ -86,6 +86,14 @@ pub struct EnemyBuildContext {
     pub champion: String,
     #[serde(default)]
     pub items: Vec<i64>,
+    #[serde(default)]
+    pub kills: i64,
+    #[serde(default)]
+    pub deaths: i64,
+    #[serde(default)]
+    pub assists: i64,
+    #[serde(default)]
+    pub level: i64,
 }
 
 #[derive(Deserialize, Clone, Debug, Default)]
@@ -242,15 +250,46 @@ struct ItemCandidate<'a> {
 }
 
 #[derive(Clone, Debug, Default)]
+struct EnemyBuildDetail {
+    champion: String,
+    icon: String,
+    items: Vec<i64>,
+    gold: i64,
+    armor: f64,
+    magic_resist: f64,
+    health: f64,
+    attack_damage: f64,
+    ability_power: f64,
+    crit: f64,
+    attack_speed: f64,
+    kills: i64,
+    deaths: i64,
+    assists: i64,
+    level: i64,
+    damage: String,
+    threat: String,
+    healing_items: Vec<String>,
+    shield_items: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default)]
 struct EnemyBuildSummary {
     known: i64,
     armor: f64,
     magic_resist: f64,
     health: f64,
+    max_armor: f64,
+    max_magic_resist: f64,
+    max_health: f64,
+    attack_damage: f64,
+    ability_power: f64,
     crit: f64,
     attack_speed: f64,
+    ad_threats: i64,
+    ap_threats: i64,
     healing: Vec<String>,
     shields: Vec<String>,
+    details: Vec<EnemyBuildDetail>,
     notes: Vec<String>,
 }
 
@@ -285,6 +324,53 @@ struct GameAnalysis {
 
 impl GameAnalysis {
     fn to_json(&self) -> Value {
+        let enemy_details: Vec<Value> = self
+            .enemy_build
+            .details
+            .iter()
+            .map(|detail| {
+                json!({
+                    "champion": detail.champion,
+                    "icon": detail.icon,
+                    "items": detail.items,
+                    "gold": detail.gold,
+                    "armor": round(detail.armor, 1),
+                    "magicResist": round(detail.magic_resist, 1),
+                    "health": round(detail.health, 1),
+                    "attackDamage": round(detail.attack_damage, 1),
+                    "abilityPower": round(detail.ability_power, 1),
+                    "crit": round(detail.crit, 3),
+                    "attackSpeed": round(detail.attack_speed, 3),
+                    "kills": detail.kills,
+                    "deaths": detail.deaths,
+                    "assists": detail.assists,
+                    "level": detail.level,
+                    "damage": detail.damage,
+                    "threat": detail.threat,
+                    "healingItems": detail.healing_items,
+                    "shieldItems": detail.shield_items,
+                })
+            })
+            .collect();
+        let enemy_build = json!({
+            "known": self.enemy_build.known,
+            "armor": round(self.enemy_build.armor, 1),
+            "magicResist": round(self.enemy_build.magic_resist, 1),
+            "health": round(self.enemy_build.health, 1),
+            "maxArmor": round(self.enemy_build.max_armor, 1),
+            "maxMagicResist": round(self.enemy_build.max_magic_resist, 1),
+            "maxHealth": round(self.enemy_build.max_health, 1),
+            "attackDamage": round(self.enemy_build.attack_damage, 1),
+            "abilityPower": round(self.enemy_build.ability_power, 1),
+            "crit": round(self.enemy_build.crit, 3),
+            "attackSpeed": round(self.enemy_build.attack_speed, 3),
+            "adThreats": self.enemy_build.ad_threats,
+            "apThreats": self.enemy_build.ap_threats,
+            "healing": self.enemy_build.healing,
+            "shields": self.enemy_build.shields,
+            "details": enemy_details,
+            "notes": self.enemy_build.notes,
+        });
         json!({
             "state": self.state,
             "label": match (self.mode, self.state) {
@@ -328,17 +414,7 @@ impl GameAnalysis {
             "killParticipation": round(self.kill_participation, 3),
             "enemyFed": self.enemy_fed,
             "healingThreat": self.healers,
-            "enemyBuild": {
-                "known": self.enemy_build.known,
-                "armor": round(self.enemy_build.armor, 1),
-                "magicResist": round(self.enemy_build.magic_resist, 1),
-                "health": round(self.enemy_build.health, 1),
-                "crit": round(self.enemy_build.crit, 3),
-                "attackSpeed": round(self.enemy_build.attack_speed, 3),
-                "healing": self.enemy_build.healing,
-                "shields": self.enemy_build.shields,
-                "notes": self.enemy_build.notes,
-            },
+            "enemyBuild": enemy_build,
             "notes": self.notes,
         })
     }
@@ -401,6 +477,98 @@ fn compact_name(value: &str) -> String {
         .chars()
         .filter(|character| character.is_ascii_alphanumeric())
         .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn enemy_damage_label(
+    attack_damage: f64,
+    ability_power: f64,
+    attack_speed: f64,
+    crit: f64,
+    armor: f64,
+    magic_resist: f64,
+    health: f64,
+    tank: bool,
+    support: bool,
+) -> &'static str {
+    let physical_score = attack_damage + attack_speed * 50.0 + crit * 80.0;
+    let magic_score = ability_power;
+    let tank_score = armor + magic_resist + health / 20.0;
+    if tank && physical_score < 30.0 && magic_score < 60.0 {
+        "Tanque"
+    } else if support && physical_score < 20.0 && magic_score < 40.0 {
+        "Soporte"
+    } else if physical_score >= 15.0 && physical_score >= magic_score * 1.25 {
+        "AD"
+    } else if magic_score >= 15.0 && magic_score >= physical_score * 1.25 {
+        "AP"
+    } else if physical_score >= 10.0 && magic_score >= 10.0 {
+        "Mixto"
+    } else if tank_score >= 70.0 {
+        "Tanque"
+    } else if support {
+        "Soporte"
+    } else {
+        "En construcción"
+    }
+}
+
+fn enemy_threat_label(kills: i64, deaths: i64, assists: i64, gold: i64) -> &'static str {
+    let kda = (kills as f64 + assists as f64 * 0.6) / (deaths as f64).max(1.0);
+    if kills >= 5 || kda >= 3.5 || (kills >= 3 && assists >= 3) || gold >= 8_000 {
+        "Fuerte"
+    } else if kills + assists >= 2 || gold >= 2_500 {
+        "Activo"
+    } else {
+        "Normal"
+    }
+}
+
+fn item_matches_champion_damage(item: &Item, champ: &Champion) -> bool {
+    let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
+    let physical = stat("FlatPhysicalDamageMod") > 0.0
+        || stat("PercentAttackSpeedMod") > 0.0
+        || stat("FlatCritChanceMod") > 0.0;
+    let magic = stat("FlatMagicDamageMod") > 0.0;
+    match champ.damage.as_str() {
+        "AD" => !magic || physical,
+        "AP" => !physical || magic,
+        _ => true,
+    }
+}
+
+fn situational_category(note: &str) -> &'static str {
+    let note = note.to_lowercase();
+    if note.contains("antiheal") {
+        "antiheal"
+    } else if note.contains("penetración de armadura") {
+        "armor_pen"
+    } else if note.contains("penetración mágica") {
+        "magic_pen"
+    } else if note.contains("escudos") {
+        "shield"
+    } else if note.contains("vida") {
+        "hp"
+    } else if note.contains("autoataque") {
+        "auto"
+    } else if note.contains("resistencia mágica") || note.contains("rm ") {
+        "mr"
+    } else if note.contains("armadura") {
+        "armor"
+    } else {
+        "other"
+    }
+}
+
+fn situational_priority(note: &str) -> i64 {
+    match situational_category(note) {
+        "antiheal" => 6,
+        "armor_pen" | "magic_pen" => 5,
+        "shield" | "hp" => 4,
+        "auto" => 3,
+        "mr" | "armor" => 2,
+        _ => 1,
+    }
 }
 
 fn is_healing_champion(name: &str) -> bool {
@@ -2076,69 +2244,163 @@ impl Engine {
     }
 
     fn analyze_enemy_builds(&self, builds: &[EnemyBuildContext]) -> EnemyBuildSummary {
-        let mut summary = EnemyBuildSummary {
-            known: builds.len() as i64,
-            ..Default::default()
-        };
+        let mut summary = EnemyBuildSummary::default();
         for build in builds {
+            let champion = self.resolve_champion(&ChampionRef::Str(build.champion.clone()));
+            let mut detail = EnemyBuildDetail {
+                champion: build.champion.clone(),
+                icon: champion
+                    .as_ref()
+                    .map(|champion| champion.icon.clone())
+                    .unwrap_or_default(),
+                kills: build.kills,
+                deaths: build.deaths,
+                assists: build.assists,
+                level: build.level,
+                ..Default::default()
+            };
             let mut healing = false;
             let mut shield = false;
             for id in &build.items {
-                let Some(item) = self.all_items_by_id.get(id) else {
+                let Some(item) = self.resolve_item(&ItemRef::Int(*id)) else {
                     continue;
                 };
+                if !self.is_tracked_item(item) || item.tags.iter().any(|tag| tag == "Jungle") {
+                    continue;
+                }
+                detail.items.push(item.id);
+                detail.gold += item.gold;
                 let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
-                summary.armor += stat("FlatArmorMod");
-                summary.magic_resist += stat("FlatSpellBlockMod");
-                summary.health += stat("FlatHPPoolMod");
-                summary.crit += stat("FlatCritChanceMod");
-                summary.attack_speed += stat("PercentAttackSpeedMod");
+                detail.armor += stat("FlatArmorMod");
+                detail.magic_resist += stat("FlatSpellBlockMod");
+                detail.health += stat("FlatHPPoolMod");
+                detail.attack_damage += stat("FlatPhysicalDamageMod");
+                detail.ability_power += stat("FlatMagicDamageMod");
+                detail.crit += stat("FlatCritChanceMod");
+                detail.attack_speed += stat("PercentAttackSpeedMod");
                 let name = compact_name(&item.name);
                 if [
                     "bloodthirster",
                     "bladeoftheruinedking",
                     "ravenoushydra",
-                    "spiritvisage",
                     "sunderedsky",
                     "deathsdance",
                     "riftmaker",
                     "hextechgunblade",
                     "immortalshieldbow",
+                    "mawofmalmortius",
+                    "redemption",
+                    "moonstonerenewer",
+                    "mikaelsblessing",
+                    "echoesofhelia",
+                    "unendingdespair",
                 ]
                 .iter()
                 .any(|needle| name.contains(needle))
                 {
                     healing = true;
+                    detail.healing_items.push(item.name.clone());
                 }
                 if [
                     "steraksgage",
                     "mawofmalmortius",
+                    "hexdrinker",
                     "immortalshieldbow",
                     "locket",
-                    "knightsvow",
                     "fimbulwinter",
+                    "eclipse",
+                    "seraphsembrace",
+                    "kaenicrookern",
+                    "gargoylestoneplate",
+                    "bansheesveil",
+                    "edgeofnight",
                 ]
                 .iter()
                 .any(|needle| name.contains(needle))
                 {
                     shield = true;
+                    detail.shield_items.push(item.name.clone());
                 }
             }
-            if healing && !build.champion.is_empty() {
-                summary.healing.push(build.champion.clone());
+            detail.healing_items.sort();
+            detail.healing_items.dedup();
+            detail.shield_items.sort();
+            detail.shield_items.dedup();
+            if detail.items.is_empty() {
+                continue;
             }
-            if shield && !build.champion.is_empty() {
-                summary.shields.push(build.champion.clone());
+
+            let tags: HashSet<&str> = champion
+                .as_ref()
+                .map(|champion| champion.tags.iter().map(String::as_str).collect())
+                .unwrap_or_default();
+            let tank = tags.contains("Tank");
+            let support = tags.contains("Support");
+            detail.damage = enemy_damage_label(
+                detail.attack_damage,
+                detail.ability_power,
+                detail.attack_speed,
+                detail.crit,
+                detail.armor,
+                detail.magic_resist,
+                detail.health,
+                tank,
+                support,
+            )
+            .to_string();
+            detail.threat =
+                enemy_threat_label(detail.kills, detail.deaths, detail.assists, detail.gold)
+                    .to_string();
+
+            summary.known += 1;
+            summary.armor += detail.armor;
+            summary.magic_resist += detail.magic_resist;
+            summary.health += detail.health;
+            summary.attack_damage += detail.attack_damage;
+            summary.ability_power += detail.ability_power;
+            summary.crit += detail.crit;
+            summary.attack_speed += detail.attack_speed;
+            summary.max_armor = summary.max_armor.max(detail.armor);
+            summary.max_magic_resist = summary.max_magic_resist.max(detail.magic_resist);
+            summary.max_health = summary.max_health.max(detail.health);
+            if detail.damage == "AD" {
+                summary.ad_threats += 1;
             }
+            if detail.damage == "AP" {
+                summary.ap_threats += 1;
+            }
+            if healing {
+                summary.healing.push(detail.champion.clone());
+            }
+            if shield {
+                summary.shields.push(detail.champion.clone());
+            }
+            summary.details.push(detail);
         }
         summary.healing.sort();
         summary.healing.dedup();
         summary.shields.sort();
         summary.shields.dedup();
+
         if summary.armor >= 180.0 {
             summary.notes.push(format!(
                 "Builds rivales con mucha armadura ({:.0})",
                 summary.armor
+            ));
+        }
+        if let Some(focus) = summary
+            .details
+            .iter()
+            .filter(|detail| detail.armor >= 80.0)
+            .max_by(|left, right| {
+                left.armor
+                    .partial_cmp(&right.armor)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+        {
+            summary.notes.push(format!(
+                "{} acumula {:.0} de armadura",
+                focus.champion, focus.armor
             ));
         }
         if summary.magic_resist >= 150.0 {
@@ -2147,16 +2409,69 @@ impl Engine {
                 summary.magic_resist
             ));
         }
+        if let Some(focus) = summary
+            .details
+            .iter()
+            .filter(|detail| detail.magic_resist >= 60.0)
+            .max_by(|left, right| {
+                left.magic_resist
+                    .partial_cmp(&right.magic_resist)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+        {
+            summary.notes.push(format!(
+                "{} acumula {:.0} de resistencia mágica",
+                focus.champion, focus.magic_resist
+            ));
+        }
         if summary.health >= 2_000.0 {
             summary.notes.push(format!(
                 "Builds rivales con mucha vida ({:.0})",
                 summary.health
             ));
         }
-        if summary.crit >= 0.5 || summary.attack_speed >= 0.8 {
+        if let Some(focus) = summary
+            .details
+            .iter()
+            .filter(|detail| detail.health >= 1_200.0)
+            .max_by(|left, right| {
+                left.health
+                    .partial_cmp(&right.health)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+        {
+            summary.notes.push(format!(
+                "{} acumula {:.0} de vida",
+                focus.champion, focus.health
+            ));
+        }
+        let autoattack: Vec<&str> = summary
+            .details
+            .iter()
+            .filter(|detail| detail.crit >= 0.4 || detail.attack_speed >= 0.6)
+            .map(|detail| detail.champion.as_str())
+            .collect();
+        if autoattack.len() >= 2 {
+            summary.notes.push(format!(
+                "Autoataque/crítico rival: {}",
+                autoattack.join(", ")
+            ));
+        } else if summary.crit >= 0.5 || summary.attack_speed >= 0.8 {
             summary
                 .notes
                 .push("Builds rivales de autoataque/crítico".to_string());
+        }
+        if summary.ad_threats >= 3 {
+            summary.notes.push(format!(
+                "{} amenazas de daño AD en las builds rivales",
+                summary.ad_threats
+            ));
+        }
+        if summary.ap_threats >= 3 {
+            summary.notes.push(format!(
+                "{} amenazas de daño AP en las builds rivales",
+                summary.ap_threats
+            ));
         }
         if !summary.healing.is_empty() {
             summary
@@ -2253,7 +2568,7 @@ impl Engine {
         healers.dedup();
         healers.truncate(4);
 
-        let enemy_fed: Vec<String> = context
+        let mut enemy_fed: Vec<String> = context
             .enemy_fed
             .iter()
             .filter(|name| {
@@ -2265,6 +2580,16 @@ impl Engine {
             .take(3)
             .cloned()
             .collect();
+        if enemy_fed.is_empty() {
+            enemy_fed.extend(
+                enemy_build
+                    .details
+                    .iter()
+                    .filter(|detail| detail.threat == "Fuerte")
+                    .take(2)
+                    .map(|detail| detail.champion.clone()),
+            );
+        }
 
         let mut notes = Vec::new();
         if mode == GameMode::Arena {
@@ -2355,12 +2680,12 @@ impl Engine {
             .unwrap_or(0.5);
         let magic = profile.get("magic").and_then(Value::as_f64).unwrap_or(0.5);
         let mut score = 0.0;
-        let mut notes = Vec::new();
+        let mut notes: Vec<String> = Vec::new();
 
         if analysis.state == "behind" {
             if defensive {
                 score += 0.20;
-                notes.push("Vas por detrás: prioriza resistencias");
+                notes.push("Vas por detrás: prioriza resistencias".to_string());
             }
             if offensive {
                 score -= 0.05;
@@ -2368,7 +2693,7 @@ impl Engine {
         } else if analysis.state == "ahead" {
             if offensive {
                 score += 0.10;
-                notes.push("Ventaja: acelera tu spike ofensivo");
+                notes.push("Ventaja: acelera tu spike ofensivo".to_string());
             }
             if defensive {
                 score -= 0.03;
@@ -2380,17 +2705,28 @@ impl Engine {
             && !owned.iter().any(|owned| is_grievous_item(owned))
         {
             score += 0.35;
-            notes.push("Antiheal contra la curación rival");
+            let focus = analysis
+                .healers
+                .iter()
+                .take(2)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" y ");
+            if focus.is_empty() {
+                notes.push("Antiheal contra la curación rival".to_string());
+            } else {
+                notes.push(format!("Antiheal contra la curación de {focus}"));
+            }
         }
 
         if !analysis.enemy_fed.is_empty() {
             if physical >= 0.55 && armor {
                 score += 0.10;
-                notes.push("Armadura contra el rival fuerte");
+                notes.push("Armadura contra el rival fuerte".to_string());
             }
             if magic >= 0.55 && magic_resist {
                 score += 0.10;
-                notes.push("Resistencia mágica contra el rival fuerte");
+                notes.push("Resistencia mágica contra el rival fuerte".to_string());
             }
         }
 
@@ -2416,36 +2752,102 @@ impl Engine {
         .any(|needle| name.contains(needle));
         let shield_reduction = name.contains("serpentsfang");
         let enemy_build = &analysis.enemy_build;
-        if enemy_build.armor >= 150.0
+        let armor_focus = enemy_build
+            .details
+            .iter()
+            .filter(|detail| detail.armor >= 80.0)
+            .max_by(|left, right| {
+                left.armor
+                    .partial_cmp(&right.armor)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        let mr_focus = enemy_build
+            .details
+            .iter()
+            .filter(|detail| detail.magic_resist >= 60.0)
+            .max_by(|left, right| {
+                left.magic_resist
+                    .partial_cmp(&right.magic_resist)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        let hp_focus = enemy_build
+            .details
+            .iter()
+            .filter(|detail| detail.health >= 1_200.0)
+            .max_by(|left, right| {
+                left.health
+                    .partial_cmp(&right.health)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        if (enemy_build.armor >= 150.0 || enemy_build.max_armor >= 80.0)
             && armor_pen
             && (champ.damage == "AD" || champ.tags.iter().any(|tag| tag == "Marksman"))
         {
             score += 0.12;
-            notes.push("Penetración de armadura contra las builds rivales");
+            match armor_focus {
+                Some(focus) => {
+                    notes.push(format!("Penetración de armadura contra {}", focus.champion))
+                }
+                None => notes.push("Penetración de armadura contra las builds rivales".to_string()),
+            }
         }
-        if enemy_build.magic_resist >= 120.0
+        if (enemy_build.magic_resist >= 120.0 || enemy_build.max_magic_resist >= 60.0)
             && magic_pen
             && (champ.damage == "AP" || champ.tags.iter().any(|tag| tag == "Mage"))
         {
             score += 0.12;
-            notes.push("Penetración mágica contra las builds rivales");
+            match mr_focus {
+                Some(focus) => notes.push(format!(
+                    "Penetración mágica contra la RM de {}",
+                    focus.champion
+                )),
+                None => notes.push("Penetración mágica contra las builds rivales".to_string()),
+            }
         }
-        if enemy_build.health >= 1_500.0 && hp_shred {
+        if (enemy_build.health >= 1_500.0 || enemy_build.max_health >= 1_200.0) && hp_shred {
             score += 0.10;
-            notes.push("Daño porcentual contra la vida rival");
+            match hp_focus {
+                Some(focus) => notes.push(format!(
+                    "Daño porcentual contra la vida de {}",
+                    focus.champion
+                )),
+                None => notes.push("Daño porcentual contra la vida rival".to_string()),
+            }
         }
         let ad_champion = champ.damage == "AD"
-            || champ
-                .tags
-                .iter()
-                .any(|tag| matches!(tag.as_str(), "Marksman" | "Assassin" | "Fighter"));
+            || champ.tags.iter().any(|tag| tag == "Marksman")
+            || (champ.damage != "AP"
+                && champ
+                    .tags
+                    .iter()
+                    .any(|tag| matches!(tag.as_str(), "Assassin" | "Fighter")));
         if !enemy_build.shields.is_empty() && shield_reduction && ad_champion {
             score += 0.15;
-            notes.push("Reducción de escudos contra el equipo rival");
+            notes.push("Reducción de escudos contra el equipo rival".to_string());
         }
-        if (enemy_build.crit >= 0.4 || enemy_build.attack_speed >= 0.6) && armor {
+        let auto_threats: Vec<&str> = enemy_build
+            .details
+            .iter()
+            .filter(|detail| detail.crit >= 0.4 || detail.attack_speed >= 0.6)
+            .map(|detail| detail.champion.as_str())
+            .collect();
+        if (enemy_build.crit >= 0.4 || enemy_build.attack_speed >= 0.6 || auto_threats.len() >= 2)
+            && armor
+        {
             score += 0.08;
-            notes.push("Armadura contra el daño de autoataque rival");
+            if auto_threats.is_empty() {
+                notes.push("Armadura contra el daño de autoataque rival".to_string());
+            } else {
+                notes.push(format!(
+                    "Armadura contra el autoataque de {}",
+                    auto_threats
+                        .iter()
+                        .take(2)
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(" y ")
+                ));
+            }
         }
 
         (clamp(score, -0.1, 0.6), notes.join(" · "))
@@ -2712,6 +3114,7 @@ impl Engine {
         champ: &Champion,
         profile: &Value,
         role: &str,
+        enemy_build: Option<&EnemyBuildSummary>,
     ) -> (f64, Vec<String>) {
         let tags: HashSet<&str> = champ.tags.iter().map(String::as_str).collect();
         let item_tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
@@ -2744,6 +3147,12 @@ impl Engine {
                 } else {
                     score = 54.0;
                 }
+                if let Some(enemy) = enemy_build {
+                    if ap && enemy.max_magic_resist >= 60.0 {
+                        score += 4.0;
+                        reasons.push("Penetración mágica contra la RM rival".to_string());
+                    }
+                }
             }
             3006 => {
                 if ad {
@@ -2765,6 +3174,18 @@ impl Engine {
                 } else {
                     score = 55.0;
                 }
+                if let Some(enemy) = enemy_build {
+                    let auto_threats = enemy
+                        .details
+                        .iter()
+                        .filter(|detail| detail.crit >= 0.4 || detail.attack_speed >= 0.6)
+                        .count();
+                    if enemy.crit >= 0.4 || enemy.attack_speed >= 0.6 || auto_threats >= 2 {
+                        score += 8.0;
+                        reasons
+                            .push("Armadura contra las builds de autoataque rivales".to_string());
+                    }
+                }
             }
             3111 => {
                 if magic >= 0.55 {
@@ -2777,6 +3198,15 @@ impl Engine {
                     score = 76.0;
                 } else {
                     score = 54.0;
+                }
+                if let Some(enemy) = enemy_build {
+                    if enemy.ap_threats >= 2 {
+                        score += 8.0;
+                        reasons.push(format!(
+                            "Resistencia mágica contra {} amenazas AP",
+                            enemy.ap_threats
+                        ));
+                    }
                 }
             }
             3158 => {
@@ -2831,6 +3261,7 @@ impl Engine {
         gold: i64,
         owned: &[&Item],
         profile: &Value,
+        enemy_build: Option<&EnemyBuildSummary>,
     ) -> Value {
         let owned_boots = owned.iter().find(|item| item.boots).copied();
         if let Some(owned) = owned_boots {
@@ -2888,7 +3319,7 @@ impl Engine {
             {
                 continue;
             }
-            let (score, reasons) = self.boots_score(item, champ, profile, role);
+            let (score, reasons) = self.boots_score(item, champ, profile, role, enemy_build);
             if best
                 .as_ref()
                 .is_none_or(|(_, best_score, _)| score > *best_score)
@@ -3061,6 +3492,10 @@ impl Engine {
         };
         let regular_count = owned_items.iter().filter(|item| !item.boots).count();
         let profile = self.enemy_profile(&enemy_team);
+        let analysis = req
+            .game
+            .as_ref()
+            .and_then(|game| self.analyze_game(game, minute, &enemy_team, mode));
         let boots_recommendation = self.boots_recommendation(
             champ,
             &role,
@@ -3070,11 +3505,8 @@ impl Engine {
             gold,
             &owned_items,
             &profile,
+            analysis.as_ref().map(|analysis| &analysis.enemy_build),
         );
-        let analysis = req
-            .game
-            .as_ref()
-            .and_then(|game| self.analyze_game(game, minute, &enemy_team, mode));
         let has_boots_upgrade = mode == GameMode::Classic
             && role == "MID"
             && role_quest_done(mode, &role, minute)
@@ -3245,20 +3677,39 @@ impl Engine {
         let mut situational: Vec<&ItemCandidate> = candidates
             .iter()
             .filter(|candidate| {
-                !candidate.item.boots
-                    && candidate.context_fit >= 0.05
-                    && Some(candidate.item.id) != next_candidate_id
-                    && (candidate.context_note.contains("rival")
-                        || candidate.context_note.contains("vida rival")
-                        || candidate.context_note.contains("escudos")
-                        || candidate.context_note.contains("autoataque"))
+                if candidate.item.boots
+                    || candidate.context_fit < 0.05
+                    || Some(candidate.item.id) == next_candidate_id
+                    || !item_matches_champion_damage(candidate.item, champ)
+                {
+                    return false;
+                }
+                let note = candidate.context_note.to_lowercase();
+                [
+                    "rival",
+                    "curación",
+                    "curacion",
+                    "autoataque",
+                    "escudo",
+                    "vida",
+                    "armadura",
+                    "rm ",
+                    "penetración",
+                    "penetracion",
+                ]
+                .iter()
+                .any(|needle| note.contains(needle))
             })
             .collect();
         situational.sort_by(|left, right| {
-            right
-                .context_fit
-                .partial_cmp(&left.context_fit)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            situational_priority(&right.context_note)
+                .cmp(&situational_priority(&left.context_note))
+                .then_with(|| {
+                    right
+                        .context_fit
+                        .partial_cmp(&left.context_fit)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .then_with(|| {
                     right
                         .score
@@ -3266,8 +3717,18 @@ impl Engine {
                         .unwrap_or(std::cmp::Ordering::Equal)
                 })
         });
-        situational.truncate(2);
-        let situational_items: Vec<Value> = situational
+        let mut selected: Vec<&ItemCandidate> = Vec::new();
+        let mut categories: HashSet<&'static str> = HashSet::new();
+        for candidate in &situational {
+            if !categories.insert(situational_category(&candidate.context_note)) {
+                continue;
+            }
+            selected.push(*candidate);
+            if selected.len() >= 2 {
+                break;
+            }
+        }
+        let situational_items: Vec<Value> = selected
             .iter()
             .map(|candidate| self.format_item(candidate, gold, slot, &role, mode))
             .collect();
@@ -4038,5 +4499,66 @@ mod tests {
         assert!(role_quest_done(GameMode::Classic, "MID", 16.0));
         assert!(!role_quest_done(GameMode::Classic, "MID", 15.9));
         assert!(!role_quest_done(GameMode::Arena, "MID", 20.0));
+    }
+
+    #[test]
+    fn classifies_enemy_build_damage() {
+        assert_eq!(
+            enemy_damage_label(80.0, 0.0, 0.25, 0.25, 0.0, 0.0, 0.0, false, false),
+            "AD"
+        );
+        assert_eq!(
+            enemy_damage_label(0.0, 150.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false),
+            "AP"
+        );
+        assert_eq!(
+            enemy_damage_label(40.0, 45.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false),
+            "Mixto"
+        );
+        assert_eq!(
+            enemy_damage_label(0.0, 0.0, 0.0, 0.0, 120.0, 80.0, 1200.0, true, false),
+            "Tanque"
+        );
+        assert_eq!(
+            enemy_damage_label(0.0, 20.0, 0.0, 0.0, 0.0, 0.0, 60.0, false, true),
+            "Soporte"
+        );
+    }
+
+    #[test]
+    fn classifies_enemy_build_threat() {
+        assert_eq!(enemy_threat_label(4, 2, 1, 3000), "Activo");
+        assert_eq!(enemy_threat_label(6, 2, 2, 4000), "Fuerte");
+        assert_eq!(enemy_threat_label(2, 1, 12, 3500), "Fuerte");
+        assert_eq!(enemy_threat_label(0, 0, 3, 1500), "Activo");
+        assert_eq!(enemy_threat_label(0, 2, 0, 900), "Normal");
+    }
+
+    #[test]
+    fn situational_categories_prioritize_build_answers() {
+        assert_eq!(
+            situational_category("Antiheal contra la curación de Vi"),
+            "antiheal"
+        );
+        assert_eq!(
+            situational_category("Penetración de armadura contra Gnar"),
+            "armor_pen"
+        );
+        assert_eq!(
+            situational_category("Penetración mágica contra la RM de Vi"),
+            "magic_pen"
+        );
+        assert_eq!(
+            situational_category("Reducción de escudos contra el equipo rival"),
+            "shield"
+        );
+        assert_eq!(
+            situational_category("Daño porcentual contra la vida de Gnar"),
+            "hp"
+        );
+        assert!(
+            situational_priority("Antiheal contra la curación rival")
+                > situational_priority("Armadura contra el rival fuerte")
+        );
     }
 }

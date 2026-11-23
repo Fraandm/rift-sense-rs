@@ -60,11 +60,13 @@ variaciones de contexto:
   contexto de partida, muestra histórica y claridad frente a la alternativa.
   En ARAM se muestra como datos de Grieta adaptados y una build completa no
   aparece como recomendación de baja confianza;
-- la tarjeta **Botas recomendadas** elige botas según campeón, rol y daño rival,
-  y ofrece la mejora tier 3 tras la role quest;
-- con los objetos de los rivales, el motor ajusta penetración, antiheal, daño
-  porcentual, reducción de escudos y defensas, y muestra una tarjeta **Según
-  las builds rivales** con las compras situacionales.
+- la tarjeta **Botas recomendadas** elige botas según campeón, rol, daño rival y
+  builds enemigas, y ofrece la mejora tier 3 tras la role quest;
+- la tarjeta **Builds rivales** muestra los objetos de cada enemigo, su KDA,
+  nivel, tipo de daño y amenaza;
+- con esos objetos, el motor ajusta penetración, antiheal, daño porcentual,
+  reducción de escudos, defensas y botas, y muestra una tarjeta **Según las
+  builds rivales** con compras situacionales de categorías distintas.
 
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni

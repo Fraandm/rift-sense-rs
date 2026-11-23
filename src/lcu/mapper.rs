@@ -824,10 +824,30 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
                         .iter()
                         .filter_map(|item| item.get("itemID").and_then(Value::as_i64))
                         .filter(|id| *id > 0)
+                        .filter(|id| {
+                            engine.resolve_item(&ItemRef::Int(*id)).is_some_and(|item| {
+                                engine.is_tracked_item(item)
+                                    && !item.tags.iter().any(|tag| tag == "Jungle")
+                            })
+                        })
                         .collect()
                 })
                 .unwrap_or_default();
-            Some(json!({"champion": champion, "items": items}))
+            let score = |key: &str| {
+                player
+                    .get("scores")
+                    .and_then(|scores| scores.get(key))
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+            };
+            Some(json!({
+                "champion": champion,
+                "items": items,
+                "kills": score("kills"),
+                "deaths": score("deaths"),
+                "assists": score("assists"),
+                "level": player.get("level").and_then(Value::as_i64).unwrap_or(0),
+            }))
         })
         .collect();
 

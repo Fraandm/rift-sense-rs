@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.4.0
+
+Análisis de builds rivales más profundo y visible en En vivo.
+
+### Builds rivales
+
+- Nueva tarjeta **Builds rivales** con una fila por enemigo: objetos, KDA, nivel,
+  tipo de daño (AD/AP/mixto/tanque/soporte) y amenaza (normal/activo/fuerte).
+- Se descartan consumibles, trinkets, mascotas de jungla y objetos desconocidos.
+- Estadísticas por rival: armadura, resistencia mágica, vida, daño de ataque,
+  poder de habilidad, crítico y velocidad de ataque.
+- Resumen con resistencias totales, amenazas AD/AP, curación y escudos.
+- Las notas señalan al rival concreto que acumula armadura, RM o vida.
+
+### Recomendaciones
+
+- La penetración de armadura/RM y el daño porcentual se activan también contra
+  un único rival tanque, no solo cuando todo el equipo acumula resistencias.
+- Las botas reaccionan a las builds reales: Plated Steelcaps contra autoataques
+  y crítico, Mercury's Treads contra varias amenazas AP, y Sorcerer's Shoes
+  contra resistencia mágica enemiga.
+- Las compras situacionales evitan duplicar la misma categoría: por ejemplo,
+  antiheal + penetración, antiheal + daño porcentual o escudos + daño porcentual.
+- Los objetos situacionales se filtran por tipo de daño del campeón para no
+  recomendar componentes AP a un AD ni componentes AD a un AP.
+- Detección de curación y escudos ampliada (Eclipse, Seraph's, Lúpulo, Kaenic,
+  Gargoyle, Banshee, Edge of Night, Redemption, Moonstone, Mikael, Helia,
+  Unending Despair, etc.). Spirit Visage ya no cuenta por sí solo como curación.
+- El antiheal y las notas nombran a los rivales que curan.
+
+### Validación
+
+- 25 tests Rust; `cargo fmt`, `clippy -D warnings` y `node --check`.
+- Probado con una partida real de Grieta y con escenarios sintéticos de
+  armadura, RM, vida, escudos, curación y autoataque.
+- Tarjeta verificada en Chromium a 1440 px y 390 px sin desbordamiento ni
+  errores de consola.
+
+### Instalador
+
+- `RiftSense-Setup-1.4.0.exe`, 27.602.515 bytes, SHA-256
+  `76834d5623ffcb903e13e6960fd81b5e8627d9417f1ba38afa7eeab65a3aefc2`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.4.0`, health `ok` y LCU
+  conectado.
+
 ## 1.3.0
 
 Botas recomendadas y compras adaptadas a las builds rivales.

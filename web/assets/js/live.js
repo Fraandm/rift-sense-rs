@@ -891,6 +891,101 @@ function renderBoots(build) {
   host.classList.remove("hidden");
 }
 
+function damageClass(damage) {
+  const key = String(damage || "").toLowerCase();
+  if (key === "ad") return "ad";
+  if (key === "ap") return "ap";
+  if (key === "tanque") return "tank";
+  if (key === "soporte") return "support";
+  return "mixed";
+}
+
+function threatClass(threat) {
+  const key = String(threat || "").toLowerCase();
+  if (key === "fuerte") return "strong";
+  if (key === "activo") return "active";
+  return "normal";
+}
+
+function renderEnemyBuilds(build) {
+  const host = $("#live-enemy-builds");
+  if (!host) return;
+  const enemyBuild = build?.gameAnalysis?.enemyBuild;
+  const details = (enemyBuild?.details || []).filter((detail) => detail.items?.length);
+  if (!live.champion || !details.length) {
+    host.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+  const chips = [];
+  if (enemyBuild.armor > 0) chips.push(`Armadura ${num(enemyBuild.armor)}`);
+  if (enemyBuild.magicResist > 0) chips.push(`RM ${num(enemyBuild.magicResist)}`);
+  if (enemyBuild.health > 0) chips.push(`Vida ${num(enemyBuild.health)}`);
+  if (enemyBuild.adThreats) chips.push(`${enemyBuild.adThreats} AD`);
+  if (enemyBuild.apThreats) chips.push(`${enemyBuild.apThreats} AP`);
+  if (enemyBuild.healing?.length) {
+    chips.push(`Curación: ${enemyBuild.healing.slice(0, 3).join(", ")}`);
+  }
+  if (enemyBuild.shields?.length) {
+    chips.push(`Escudos: ${enemyBuild.shields.slice(0, 3).join(", ")}`);
+  }
+  host.innerHTML = `<div class="enemy-builds-card">
+    <div class="enemy-builds-head">
+      <span class="eyebrow">Builds rivales</span>
+      <span class="badge">${details.length} leídas</span>
+    </div>
+    <div class="enemy-build-list">${details
+      .map((detail) => {
+        const items = (detail.items || [])
+          .map((id) => itemById(id))
+          .filter(Boolean)
+          .slice(0, 6);
+        const damage = esc(detail.damage || "Mixto");
+        const threat = esc(detail.threat || "Normal");
+        const kda = `${detail.kills ?? 0}/${detail.deaths ?? 0}/${detail.assists ?? 0}`;
+        const champion = championByName(detail.champion);
+        const championIcon = detail.icon || champion?.icon || "";
+        return `<div class="enemy-build-row">
+          <div class="enemy-build-champ">
+            <img class="enemy-build-avatar" src="${iconUrl("champion", championIcon)}" alt="${esc(
+              detail.champion,
+            )}" />
+            <div>
+              <strong>${esc(detail.champion)}</strong>
+              <small>${kda} · N${detail.level || 1}</small>
+            </div>
+          </div>
+          <div class="enemy-build-items">${items
+            .map(
+              (item) =>
+                `<span class="enemy-build-item" title="${esc(item.name)}"><img src="${iconUrl(
+                  "item",
+                  item.icon,
+                )}" alt="${esc(item.name)}" /></span>`,
+            )
+            .join("")}</div>
+          <div class="enemy-build-tags">
+            <span class="enemy-build-tag damage-${damageClass(detail.damage)}">${damage}</span>
+            ${
+              detail.threat && detail.threat !== "Normal"
+                ? `<span class="enemy-build-tag threat-${threatClass(detail.threat)}">${threat}</span>`
+                : ""
+            }
+          </div>
+        </div>`;
+      })
+      .join("")}</div>
+    ${
+      chips.length
+        ? `<div class="enemy-builds-summary">${chips
+            .map((chip) => `<span>${esc(chip)}</span>`)
+            .join("")}</div>`
+        : ""
+    }
+  </div>`;
+  host.classList.remove("hidden");
+}
+
 function renderSituational(build) {
   const host = $("#live-situational");
   if (!host) return;
@@ -940,6 +1035,7 @@ function renderItems(build) {
   setModeBadge(badge, build?.mode);
   renderLegendary(build);
   renderBoots(build);
+  renderEnemyBuilds(build);
   renderSituational(build);
 
   if (!live.champion) {
@@ -1373,28 +1469,6 @@ function renderNotes(build, draft) {
       profile.label === "Mixta" ? "de daño mixto" : `principalmente ${profile.label}`
     } (${pct(profile.physical, 0)} físico / ${pct(profile.magic, 0)} mágico).</div>`);
   }
-  const enemyBuild = build?.gameAnalysis?.enemyBuild;
-  if (enemyBuild?.known) {
-    const bits = [];
-    if (enemyBuild.armor >= 150) bits.push(`armadura ${num(enemyBuild.armor)}`);
-    if (enemyBuild.magicResist >= 120) bits.push(`RM ${num(enemyBuild.magicResist)}`);
-    if (enemyBuild.health >= 1500) bits.push(`vida ${num(enemyBuild.health)}`);
-    if (enemyBuild.crit >= 0.4 || enemyBuild.attackSpeed >= 0.6) {
-      bits.push("autoataque/crítico");
-    }
-    if (enemyBuild.healing?.length) {
-      bits.push(`curación (${enemyBuild.healing.slice(0, 3).join(", ")})`);
-    }
-    if (enemyBuild.shields?.length) {
-      bits.push(`escudos (${enemyBuild.shields.slice(0, 3).join(", ")})`);
-    }
-    if (bits.length) {
-      rows.push(`<div class="note-box"><strong>Builds rivales</strong>${bits
-        .map((bit) => esc(bit))
-        .join(" · ")}. Se usa para ajustar penetración, antiheal y defensas.</div>`);
-    }
-  }
-
   if (classic && draft) {
     rows.push(`<div class="note-box ${draft.complete ? "good" : "warn"}"><strong>Draft ${
       draft.complete ? "completo" : "incompleto"
