@@ -6,6 +6,7 @@ __pycache__/
 *.py
 !scripts/export_onnx.py
 !scripts/build-rune-data.py
+!scripts/validate-modes.py
 perf_results.json
 startup_results.json
 parity_rust.json

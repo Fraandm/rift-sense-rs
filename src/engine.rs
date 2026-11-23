@@ -9,6 +9,11 @@ use crate::data::{Catalog, Champion, Item, MetaItem, norm_name};
 use crate::mode::GameMode;
 use crate::model::{BuildModel, DraftModel};
 use crate::runes::RuneCatalog;
+use crate::shares::{
+    MIN_CLASS_ROLE_SHARE, MIN_GROUP_GAMES, MIN_OBSERVED, MIN_OWN_GAMES, MIN_ROLE_GAMES, MIN_SHARE,
+    MODEL_RELIABLE_GAMES, ModePriors, ShareGroup, class_key, class_role_key, damage_profile,
+    data_role, group_name, popularity_points, score_weights, shrink,
+};
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(untagged)]
@@ -210,8 +215,6 @@ struct MatchupEdge {
 struct ItemPriorInfo {
     n: i64,
     wins: i64,
-    avg_slot: f64,
-    scope: &'static str,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -222,6 +225,18 @@ struct RecipeProgress {
     owned_gold: i64,
 }
 
+#[derive(Clone, Debug, Default)]
+struct ItemShareInfo {
+    /// Participación suavizada del objeto (0..1).
+    share: f64,
+    /// Partidas propias del campeón con el objeto, sin suavizar.
+    own_n: i64,
+    avg_slot: f64,
+    winrate: f64,
+    /// "champ", "group" o "none".
+    scope: &'static str,
+}
+
 #[derive(Clone, Debug)]
 struct ItemCandidate<'a> {
     item: &'a Item,
@@ -229,6 +244,8 @@ struct ItemCandidate<'a> {
     prior_n: i64,
     avg_slot: f64,
     slot_fit: f64,
+    share: f64,
+    scope: &'static str,
     winrate: f64,
     wr_edge: f64,
     defense: f64,
@@ -540,12 +557,7 @@ fn item_matches_champion_damage(item: &Item, champ: &Champion) -> bool {
         || stat("FlatMagicPenetrationMod") > 0.0
         || tags.contains("SpellDamage")
         || tags.contains("MagicPenetration");
-    let effective_damage = if champ.damage == "MIXTO" && champ.info.magic > champ.info.attack + 1 {
-        "AP"
-    } else {
-        champ.damage.as_str()
-    };
-    match effective_damage {
+    match damage_profile(&champ.damage, champ.info.attack, champ.info.magic) {
         "AD" => !magic || physical,
         "AP" => !physical || magic,
         _ => true,
@@ -722,6 +734,9 @@ pub struct Engine {
     pub build_model: Option<BuildModel>,
     pub runes: RuneCatalog,
     pub model_notes: Vec<String>,
+    pub mode_priors: ModePriors,
+    pub share_groups: HashMap<String, ShareGroup>,
+    pub tag_role_shares: HashMap<String, f64>,
 }
 
 impl Engine {
@@ -739,6 +754,22 @@ impl Engine {
                 RuneCatalog::default()
             }
         };
+        let mode_priors: ModePriors =
+            match crate::config::read_json_or_default(&paths.processed.join("priors_modes.json")) {
+                Ok(priors) => priors,
+                Err(error) => {
+                    model_notes.push(format!("No se pudieron leer los priores por modo: {error}"));
+                    ModePriors::default()
+                }
+            };
+        if mode_priors.modes.is_empty() {
+            model_notes.push(
+                "Sin datos de ARAM, Mayhem o Arena: sus builds usan estadísticas de Grieta."
+                    .to_string(),
+            );
+        }
+        let share_groups = build_share_groups(&catalog.champions, &catalog.priors, &mode_priors);
+        let tag_role_shares = build_tag_role_shares(&catalog.champions, &catalog.priors);
         let mut draft_model = None;
         let mut build_model = None;
 
@@ -834,6 +865,9 @@ impl Engine {
             build_model,
             runes,
             model_notes,
+            mode_priors,
+            share_groups,
+            tag_role_shares,
         })
     }
 
@@ -1707,20 +1741,28 @@ impl Engine {
         !(name.contains("poro")
             || name.contains("anvil")
             || name.contains("voucher")
-            || name.contains("statbonus"))
+            || name.contains("statbonus")
+            || name.contains("shardblade")
+            || name.starts_with("legendary")
+            || name.starts_with("prismatic"))
     }
 
     /// Un objeto final de build (legendario), no un componente ni una bota.
     fn is_legendary_item(&self, item: &Item) -> bool {
-        if item.boots || is_support_item(item.id) || is_arena_starter(item.id) {
+        if item.boots || is_support_item(item.id) || is_arena_starter(item) {
             return false;
         }
         if !self.is_tracked_item(item) {
             return false;
         }
+        // Arena no tiene componentes y sus objetos finales pueden no traer
+        // profundidad en Data Dragon: un objeto sin hijos y de 2000 oro o más
+        // cuenta como legendario.
         self.all_items_by_id
             .get(&item.id)
-            .map(|meta| meta.into.is_empty() && meta.depth >= 2 && item.gold >= 2000)
+            .map(|meta| {
+                meta.into.is_empty() && (meta.depth >= 2 || meta.depth == 0) && item.gold >= 2000
+            })
             .unwrap_or_else(|| item.into.is_empty() && item.gold >= 2000)
     }
 
@@ -1744,12 +1786,18 @@ impl Engine {
         if self.items.iter().any(eligible) {
             return true;
         }
-        mode == GameMode::Mayhem && self.extra_items.iter().any(eligible)
+        mode != GameMode::Classic && self.extra_items.iter().any(eligible)
     }
 
+    /// Indica si un objeto puede aparecer en las recomendaciones de este modo.
+    ///
+    /// En Grieta basta con que el objeto exista en el mapa de Summoner's Rift.
+    /// En los modos, el mapa de Data Dragon no siempre refleja la tienda, así
+    /// que también vale que el objeto aparezca comprado en partidas reales de
+    /// ese modo (ver `priors_modes.json`).
     fn mode_item_legal(&self, item: &Item, mode: GameMode, slot: usize) -> bool {
         if mode == GameMode::Classic {
-            return true;
+            return !self.map_known(item) || self.map_allows(item, "11");
         }
         let name = compact_name(&item.name);
         if name.starts_with("doran") {
@@ -1761,18 +1809,14 @@ impl Engine {
         if item.id >= 600_000 {
             return false;
         }
-        let meta = self.all_items_by_id.get(&item.id);
-        let map_ok = meta
-            .map(|meta| {
-                if mode == GameMode::Arena {
-                    meta.maps.get("11").copied().unwrap_or(true)
-                        && meta.maps.get("12").copied().unwrap_or(true)
-                } else {
-                    meta.maps.get("12").copied().unwrap_or(true)
-                }
-            })
-            .unwrap_or(true);
-        if !map_ok {
+        if mode == GameMode::Arena && is_arena_starter(item) {
+            return slot == 0;
+        }
+        if mode != GameMode::Arena && is_arena_starter(item) {
+            return false;
+        }
+        let map = if mode == GameMode::Arena { "30" } else { "12" };
+        if !self.map_allows(item, map) && self.observed_count(mode, item.id) < MIN_OBSERVED {
             return false;
         }
         if mode != GameMode::Arena {
@@ -1783,19 +1827,22 @@ impl Engine {
         if tags.contains("Jungle") || tags.contains("Consumable") {
             return false;
         }
-        let depth = meta.map(|meta| meta.depth).unwrap_or(0);
         if item.boots {
-            return depth == 2;
-        }
-        if is_arena_starter(item.id) {
-            return slot == 0;
+            let depth = self
+                .all_items_by_id
+                .get(&item.id)
+                .map(|meta| meta.depth)
+                .unwrap_or(0);
+            return depth == 2
+                || (depth == 0 && self.observed_count(mode, item.id) >= MIN_OBSERVED);
         }
         if tags.contains("Lane") {
             return false;
         }
-        let final_item = meta
-            .map(|meta| meta.into.is_empty() && meta.depth >= 2)
-            .unwrap_or(false);
+        let final_item = self
+            .all_items_by_id
+            .get(&item.id)
+            .is_none_or(|meta| meta.into.is_empty());
         final_item && item.gold >= 2000
     }
 
@@ -1803,15 +1850,7 @@ impl Engine {
         if mode != GameMode::Arena {
             return item.gold;
         }
-        if is_arena_starter(item.id) {
-            return 500;
-        }
-        let depth = self
-            .all_items_by_id
-            .get(&item.id)
-            .map(|meta| meta.depth)
-            .unwrap_or(0);
-        if item.boots && depth == 2 {
+        if is_arena_starter(item) || item.boots {
             return 500;
         }
         2500
@@ -1825,13 +1864,13 @@ impl Engine {
         slot: usize,
     ) -> (f64, String) {
         if mode == GameMode::Arena {
-            if is_arena_starter(item.id) && slot == 0 {
+            if is_arena_starter(item) && slot == 0 {
                 let tags: HashSet<&str> = champ.tags.iter().map(String::as_str).collect();
-                let fit = match item.id {
-                    3112 if champ.damage == "AP" => 0.40,
-                    3177 | 3184 if champ.damage == "AD" => 0.34,
-                    3184 if tags.contains("Fighter") => 0.24,
-                    2051 if tags.contains("Tank") => 0.35,
+                let fit = match compact_name(&item.name).as_str() {
+                    "guardiansorb" if champ.damage == "AP" => 0.40,
+                    "guardiansblade" | "guardianshammer" if champ.damage == "AD" => 0.34,
+                    "guardianshammer" if tags.contains("Fighter") => 0.24,
+                    "guardianshorn" if tags.contains("Tank") => 0.35,
                     _ => 0.0,
                 };
                 return (0.65 + fit, "Starter de Arena".to_string());
@@ -1880,14 +1919,248 @@ impl Engine {
         (score, "Exclusivo de ARAM: Mayhem".to_string())
     }
 
-    fn champion_item_prior_n(&self, champion: &str, role: &str, item_id: i64) -> i64 {
+    /// Partidas propias del campeón con el objeto, en su rol (Grieta) o en el modo.
+    fn own_item_games(&self, champ: &Champion, role: &str, mode: GameMode, item: &Item) -> i64 {
+        if mode.is_classic() {
+            return self
+                .priors
+                .champions
+                .get(&champ.name)
+                .and_then(|data| data.items.get(role))
+                .and_then(|items| items.get(&item.id.to_string()))
+                .map(|stat| stat.n)
+                .unwrap_or(0);
+        }
+        self.mode_priors
+            .modes
+            .get(self.mode_data_key(mode))
+            .and_then(|data| data.champions.get(&champ.name))
+            .and_then(|stat| stat.items.get(&norm_name(&item.name)))
+            .map(|stat| stat.n)
+            .unwrap_or(0)
+    }
+
+    fn role_games(&self, champ: &Champion, role: &str) -> i64 {
         self.priors
             .champions
-            .get(champion)
-            .and_then(|champion| champion.items.get(role))
-            .and_then(|items| items.get(&item_id.to_string()))
-            .map(|item| item.n)
+            .get(&champ.name)
+            .and_then(|data| data.roles.get(role))
+            .map(|stat| stat.n)
             .unwrap_or(0)
+    }
+
+    /// Clave de los datos de un modo. Mayhem usa el mismo mapa y economía que
+    /// ARAM: sin muestra propia se apoya en ARAM.
+    fn mode_data_key(&self, mode: GameMode) -> &'static str {
+        if mode == GameMode::Mayhem && !self.mode_priors.modes.contains_key("mayhem") {
+            "aram"
+        } else {
+            mode.key()
+        }
+    }
+
+    fn observed_count(&self, mode: GameMode, item_id: i64) -> i64 {
+        self.mode_priors
+            .modes
+            .get(self.mode_data_key(mode))
+            .and_then(|data| data.observed_ids.get(&item_id.to_string()))
+            .map(|observed| observed.count)
+            .unwrap_or(0)
+    }
+
+    fn map_allows(&self, item: &Item, map: &str) -> bool {
+        self.all_items_by_id
+            .get(&item.id)
+            .is_some_and(|meta| meta.maps.get(map).copied().unwrap_or(false))
+    }
+
+    fn map_known(&self, item: &Item) -> bool {
+        self.all_items_by_id
+            .get(&item.id)
+            .is_some_and(|meta| !meta.maps.is_empty())
+    }
+
+    /// Rol con el que se leen los datos del campeón. Si casi nunca juega el
+    /// rol pedido y no hay campeones parecidos en él, usa su rol habitual.
+    fn effective_role(&self, champ: &Champion, requested: &str) -> (String, Option<String>) {
+        let primary = self.primary_role(champ);
+        let requested_games = self.role_games(champ, requested);
+        let class_share = self
+            .tag_role_shares
+            .get(&class_role_key(&class_key(&champ.tags), requested))
+            .copied()
+            .unwrap_or(0.0);
+        let (role, switched) = data_role(
+            requested,
+            requested_games,
+            class_share,
+            &primary,
+            self.role_games(champ, &primary),
+        );
+        let label = |value: &str| {
+            self.role_labels
+                .get(value)
+                .cloned()
+                .unwrap_or_else(|| value.to_string())
+        };
+        if switched {
+            let note = format!(
+                "Hay pocas partidas de {} en {}: la build sigue su rol habitual, {}.",
+                champ.name,
+                label(requested),
+                label(&role)
+            );
+            return (role, Some(note));
+        }
+        if requested_games < MIN_ROLE_GAMES {
+            let note = if class_share >= MIN_CLASS_ROLE_SHARE {
+                format!(
+                    "Pocas partidas de {} en {}: la build se estima con campeones parecidos en ese rol.",
+                    champ.name,
+                    label(requested)
+                )
+            } else {
+                format!(
+                    "Sin partidas suficientes de {} en {}: recomendación orientativa.",
+                    champ.name,
+                    label(requested)
+                )
+            };
+            return (role, Some(note));
+        }
+        (role, None)
+    }
+
+    /// Participación de un grupo para un objeto. Usa el primer grupo con
+    /// partidas suficientes; el último de la lista (global) siempre sirve.
+    fn share_fallback(&self, names: &[String], key: &str) -> (f64, Option<f64>) {
+        for (index, name) in names.iter().enumerate() {
+            let Some(group) = self.share_groups.get(name) else {
+                continue;
+            };
+            let is_last = index + 1 == names.len();
+            if group.games >= MIN_GROUP_GAMES || (is_last && group.games > 0.0) {
+                return (group.share(key), group.avg_slot(key));
+            }
+        }
+        (0.0, None)
+    }
+
+    /// Participación del objeto para el campeón en su rol (Grieta) o en su modo.
+    fn item_share(
+        &self,
+        champ: &Champion,
+        role: &str,
+        mode: GameMode,
+        item: &Item,
+    ) -> ItemShareInfo {
+        let tag = champ.tags.first().map(String::as_str).unwrap_or("");
+        if mode.is_classic() {
+            let key = item.id.to_string();
+            let own = self
+                .priors
+                .champions
+                .get(&champ.name)
+                .and_then(|data| data.items.get(role))
+                .and_then(|items| items.get(&key));
+            let role_stat = self
+                .priors
+                .items
+                .get(&key)
+                .and_then(|data| data.roles.get(role));
+            let games = self.role_games(champ, role) as f64;
+            let own_n = own.map(|stat| stat.n).unwrap_or(0);
+            let profile = damage_profile(&champ.damage, champ.info.attack, champ.info.magic);
+            let mut names = Vec::new();
+            if !tag.is_empty() {
+                names.push(group_name(&["classic", role, tag, profile]));
+            }
+            names.push(group_name(&["classic", role, profile]));
+            names.push(group_name(&["classic", role, "*"]));
+            let (fallback, fallback_slot) = self.share_fallback(&names, &key);
+            let share = shrink(own_n as f64, games, fallback);
+            let (avg_slot, scope) = if own_n >= MIN_OWN_GAMES {
+                (own.map(|stat| stat.avg_slot).unwrap_or(0.0), "champ")
+            } else if let Some(slot) = fallback_slot {
+                (slot, "group")
+            } else if let Some(stat) = role_stat {
+                (stat.avg_slot, "group")
+            } else {
+                (0.0, "none")
+            };
+            let winrate = match (own, role_stat) {
+                (Some(stat), _) if stat.n > 0 => (stat.wins as f64 + 12.5) / (stat.n as f64 + 25.0),
+                (_, Some(stat)) => stat.winrate,
+                _ => 0.5,
+            };
+            return ItemShareInfo {
+                share,
+                own_n,
+                avg_slot,
+                winrate,
+                scope,
+            };
+        }
+        let data_key = self.mode_data_key(mode);
+        if data_key != mode.key() && is_mayhem_item(item.id) {
+            // Sin partidas de Mayhem, sus objetos exclusivos no tienen datos.
+            // Se mantienen con una participación fija y solo si el daño del
+            // campeón encaja con el objeto: Atma's es de AD; Rite of Ruin y
+            // Sword of Blossoming Dawn, de AP.
+            let profile = damage_profile(&champ.damage, champ.info.attack, champ.info.magic);
+            let fits = if item.id == 3039 {
+                profile == "AD"
+            } else {
+                profile == "AP"
+            };
+            return ItemShareInfo {
+                share: if fits { MAYHEM_RULE_SHARE } else { 0.0 },
+                own_n: 0,
+                avg_slot: 2.0,
+                winrate: 0.5,
+                scope: "rule",
+            };
+        }
+        let Some(data) = self.mode_priors.modes.get(data_key) else {
+            let primary = self.primary_role(champ);
+            return self.item_share(champ, &primary, GameMode::Classic, item);
+        };
+        let key = norm_name(&item.name);
+        let champ_data = data.champions.get(&champ.name);
+        let own = champ_data.and_then(|stat| stat.items.get(&key));
+        let games = champ_data.map(|stat| stat.n).unwrap_or(0) as f64;
+        let own_n = own.map(|stat| stat.n).unwrap_or(0);
+        let profile = damage_profile(&champ.damage, champ.info.attack, champ.info.magic);
+        let mut names = Vec::new();
+        if !tag.is_empty() {
+            names.push(group_name(&[data_key, tag, profile]));
+        }
+        names.push(group_name(&[data_key, profile]));
+        names.push(group_name(&[data_key, "*"]));
+        let (fallback, fallback_slot) = self.share_fallback(&names, &key);
+        let share = shrink(own_n as f64, games, fallback);
+        let global = data.items.get(&key);
+        let (avg_slot, scope) = if own_n >= MIN_OBSERVED {
+            (own.map(|stat| stat.avg_slot).unwrap_or(0.0), "champ")
+        } else if let Some(slot) = fallback_slot {
+            (slot, "group")
+        } else if let Some(stat) = global {
+            (stat.avg_slot, "group")
+        } else {
+            (0.0, "none")
+        };
+        let winrate = match (own, global) {
+            (Some(stat), _) if stat.n > 0 => (stat.wins as f64 + 12.5) / (stat.n as f64 + 25.0),
+            (_, Some(stat)) if stat.n > 0 => (stat.wins as f64 + 12.5) / (stat.n as f64 + 25.0),
+            _ => 0.5,
+        };
+        ItemShareInfo {
+            share,
+            own_n,
+            avg_slot,
+            winrate,
+            scope,
+        }
     }
 
     fn item_typical_minute(&self, item_id: i64, role: &str) -> Option<f64> {
@@ -1955,21 +2228,41 @@ impl Engine {
         let owned_ids: HashSet<i64> = owned.iter().map(|item| item.id).collect();
         let slot = owned.len();
         let profile = self.enemy_profile(enemy_team);
-        let mut pool: Vec<&'a Item> = self
-            .items
-            .iter()
-            .filter(|item| {
-                !item.boots
-                    && self.mode_item_legal(item, mode, slot)
-                    && role_item_legal(item, role, mode, owned)
-                    && (item_matches_champion_damage(item, champ)
-                        || self.champion_item_prior_n(&champ.name, role, item.id) >= 20)
-            })
-            .collect();
-        if mode == GameMode::Mayhem {
-            for extra in &self.extra_items {
-                if is_mayhem_item(extra.id) && !pool.iter().any(|item| item.id == extra.id) {
-                    pool.push(extra);
+        let universe: Vec<&'a Item> = if mode.is_classic() {
+            self.items.iter().collect()
+        } else {
+            self.items.iter().chain(self.extra_items.iter()).collect()
+        };
+        let mut pool: Vec<&'a Item> = Vec::new();
+        let mut index_by_name: HashMap<String, usize> = HashMap::new();
+        for item in universe {
+            if item.boots
+                || !self.is_tracked_item(item)
+                || !self.mode_item_legal(item, mode, slot)
+                || !role_item_legal(item, role, mode, owned)
+                || !(item_matches_champion_damage(item, champ)
+                    || self.own_item_games(champ, role, mode, item) >= 20)
+            {
+                continue;
+            }
+            if mode.is_classic() {
+                pool.push(item);
+                continue;
+            }
+            // En los modos, un mismo objeto puede tener varios IDs (Arena usa
+            // IDs propios): se conserva el que aparece más en partidas reales.
+            let key = norm_name(&item.name);
+            match index_by_name.get(&key) {
+                Some(&index) => {
+                    if self.observed_count(mode, item.id)
+                        > self.observed_count(mode, pool[index].id)
+                    {
+                        pool[index] = item;
+                    }
+                }
+                None => {
+                    index_by_name.insert(key, pool.len());
+                    pool.push(item);
                 }
             }
         }
@@ -2033,7 +2326,11 @@ impl Engine {
                 .unwrap_or(0),
         ];
 
-        let probs = if use_model {
+        // BuildNet solo se entrena con partidas de Grieta: fuera de un rol con
+        // datos suficientes extrapola sin base y no se usa.
+        let model_reliable =
+            mode.is_classic() && self.role_games(champ, role) >= MODEL_RELIABLE_GAMES;
+        let probs = if use_model && model_reliable {
             if let Some(model) = &self.build_model {
                 model.predict(
                     champ.idx,
@@ -2099,16 +2396,26 @@ impl Engine {
             } else {
                 None
             };
-            let prior = self.item_prior(&champ.name, role, item_id);
-            let avg_slot = prior.avg_slot;
+            // Sin evidencia propia ni de un grupo parecido, el objeto no entra:
+            // así un campeón en un rol raro no recibe objetos de otra posición.
+            let share = self.item_share(champ, role, mode, item);
+            if !is_upgrade
+                && !support_upgrade
+                && !support_start
+                && share.share < MIN_SHARE
+                && share.own_n < MIN_OWN_GAMES
+            {
+                continue;
+            }
+            let avg_slot = share.avg_slot;
             let slot_fit = if is_upgrade || support_upgrade {
                 0.90
-            } else if prior.scope == "none" {
+            } else if share.scope == "none" {
                 0.30
             } else {
                 (-0.5 * ((avg_slot - slot as f64) / 1.6).powi(2)).exp()
             };
-            let wr = (prior.wins as f64 + 0.5 * 25.0) / (prior.n as f64 + 25.0);
+            let wr = share.winrate;
             let wr_edge = wr - 0.5;
             let (defense, defense_note) = self.defensive_fit(item, &profile);
             let (context_fit, context_note) = analysis
@@ -2141,9 +2448,11 @@ impl Engine {
             candidates.push(ItemCandidate {
                 item,
                 model_prob,
-                prior_n: prior.n,
+                prior_n: share.own_n,
                 avg_slot,
                 slot_fit,
+                share: share.share,
+                scope: if support_start { "rule" } else { share.scope },
                 winrate: wr,
                 wr_edge,
                 defense,
@@ -2172,114 +2481,28 @@ impl Engine {
             return Ok(candidates);
         }
 
-        let model_weight = if use_model && self.build_model.is_some() {
-            match (stable, mode) {
-                (true, GameMode::Classic) => 0.55,
-                (true, GameMode::Arena) => 0.32,
-                (true, _) => 0.45,
-                (false, GameMode::Classic) => 0.50,
-                (false, GameMode::Arena) => 0.22,
-                (false, _) => 0.38,
-            }
-        } else {
-            0.0
-        };
-        let mut weights = if stable {
-            vec![
-                ("model", model_weight),
-                ("popularity", 0.10),
-                ("slot", if mode == GameMode::Arena { 0.05 } else { 0.10 }),
-                ("winrate", 0.15),
-                ("defense", if mode == GameMode::Arena { 0.12 } else { 0.06 }),
-                ("mode", if mode.is_classic() { 0.0 } else { 0.07 }),
-            ]
-        } else {
-            vec![
-                ("model", model_weight),
-                (
-                    "popularity",
-                    if mode == GameMode::Arena { 0.22 } else { 0.20 },
-                ),
-                ("slot", if mode == GameMode::Arena { 0.05 } else { 0.15 }),
-                ("winrate", 0.05),
-                ("defense", if mode == GameMode::Arena { 0.18 } else { 0.10 }),
-                ("mode", if mode.is_classic() { 0.0 } else { 0.10 }),
-            ]
-        };
-        if analysis.is_some() {
-            weights.push(("context", if stable { 0.04 } else { 0.12 }));
-        }
-        let total_w: f64 = weights.iter().map(|(_, value)| *value).sum();
-        for (_, value) in &mut weights {
-            *value /= if total_w == 0.0 { 1.0 } else { total_w };
-        }
-        let weight = |name: &str| {
-            weights
-                .iter()
-                .find(|(key, _)| *key == name)
-                .map(|(_, value)| *value)
-                .unwrap_or(0.0)
-        };
-
-        let max_prior = candidates
-            .iter()
-            .map(|candidate| candidate.prior_n)
-            .max()
-            .unwrap_or(1)
-            .max(1) as f64;
-        let z_model = standardize(
-            &candidates
-                .iter()
-                .map(|candidate| candidate.model_prob)
-                .collect::<Vec<_>>(),
-        );
-        let z_pop = standardize(
-            &candidates
-                .iter()
-                .map(|candidate| candidate.prior_n as f64 / max_prior)
-                .collect::<Vec<_>>(),
-        );
-        let z_slot = standardize(
-            &candidates
-                .iter()
-                .map(|candidate| candidate.slot_fit)
-                .collect::<Vec<_>>(),
-        );
-        let z_wr = standardize(
-            &candidates
-                .iter()
-                .map(|candidate| candidate.wr_edge)
-                .collect::<Vec<_>>(),
-        );
-        let z_def = standardize(
-            &candidates
-                .iter()
-                .map(|candidate| candidate.defense)
-                .collect::<Vec<_>>(),
-        );
-        let z_context = standardize(
-            &candidates
-                .iter()
-                .map(|candidate| candidate.context_fit)
-                .collect::<Vec<_>>(),
-        );
-        let z_mode = standardize(
-            &candidates
-                .iter()
-                .map(|candidate| candidate.mode_fit)
-                .collect::<Vec<_>>(),
-        );
-        for (i, candidate) in candidates.iter_mut().enumerate() {
-            let composite = weight("model") * z_model[i]
-                + weight("popularity") * z_pop[i]
-                + weight("slot") * z_slot[i]
-                + weight("winrate") * z_wr[i]
-                + weight("defense") * z_def[i]
-                + weight("context") * z_context[i]
-                + weight("mode") * z_mode[i];
-            candidate.score = clamp(50.0 + 11.0 * composite - candidate.order_penalty, 1.0, 96.0);
-            if mode == GameMode::Arena && is_arena_starter(candidate.item.id) && slot == 0 {
-                candidate.score = clamp(candidate.score + 8.0, 1.0, 96.0);
+        // Puntuación aditiva en 0..100. Cada señal está acotada, así que un
+        // objeto solo sube si tiene evidencia real; no se normaliza contra la
+        // lista, que convertía diferencias de ruido en puntuaciones máximas.
+        let weights = score_weights(stable, mode.is_classic());
+        let pop_scale = if mode.is_classic() { 0.30 } else { 0.22 };
+        for candidate in candidates.iter_mut() {
+            let popularity = popularity_points(candidate.share, pop_scale);
+            let winrate = (candidate.wr_edge / 0.04).clamp(-1.0, 1.0);
+            let defense = candidate.defense.min(1.0);
+            let context = (candidate.context_fit / 0.6).clamp(-0.2, 1.0);
+            let model = (candidate.model_prob / 0.25).min(1.0);
+            let mode_term = (candidate.mode_fit / 0.35).clamp(-0.4, 1.0);
+            let composite = weights.popularity * popularity
+                + weights.slot * candidate.slot_fit
+                + weights.winrate * winrate
+                + weights.defense * defense
+                + weights.context * context
+                + weights.model * model
+                + weights.mode * mode_term;
+            candidate.score = clamp(100.0 * composite - candidate.order_penalty, 1.0, 95.0);
+            if mode == GameMode::Arena && is_arena_starter(candidate.item) && slot == 0 {
+                candidate.score = clamp(candidate.score + 8.0, 1.0, 95.0);
             }
             if candidate.replacement {
                 // La mejora de botas de mid es gratuita y siempre correcta;
@@ -2406,17 +2629,10 @@ impl Engine {
             return ItemPriorInfo {
                 n: entry.n,
                 wins: entry.wins,
-                avg_slot: entry.avg_slot,
-                scope: "champ",
             };
         }
         if champ_games >= 50 {
-            return ItemPriorInfo {
-                n: 0,
-                wins: 0,
-                avg_slot: 0.0,
-                scope: "none",
-            };
+            return ItemPriorInfo { n: 0, wins: 0 };
         }
         let role_items = self
             .priors
@@ -2427,16 +2643,9 @@ impl Engine {
             return ItemPriorInfo {
                 n: role_items.n,
                 wins: (role_items.n as f64 * role_items.winrate) as i64,
-                avg_slot: role_items.avg_slot,
-                scope: "role",
             };
         }
-        ItemPriorInfo {
-            n: 0,
-            wins: 0,
-            avg_slot: 0.0,
-            scope: "none",
-        }
+        ItemPriorInfo { n: 0, wins: 0 }
     }
 
     fn analyze_enemy_builds(&self, builds: &[EnemyBuildContext]) -> EnemyBuildSummary {
@@ -3243,6 +3452,9 @@ impl Engine {
             .and_then(Value::as_f64)
             .filter(|value| *value != 0.0);
         let mut reasons = Vec::new();
+        if candidate.scope == "group" {
+            reasons.push("Estimado con campeones parecidos: pocas partidas propias".to_string());
+        }
         if prior_n >= 10 {
             reasons.push(format!("Aparece en {prior_n} builds analizadas"));
             if avg_slot != 0.0 {
@@ -3341,6 +3553,8 @@ impl Engine {
             "avgSlot": if prior_n > 0 { json!(round(avg_slot + 1.0, 2)) } else { Value::Null },
             "typicalMinute": json!(typical_minute.map(|value| round(value, 2))),
             "priorGames": prior_n,
+            "share": round(candidate.share, 4),
+            "scope": candidate.scope,
             "winrate": round(candidate.winrate, 4),
             "modelProb": round(candidate.model_prob, 5),
             "contextFit": round(candidate.context_fit, 3),
@@ -3576,7 +3790,17 @@ impl Engine {
             {
                 continue;
             }
-            let (score, reasons) = self.boots_score(item, champ, profile, role, enemy_build);
+            let (score, reasons) = if mode == GameMode::Arena {
+                // Arena usa IDs propios para las botas: se puntúan con la regla
+                // de su equivalente de Grieta, que tiene el mismo nombre.
+                let mut twin = item.clone();
+                if let Some(index) = self.item_by_norm.get(&norm_name(&item.name)) {
+                    twin.id = self.items[*index].id;
+                }
+                self.boots_score(&twin, champ, profile, role, enemy_build)
+            } else {
+                self.boots_score(item, champ, profile, role, enemy_build)
+            };
             if best
                 .as_ref()
                 .is_none_or(|(_, best_score, _)| score > *best_score)
@@ -3697,10 +3921,11 @@ impl Engine {
                 .filter(|value| !value.is_empty()),
             req.game.as_ref().and_then(|game| game.queue_id),
         );
-        let role = if mode.uses_roles() {
-            self.resolve_role(&req.role)?
+        let (role, role_note) = if mode.uses_roles() {
+            let requested = self.resolve_role(&req.role)?;
+            self.effective_role(champ, &requested)
         } else {
-            self.primary_role(champ)
+            (self.primary_role(champ), None)
         };
         let side = self.resolve_side(&req.side)?;
         let ally_team = self.team(&req.allies)?;
@@ -4014,7 +4239,7 @@ impl Engine {
                 let best = if mode == GameMode::Arena {
                     if sim_owned.is_empty() {
                         sims.iter()
-                            .find(|candidate| is_arena_starter(candidate.item.id))
+                            .find(|candidate| is_arena_starter(candidate.item))
                             .or_else(|| sims.iter().find(|candidate| sim_gold >= candidate.price))
                             .or_else(|| sims.first())
                     } else {
@@ -4077,6 +4302,15 @@ impl Engine {
             }
         }
         let mut notes = self.model_notes.clone();
+        if let Some(note) = &role_note {
+            notes.push(note.clone());
+        }
+        if mode == GameMode::Mayhem && self.mode_data_key(mode) != "mayhem" {
+            notes.push(
+                "Mayhem: sin partidas propias en la muestra; usa datos de ARAM y reglas para sus objetos exclusivos."
+                    .to_string(),
+            );
+        }
         if candidates.is_empty() {
             notes.push(if full_upgrades {
                 "No hay mejoras directas con los componentes actuales; vende uno para seguir la build."
@@ -4429,8 +4663,123 @@ impl Engine {
     }
 }
 
+/// Parte de las partidas de cada clase (conjunto de etiquetas) que se juega en
+/// cada rol. Clave: `class_role_key`.
+fn build_tag_role_shares(
+    champions: &[Champion],
+    priors: &crate::data::Priors,
+) -> HashMap<String, f64> {
+    let classes: HashMap<&str, String> = champions
+        .iter()
+        .map(|champ| (champ.name.as_str(), class_key(&champ.tags)))
+        .collect();
+    let mut by_role: HashMap<(String, String), f64> = HashMap::new();
+    let mut by_class: HashMap<String, f64> = HashMap::new();
+    for (name, champ) in &priors.champions {
+        let Some(class) = classes.get(name.as_str()) else {
+            continue;
+        };
+        if class.is_empty() {
+            continue;
+        }
+        for (role, stat) in &champ.roles {
+            let games = stat.n.max(0) as f64;
+            *by_role.entry((class.clone(), role.clone())).or_insert(0.0) += games;
+            *by_class.entry(class.clone()).or_insert(0.0) += games;
+        }
+    }
+    by_role
+        .into_iter()
+        .map(|((class, role), games)| {
+            let total = by_class.get(&class).copied().unwrap_or(0.0);
+            let share = if total > 0.0 { games / total } else { 0.0 };
+            (class_role_key(&class, &role), share)
+        })
+        .collect()
+}
+
+/// Agrega las participaciones por rol (Grieta) y por modo (ARAM, Mayhem y Arena)
+/// en grupos de clase y en un grupo global. Sirven para estimar objetos de
+/// campeones con pocas partidas sin inventar datos.
+fn build_share_groups(
+    champions: &[Champion],
+    priors: &crate::data::Priors,
+    modes: &ModePriors,
+) -> HashMap<String, ShareGroup> {
+    let profiles: HashMap<&str, (&str, &str)> = champions
+        .iter()
+        .map(|champ| {
+            let tag = champ.tags.first().map(String::as_str).unwrap_or("");
+            let profile = damage_profile(&champ.damage, champ.info.attack, champ.info.magic);
+            (champ.name.as_str(), (tag, profile))
+        })
+        .collect();
+    let mut groups: HashMap<String, ShareGroup> = HashMap::new();
+    for (name, champ) in &priors.champions {
+        let (tag, profile) = profiles.get(name.as_str()).copied().unwrap_or(("", "HYB"));
+        for (role, stat) in &champ.roles {
+            if stat.n <= 0 {
+                continue;
+            }
+            let role = role.as_str();
+            let mut names = vec![
+                group_name(&["classic", role, "*"]),
+                group_name(&["classic", role, profile]),
+            ];
+            if !tag.is_empty() && stat.n >= crate::shares::MIN_GROUP_MEMBER_GAMES {
+                names.push(group_name(&["classic", role, tag]));
+                names.push(group_name(&["classic", role, tag, profile]));
+            }
+            let items = champ.items.get(role);
+            for group_key in names {
+                let group = groups.entry(group_key).or_default();
+                group.add_games(stat.n as f64);
+                if let Some(items) = items {
+                    for (item_id, item) in items {
+                        group.add_item(item_id, item.n as f64, item.avg_slot);
+                    }
+                }
+            }
+        }
+    }
+    for (mode, data) in &modes.modes {
+        for (name, champ) in &data.champions {
+            if champ.n <= 0 {
+                continue;
+            }
+            let (tag, profile) = profiles.get(name.as_str()).copied().unwrap_or(("", "HYB"));
+            let mode = mode.as_str();
+            let mut names = vec![group_name(&[mode, "*"]), group_name(&[mode, profile])];
+            if !tag.is_empty() {
+                names.push(group_name(&[mode, tag]));
+                names.push(group_name(&[mode, tag, profile]));
+            }
+            for group_key in names {
+                let group = groups.entry(group_key).or_default();
+                group.add_games(champ.n as f64);
+                for (item_key, item) in &champ.items {
+                    group.add_item(item_key, item.n as f64, item.avg_slot);
+                }
+            }
+        }
+    }
+    groups
+}
+
 const MAYHEM_ITEM_IDS: [i64; 3] = [3039, 123430, 124011];
-const ARENA_STARTER_IDS: [i64; 4] = [2051, 3112, 3177, 3184];
+/// Participación supuesta de los objetos exclusivos de Mayhem sin partidas.
+const MAYHEM_RULE_SHARE: f64 = 0.06;
+/// Iniciales de Arena. Arena usa IDs propios para estos objetos (p. ej.
+/// Guardian's Orb 223112), así que se reconocen por nombre.
+const ARENA_STARTER_NAMES: [&str; 7] = [
+    "guardianshorn",
+    "guardianshammer",
+    "guardiansblade",
+    "guardiansorb",
+    "guardiansshroud",
+    "guardiansamulet",
+    "guardiansdirk",
+];
 const SUPPORT_ITEM_IDS: [i64; 8] = [3865, 3866, 3867, 3869, 3870, 3871, 3876, 3877];
 const SUPPORT_FINAL_IDS: [i64; 5] = [3869, 3870, 3871, 3876, 3877];
 /// Botas tier 2 -> tier 3 que la role quest de mid mejora gratis.
@@ -4448,8 +4797,8 @@ fn is_mayhem_item(item_id: i64) -> bool {
     MAYHEM_ITEM_IDS.contains(&item_id)
 }
 
-fn is_arena_starter(item_id: i64) -> bool {
-    ARENA_STARTER_IDS.contains(&item_id)
+fn is_arena_starter(item: &Item) -> bool {
+    ARENA_STARTER_NAMES.contains(&compact_name(&item.name).as_str())
 }
 
 fn is_support_item(item_id: i64) -> bool {
@@ -4828,6 +5177,14 @@ mod tests {
         assert!(item_matches_champion_damage(&infinity, &ad));
         assert!(item_matches_champion_damage(&rylai, &ap));
         assert!(!item_matches_champion_damage(&infinity, &ap));
+    }
+
+    #[test]
+    fn arena_starters_are_recognized_by_name() {
+        assert!(is_arena_starter(&item(223112, "Guardian's Orb", false)));
+        assert!(is_arena_starter(&item(2051, "Guardian's Horn", false)));
+        assert!(!is_arena_starter(&item(3026, "Guardian Angel", false)));
+        assert!(!is_arena_starter(&item(3157, "Zhonya's Hourglass", false)));
     }
 
     #[test]

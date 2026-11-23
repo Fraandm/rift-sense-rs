@@ -1,5 +1,68 @@
 # Changelog
 
+## 1.7.0
+
+Builds coherentes por modo: objetos legales en cada modo, evidencia real para
+cada recomendación y menos sugerencias absurdas.
+
+### Objetos por modo
+
+- Arena usa sus propios IDs (p. ej. Rabadon's Deathcap 223089, Zhonya's
+  223157, Liandry's Anguish 226653). Antes recomendaba objetos del Abismo y de
+  la Grieta que no se compran en Arena.
+- Los iniciales de Arena (Guardian's Orb, Hammer, Blade, Horn, Shroud, Amulet y
+  Dirk) se reconocen por nombre: sus IDs también son propios de Arena.
+- Los placeholders de anvil (`Legendary Mage Item`, etc.) y los Stat Bonus no
+  aparecen como objetos recomendados.
+- ARAM y Mayhem no reciben iniciales de Arena.
+- Las botas de Arena se recomiendan con la misma regla que sus equivalentes de
+  Grieta, a 500 de oro.
+- Mayhem: Atma's Reckoning solo para campeones de AD; Rite of Ruin y Sword of
+  Blossoming Dawn solo para AP. Sin partidas de Mayhem en la muestra, se usan
+  los datos de ARAM.
+
+### Builds en Grieta
+
+- Un campeón con pocas partidas en su rol ya no recibe objetos de otra
+  posición. Si su clase casi nunca juega ese rol (p. ej. Thresh en BOT), la
+  build sigue su rol habitual y lo indica en las notas.
+- La clase se calcula con todas sus etiquetas: Senna (Support y Marksman, juega
+  BOT) no cuenta como Thresh (Support y Tank, juega soporte).
+- Ya no aparecen objetos AD en campeones AP ni objetos AP en campeones AD sin
+  datos propios. Yasuo de soporte pasa a su rol habitual (MID).
+- La participación de cada objeto se suaviza hacia campeones parecidos cuando
+  hay pocas partidas. Si no hay evidencia, el objeto no entra.
+- El modelo de builds solo influye cuando el campeón tiene al menos 30 partidas
+  en el rol: fuera de eso extrapolaba sin base.
+- La puntuación ya no se normaliza contra la lista: muchos objetos no empatan
+  en 96 y el orden refleja la participación real.
+
+### Datos
+
+- Nueva muestra de la Riot API por modo (ARAM 120 partidas, Arena 119, Mayhem
+  sin partidas en la muestra de élite). Los objetos observados fijan qué se
+  compra en cada modo.
+- Los datos son de parches 15.x y 16.x. La muestra de ARAM y Arena es pequeña:
+  las recomendaciones de campeones poco jugados se estiman con campeones
+  parecidos y se indica en las notas.
+- SoloQ de élite (359 partidas) se usa solo para validar. Solo 2 de 23
+  combinaciones con 30 o más partidas coinciden en al menos la mitad de sus
+  objetos con los priores profesionales; Grieta sigue usando los priores
+  profesionales por su tamaño (41 000 partidas).
+
+### Validación
+
+- `scripts/validate-modes.py`: 1 384 builds (Grieta 865, ARAM 173, Mayhem 173,
+  Arena 173). Ningún objeto fuera del mapa o sin compras reales en su modo, ni
+  placeholders, ni duplicados.
+- 48 tests Rust; `cargo fmt`, `clippy -D warnings`.
+
+### Limitaciones conocidas
+
+- Mayhem no tiene partidas propias en la muestra: sus objetos exclusivos son
+  reglas por daño, no estadística.
+- Grieta usa priores profesionales: en SoloQ las builds pueden diferir.
+
 ## 1.6.1
 
 Probabilidad de victoria consistente entre jugadores del mismo equipo.

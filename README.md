@@ -116,6 +116,23 @@ elegiste, para el mejor pick del rol:
 - los iconos usan el CDN de Data Dragon y el catálogo se genera con
   `scripts/build-rune-data.py`.
 
+## Objetos por modo
+
+- **Grieta:** objetos con participación en partidas profesionales del rol. Si
+  un campeón casi nunca juega ese rol, la build usa su rol habitual y lo dice en
+  las notas. Si no hay campeones parecidos con datos, la recomendación se marca
+  como orientativa.
+- **ARAM:** objetos comprados en partidas reales de ARAM (muestra de la Riot
+  API), con el mapa de Data Dragon como respaldo.
+- **Arena:** IDs propios de Arena (p. ej. Rabadon's Deathcap 223089), iniciales
+  de Guardian's por nombre y botas a 500 de oro.
+- **Mayhem:** sin partidas propias en la muestra; usa los datos de ARAM y reglas
+  para sus objetos exclusivos según el daño del campeón.
+- Los datos por modo se generan con `lolanalyzer/data/mode_priors.py` en el
+  proyecto de datos (`data/processed/priors_modes.json`). El validador
+  `scripts/validate-modes.py` comprueba que cada objeto recomendado sea legal
+  en su modo.
+
 ## Inventario por rol
 
 - **Bot:** las botas se mueven a la ranura de role quest al completar la
