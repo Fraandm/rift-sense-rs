@@ -281,6 +281,7 @@ function setChampion(name) {
   live.allies = live.allies.map((n) => (n === name ? null : n));
   live.champion = name;
   live.allies[idx] = name;
+  live.targetLegendary = null;
   itemsExpanded = false;
   lastAnnouncedPurchase = "";
   lastItemsSignature = "";
@@ -297,6 +298,7 @@ function changeRole(role) {
   if (oldChamp && live.allies[oldIdx] === oldChamp) live.allies[oldIdx] = null;
   live.role = role;
   live.roleQuestBoots = null;
+  live.targetLegendary = null;
   itemsExpanded = false;
   lastAnnouncedPurchase = "";
   lastItemsSignature = "";
@@ -314,6 +316,7 @@ function setMode(mode) {
   live.mode = mode;
   live.modeLabel = modeLabel(mode);
   live.gameId = null;
+  live.targetLegendary = null;
   live.roleQuestBoots = null;
   live.augments = [];
   live.anvils = [];
@@ -1341,6 +1344,7 @@ function payload() {
     minute: Number(live.minute) || 0,
     stable: true,
     game: live.game,
+    targetItem: live.targetLegendary || null,
     bans: state.draft.bans,
     limit: 10,
     simulate: true,
@@ -1370,6 +1374,16 @@ async function refresh(immediate = false) {
     const data = await api.post("/api/live", payload(), { signal: controller.signal });
     if (seq !== requestSeq) return;
     lastData = data;
+    const build = data.build;
+    if (
+      live.targetLegendary &&
+      (build?.targetStatus === "completed" || build?.targetStatus === "invalid")
+    ) {
+      live.targetLegendary = null;
+    }
+    if (!live.targetLegendary && build?.nextLegendary?.id) {
+      live.targetLegendary = build.nextLegendary.id;
+    }
     if (live.tracking) {
       recordSession({
         champion: live.champion,
@@ -1621,6 +1635,7 @@ export function init() {
     live.augments = arena ? ["Blade Waltz", "Goliath"] : live.mode === "mayhem" ? ["Dashing"] : [];
     live.anvils = arena ? ["stats"] : [];
     live.tracking = false;
+    live.targetLegendary = null;
     live.gold = arena ? 2500 : 1600;
     live.minute = arena ? 8 : 9;
     itemsExpanded = false;
@@ -1671,6 +1686,7 @@ export function init() {
     live.anvils = [];
     live.tracking = false;
     live.gameId = null;
+    live.targetLegendary = null;
     itemsExpanded = false;
     lastAnnouncedPurchase = "";
     lastItemsSignature = "";
@@ -1714,6 +1730,7 @@ export function init() {
 /* ------------------------------------------------------------------ */
 export function stopTracking() {
   live.tracking = false;
+  live.targetLegendary = null;
 }
 
 export async function applyClientState(mapped) {
@@ -1733,12 +1750,20 @@ export async function applyClientState(mapped) {
     normalizeMode(mapped.mapName) ||
     "classic";
   const previousMode = live.mode;
+  const previousChampion = live.champion;
+  const previousGameId = live.gameId;
+  const nextGameId = Number(mapped.gameId) || null;
   live.mode = mode;
   live.tracking = true;
-  live.gameId = Number(mapped.gameId) || live.gameId || null;
-  if (previousMode !== mode) {
+  live.gameId = nextGameId || live.gameId || null;
+  if (
+    previousMode !== mode ||
+    previousChampion !== champion.name ||
+    (previousGameId && nextGameId && Number(previousGameId) !== nextGameId)
+  ) {
     live.augments = [];
     live.anvils = [];
+    live.targetLegendary = null;
     live.gameId = Number(mapped.gameId) || null;
   }
   live.modeLabel = mapped.modeLabel || modeLabel(mode);

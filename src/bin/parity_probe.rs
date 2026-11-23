@@ -46,6 +46,7 @@ fn main() -> Result<()> {
         stable: false,
         limit: 10,
         simulate: true,
+        target_item: None,
     };
     let build = engine.build_recommend(&build_req)?;
 

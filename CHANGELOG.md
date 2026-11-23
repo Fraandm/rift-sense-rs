@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.2.2
+
+El objetivo legendario se mantiene al empezar la compra.
+
+### Build en vivo
+
+- Al comprar un componente del legendario recomendado (por ejemplo, Espadón
+  para Filo del Infinito), el objetivo **ya no desaparece** ni cambia por el
+  nuevo ranking.
+- El objetivo se envía a `/api/live` como `targetItem` y el backend lo mantiene
+  mientras sea legal, no esté completado y siga siendo el objetivo del jugador.
+- Si el objeto se completa, o cambia el campeón, rol o modo, el objetivo se
+  libera y se elige el siguiente.
+- Las alternativas siguen visibles y el objetivo fijado aparece siempre en la
+  tarjeta **Objetivo legendario**.
+- El objetivo se limpia al terminar la partida para no arrastrarlo a la
+  siguiente.
+
+### Instalador
+
+- `RiftSense-Setup-1.2.2.exe`, 27.530.970 bytes, SHA-256
+  `c1110bd5a111249ca5212ae8233afb784cb096a7724d004c87240acf6a72c983`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.2.2`, health `ok` y LCU
+  conectado.
+
 ## 1.2.1
 
 Confianza de la recomendación revisada en ARAM.

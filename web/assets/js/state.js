@@ -47,6 +47,7 @@ export const state = {
     arenaEnemies: [],
     arenaTeamKnown: false,
     gameId: null,
+    targetLegendary: null,
     augments: [],
     anvils: [],
     tracking: false,

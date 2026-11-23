@@ -144,6 +144,10 @@ pub struct BuildRequest {
     pub limit: usize,
     #[serde(default = "default_true")]
     pub simulate: bool,
+    /// Legendario que el usuario está construyendo. Se mantiene fijado
+    /// aunque el ranking general cambie.
+    #[serde(default, rename = "targetItem")]
+    pub target_item: Option<ItemRef>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -2502,6 +2506,38 @@ impl Engine {
         }
     }
 
+    fn format_legendary_item(
+        &self,
+        item: &Item,
+        score: f64,
+        gold: i64,
+        owned: &[&Item],
+        mode: GameMode,
+    ) -> Value {
+        let recipe = recipe_progress(item, owned, &self.all_items_by_id);
+        let cost = if mode.uses_components() {
+            (item.gold - recipe.owned_gold).max(0)
+        } else {
+            item.gold
+        };
+        let owned_components = self.recipe_components(&recipe);
+        let freed_slots = recipe.owned.len().saturating_sub(1);
+        json!({
+            "id": item.id,
+            "name": item.name,
+            "icon": item.icon,
+            "gold": item.gold,
+            "cost": cost,
+            "missingGold": (cost - gold).max(0),
+            "ownedGold": recipe.owned_gold,
+            "affordable": gold >= cost,
+            "score": round(score, 1),
+            "ownedComponents": owned_components,
+            "freesSlots": freed_slots,
+            "needsSlot": recipe.owned.is_empty(),
+        })
+    }
+
     fn format_legendary(
         &self,
         candidate: &ItemCandidate,
@@ -2509,27 +2545,7 @@ impl Engine {
         owned: &[&Item],
         mode: GameMode,
     ) -> Value {
-        let recipe = candidate
-            .recipe
-            .clone()
-            .unwrap_or_else(|| recipe_progress(candidate.item, owned, &self.all_items_by_id));
-        let cost = self.legendary_cost(candidate, owned, mode);
-        let owned_components = self.recipe_components(&recipe);
-        let freed_slots = recipe.owned.len().saturating_sub(1);
-        json!({
-            "id": candidate.item.id,
-            "name": candidate.item.name,
-            "icon": candidate.item.icon,
-            "gold": candidate.item.gold,
-            "cost": cost,
-            "missingGold": (cost - gold).max(0),
-            "ownedGold": recipe.owned_gold,
-            "affordable": gold >= cost,
-            "score": round(candidate.score, 1),
-            "ownedComponents": owned_components,
-            "freesSlots": freed_slots,
-            "needsSlot": recipe.owned.is_empty(),
-        })
+        self.format_legendary_item(candidate.item, candidate.score, gold, owned, mode)
     }
 
     fn next_component(
@@ -2612,6 +2628,28 @@ impl Engine {
         }
         let capacity = build_capacity(mode, &role, minute, owned_items.len());
         let slot = owned_items.len();
+        let requested_target = req
+            .target_item
+            .as_ref()
+            .and_then(|value| self.resolve_item(value));
+        let target_owned = requested_target
+            .is_some_and(|item| owned_items.iter().any(|owned| owned.id == item.id));
+        let target_active = requested_target.filter(|item| {
+            !target_owned
+                && self.is_legendary_item(item)
+                && self.mode_item_legal(item, mode, slot)
+                && role_item_legal(item, &role, mode, &owned_items)
+        });
+        let target_status = match (
+            req.target_item.is_some(),
+            target_active.is_some(),
+            target_owned,
+        ) {
+            (false, _, _) => "none",
+            (true, true, _) => "active",
+            (true, false, true) => "completed",
+            _ => "invalid",
+        };
         let regular_count = owned_items.iter().filter(|item| !item.boots).count();
         let profile = self.enemy_profile(&enemy_team);
         let analysis = req
@@ -2635,7 +2673,9 @@ impl Engine {
         let has_upgrade_material = self.has_legendary_upgrade(&owned_items, mode, &role, slot);
         // Con el inventario lleno de componentes no damos la build por
         // terminada: buscamos un legendario que reutilice esos componentes.
-        let full_upgrades = full_inventory && mode.uses_components() && has_upgrade_material;
+        let full_upgrades = full_inventory
+            && mode.uses_components()
+            && (has_upgrade_material || target_active.is_some());
         if full_inventory && !has_boots_upgrade && !has_support_upgrade && !full_upgrades {
             let complete_note = match (mode, role.as_str(), capacity) {
                 (GameMode::Arena, _, _) => "Build completa: 6 objetos de Arena.".to_string(),
@@ -2651,6 +2691,7 @@ impl Engine {
                 "slot": capacity,
                 "slotCap": capacity,
                 "fullInventory": true,
+                "targetStatus": target_status,
                 "enemyProfile": profile,
                 "items": [],
                 "buildPlan": [],
@@ -2748,17 +2789,37 @@ impl Engine {
             .copied()
             .find(|candidate| gold >= self.legendary_cost(candidate, &owned_items, mode))
             .or_else(|| legendary_pool.first().copied());
-        let next_legendary = target_legendary
-            .map(|candidate| self.format_legendary(candidate, gold, &owned_items, mode));
-        let legendary_options: Vec<Value> = legendary_pool
-            .iter()
-            .copied()
-            .filter(|candidate| {
-                target_legendary.is_none_or(|target| candidate.item.id != target.item.id)
-            })
-            .take(2)
-            .map(|candidate| self.format_legendary(candidate, gold, &owned_items, mode))
-            .collect();
+        let (next_legendary, legendary_options): (Option<Value>, Vec<Value>) = if let Some(target) =
+            target_active
+        {
+            let score = legendary_pool
+                .iter()
+                .find(|candidate| candidate.item.id == target.id)
+                .map(|candidate| candidate.score)
+                .unwrap_or(0.0);
+            let target_json = self.format_legendary_item(target, score, gold, &owned_items, mode);
+            let options = legendary_pool
+                .iter()
+                .copied()
+                .filter(|candidate| candidate.item.id != target.id)
+                .take(2)
+                .map(|candidate| self.format_legendary(candidate, gold, &owned_items, mode))
+                .collect();
+            (Some(target_json), options)
+        } else {
+            let next = target_legendary
+                .map(|candidate| self.format_legendary(candidate, gold, &owned_items, mode));
+            let options = legendary_pool
+                .iter()
+                .copied()
+                .filter(|candidate| {
+                    target_legendary.is_none_or(|target| candidate.item.id != target.item.id)
+                })
+                .take(2)
+                .map(|candidate| self.format_legendary(candidate, gold, &owned_items, mode))
+                .collect();
+            (next, options)
+        };
 
         let mut build_plan = Vec::new();
         if req.simulate {
@@ -2896,6 +2957,7 @@ impl Engine {
             "nextPurchase": next_purchase.unwrap_or(Value::Null),
             "nextLegendary": next_legendary.unwrap_or(Value::Null),
             "legendaryOptions": legendary_options,
+            "targetStatus": target_status,
             "buildPlan": build_plan,
             "powerSpike": {
                 "slot": (slot + 1).min(capacity),

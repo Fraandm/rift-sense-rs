@@ -54,6 +54,8 @@ variaciones de contexto:
 - cuando el inventario se llena de componentes, la tarjeta **Objetivo
   legendario** fija el siguiente objeto completo, calcula el coste de mejora
   reutilizando lo que ya llevas y muestra dos alternativas;
+- el objetivo se mantiene al comprar sus componentes: si empiezas el Filo del
+  Infinito comprando un Espadón, el Filo sigue fijado hasta completarlo;
 - la **confianza** de la recomendación combina modelo, rivales identificados,
   contexto de partida, muestra histórica y claridad frente a la alternativa.
   En ARAM se muestra como datos de Grieta adaptados y una build completa no
