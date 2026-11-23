@@ -1,6 +1,6 @@
 # Release validation
 
-This checklist is the minimum for a public 1.5.0 build. Automated checks are in
+This checklist is the minimum for a public 1.5.1 build. Automated checks are in
 `.github/workflows/ci.yml`; installer checks are in
 `scripts/validate-installer.ps1`.
 
@@ -13,12 +13,12 @@ cargo test --lib
 cargo build --bins
 
 .\scripts\validate-installer.ps1 `
-  -Installer .\dist\RiftSense-Setup-1.5.0.exe `
-  -ExpectedSha256 "4c41b71b21cca871af44506e01cf47085d4233e5bc4305ea67c07541fc89ca29" `
+  -Installer .\dist\RiftSense-Setup-1.5.1.exe `
+  -ExpectedSha256 "158fa2c9670395ed47ac28b39bad08eb8396d00aca2cdb9c64ebef889aad83ea" `
   -AllowExistingInstall
 ```
 
-The 1.5.0 build is unsigned because no Authenticode certificate is configured;
+The 1.5.1 build is unsigned because no Authenticode certificate is configured;
 add `-RequireSignature` once a signed build is available. The installer validator
 checks SHA-256, Authenticode, silent install, version,
 local health endpoint and uninstall. Run it in a clean VM or Windows Sandbox:
@@ -46,6 +46,8 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Boots | Boots card recommends AP/AD/tank/support boots, reacts to enemy autoattack/AP builds, shows owned boots or the free tier-3 upgrade, and respects a full inventory. |
 | Enemy builds | Each enemy row shows items, KDA, level, damage type and threat; consumables, trinkets, jungle pets and unknown IDs are filtered out. |
 | Enemy build analysis | Enemy item builds produce armor/MR/HP/heal/shield analysis, per-enemy focus notes, adapted penetration/antiheal/defense reasons and situational items from different categories. |
+| Antiheal precision | A lone behind self-healer does not recommend antiheal; item healing, dedicated healers (Soraka/Sona/Nami/Yuumi/Taric) or a fed self-healer do. |
+| Shield precision | A single Eclipse does not recommend Serpent's Fang; two shield carriers, Locket/Seraph's/Fimbulwinter/Gargoyle or stacked shields do. |
 | Bot role quest | 6 complete items + boots in the dedicated slot; 7 inventory holes; no extra boots recommended. |
 | Support item | World Atlas -> Runic Compass -> Bounty of Worlds -> final upgrade; support item occupies one normal slot. |
 | Mid boots | Tier 2 boots offered as a free tier 3 replacement after the role quest; no extra slot consumed. |
@@ -63,7 +65,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Game end | Live data stops, no stale recommendation, app remains usable. |
 | Fullscreen / borderless | App can be restored from tray and remains readable on a second monitor. |
 | Windows startup | Starts minimized, one instance, tray icon, settings persisted. |
-| Update | 1.4.0 -> 1.5.0, checksum, relaunch, settings preserved. |
+| Update | 1.5.0 -> 1.5.1, checksum, relaunch, settings preserved. |
 | Uninstall | Binaries removed, startup entry removed, user settings/log policy clear. |
 
 ## Acceptance criteria

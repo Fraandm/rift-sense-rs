@@ -66,7 +66,11 @@ variaciones de contexto:
   nivel, tipo de daño y amenaza;
 - con esos objetos, el motor ajusta penetración, antiheal, daño porcentual,
   reducción de escudos, defensas y botas, y muestra una tarjeta **Según las
-  builds rivales** con compras situacionales de categorías distintas.
+  builds rivales** con compras situacionales de categorías distintas;
+- el antiheal y la reducción de escudos solo se priorizan con señales
+  relevantes: curación por objetos o campeones dedicados/fuertes, y varios
+  portadores de escudo, escudos de equipo o escudos apilados. Un solo Eclipse
+  no basta para recomendar Colmillo de Serpiente.
 
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni

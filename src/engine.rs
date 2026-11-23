@@ -289,6 +289,7 @@ struct EnemyBuildSummary {
     ap_threats: i64,
     healing: Vec<String>,
     shields: Vec<String>,
+    shield_priority: bool,
     details: Vec<EnemyBuildDetail>,
     notes: Vec<String>,
 }
@@ -317,6 +318,7 @@ struct GameAnalysis {
     kill_participation: f64,
     enemy_fed: Vec<String>,
     healers: Vec<String>,
+    healing_priority: bool,
     enemy_build: EnemyBuildSummary,
     notes: Vec<String>,
     mode: GameMode,
@@ -368,6 +370,7 @@ impl GameAnalysis {
             "apThreats": self.enemy_build.ap_threats,
             "healing": self.enemy_build.healing,
             "shields": self.enemy_build.shields,
+            "shieldPriority": self.enemy_build.shield_priority,
             "details": enemy_details,
             "notes": self.enemy_build.notes,
         });
@@ -414,49 +417,44 @@ impl GameAnalysis {
             "killParticipation": round(self.kill_participation, 3),
             "enemyFed": self.enemy_fed,
             "healingThreat": self.healers,
+            "healingPriority": self.healing_priority,
             "enemyBuild": enemy_build,
             "notes": self.notes,
         })
     }
 }
 
-const HEALING_CHAMPIONS: &[&str] = &[
+const DEDICATED_HEALERS: &[&str] = &[
+    "bard",
+    "milio",
+    "nami",
+    "rakan",
+    "senna",
+    "seraphine",
+    "sona",
+    "soraka",
+    "taric",
+    "yuumi",
+];
+const SELF_HEALERS: &[&str] = &[
     "aatrox",
     "briar",
     "darius",
     "drmundo",
     "fiora",
-    "gwen",
-    "illaoi",
-    "irelia",
-    "jax",
-    "kayn",
-    "kled",
     "maokai",
     "mordekaiser",
-    "nami",
     "nasus",
     "nidalee",
     "olaf",
-    "rakan",
     "rengar",
-    "riven",
-    "samira",
-    "seraphine",
-    "sett",
-    "shen",
-    "sona",
-    "soraka",
     "sylas",
     "tahmkench",
-    "taric",
-    "trundle",
     "tryndamere",
     "udyr",
     "vladimir",
     "volibear",
     "warwick",
-    "yuumi",
     "zac",
 ];
 
@@ -571,9 +569,45 @@ fn situational_priority(note: &str) -> i64 {
     }
 }
 
-fn is_healing_champion(name: &str) -> bool {
+fn healing_champion_tier(name: &str) -> Option<u8> {
     let key = compact_name(name);
-    HEALING_CHAMPIONS.iter().any(|candidate| *candidate == key)
+    if DEDICATED_HEALERS.iter().any(|candidate| *candidate == key) {
+        Some(2)
+    } else if SELF_HEALERS.iter().any(|candidate| *candidate == key) {
+        Some(1)
+    } else {
+        None
+    }
+}
+
+fn healing_champion_points(name: &str, threat: &str) -> Option<u8> {
+    healing_champion_tier(name).map(|tier| {
+        if tier >= 2 || threat == "Fuerte" {
+            2
+        } else {
+            tier
+        }
+    })
+}
+
+fn is_major_shield(item_name: &str) -> bool {
+    let key = compact_name(item_name);
+    [
+        "locket",
+        "seraphsembrace",
+        "fimbulwinter",
+        "gargoylestoneplate",
+    ]
+    .iter()
+    .any(|needle| key.contains(needle))
+}
+
+fn shield_reduction_priority(
+    shield_champions: usize,
+    major_shield: bool,
+    stacked_shields: bool,
+) -> bool {
+    shield_champions >= 2 || major_shield || stacked_shields
 }
 
 fn is_grievous_item(item: &Item) -> bool {
@@ -2312,8 +2346,6 @@ impl Engine {
                     "seraphsembrace",
                     "kaenicrookern",
                     "gargoylestoneplate",
-                    "bansheesveil",
-                    "edgeofnight",
                 ]
                 .iter()
                 .any(|needle| name.contains(needle))
@@ -2381,6 +2413,21 @@ impl Engine {
         summary.healing.dedup();
         summary.shields.sort();
         summary.shields.dedup();
+        let shield_champions = summary
+            .details
+            .iter()
+            .filter(|detail| !detail.shield_items.is_empty())
+            .count();
+        let major_shield = summary
+            .details
+            .iter()
+            .any(|detail| detail.shield_items.iter().any(|item| is_major_shield(item)));
+        let stacked_shields = summary
+            .details
+            .iter()
+            .any(|detail| detail.shield_items.len() >= 2);
+        summary.shield_priority =
+            shield_reduction_priority(shield_champions, major_shield, stacked_shields);
 
         if summary.armor >= 180.0 {
             summary.notes.push(format!(
@@ -2474,12 +2521,24 @@ impl Engine {
             ));
         }
         if !summary.healing.is_empty() {
-            summary
-                .notes
-                .push("Curación por objetos en el equipo rival".to_string());
+            let focus = summary
+                .details
+                .iter()
+                .filter(|detail| !detail.healing_items.is_empty())
+                .map(|detail| format!("{} ({})", detail.champion, detail.healing_items.join(" / ")))
+                .collect::<Vec<_>>()
+                .join(", ");
+            summary.notes.push(format!("Curación por objetos: {focus}"));
         }
-        if !summary.shields.is_empty() {
-            summary.notes.push("Escudos en el equipo rival".to_string());
+        if summary.shield_priority {
+            let focus = summary
+                .details
+                .iter()
+                .filter(|detail| !detail.shield_items.is_empty())
+                .map(|detail| format!("{} ({})", detail.champion, detail.shield_items.join(" / ")))
+                .collect::<Vec<_>>()
+                .join(", ");
+            summary.notes.push(format!("Escudos relevantes: {focus}"));
         }
         summary
     }
@@ -2557,13 +2616,41 @@ impl Engine {
         };
 
         let enemy_build = self.analyze_enemy_builds(&context.enemy_builds);
-        let mut healers = Vec::new();
+        let mut healing_sources: Vec<(String, u8)> = Vec::new();
         for champion in enemies.iter().flatten() {
-            if is_healing_champion(&champion.name) {
-                healers.push(champion.name.clone());
+            let threat = enemy_build
+                .details
+                .iter()
+                .find(|detail| detail.champion.eq_ignore_ascii_case(&champion.name))
+                .map(|detail| detail.threat.as_str())
+                .unwrap_or("Normal");
+            if let Some(points) = healing_champion_points(&champion.name, threat) {
+                healing_sources.push((champion.name.clone(), points));
             }
         }
-        healers.extend(enemy_build.healing.iter().cloned());
+        for name in &enemy_build.healing {
+            if let Some(existing) = healing_sources
+                .iter_mut()
+                .find(|(champion, _)| champion.eq_ignore_ascii_case(name))
+            {
+                existing.1 = 2;
+            } else {
+                healing_sources.push((name.clone(), 2));
+            }
+        }
+        let healing_score: u32 = healing_sources
+            .iter()
+            .map(|(_, points)| *points as u32)
+            .sum();
+        let healing_priority = healing_score >= 2;
+        let mut healers = if healing_priority {
+            healing_sources
+                .iter()
+                .map(|(name, _)| name.clone())
+                .collect()
+        } else {
+            Vec::new()
+        };
         healers.sort();
         healers.dedup();
         healers.truncate(4);
@@ -2654,6 +2741,7 @@ impl Engine {
             kill_participation,
             enemy_fed,
             healers,
+            healing_priority,
             enemy_build,
             notes,
             mode,
@@ -2700,7 +2788,8 @@ impl Engine {
             }
         }
 
-        if !analysis.healers.is_empty()
+        if analysis.healing_priority
+            && !analysis.healers.is_empty()
             && is_grievous_for_champion(item, champ)
             && !owned.iter().any(|owned| is_grievous_item(owned))
         {
@@ -2821,9 +2910,12 @@ impl Engine {
                     .tags
                     .iter()
                     .any(|tag| matches!(tag.as_str(), "Assassin" | "Fighter")));
-        if !enemy_build.shields.is_empty() && shield_reduction && ad_champion {
+        if enemy_build.shield_priority && shield_reduction && ad_champion {
             score += 0.15;
-            notes.push("Reducción de escudos contra el equipo rival".to_string());
+            notes.push(format!(
+                "Reducción de escudos contra {}",
+                enemy_build.shields.join(", ")
+            ));
         }
         let auto_threats: Vec<&str> = enemy_build
             .details
@@ -4532,6 +4624,24 @@ mod tests {
         assert_eq!(enemy_threat_label(2, 1, 12, 3500), "Fuerte");
         assert_eq!(enemy_threat_label(0, 0, 3, 1500), "Activo");
         assert_eq!(enemy_threat_label(0, 2, 0, 900), "Normal");
+    }
+
+    #[test]
+    fn healing_priority_distinguishes_healers_from_minor_sustain() {
+        assert_eq!(healing_champion_points("Soraka", "Normal"), Some(2));
+        assert_eq!(healing_champion_points("Sylas", "Normal"), Some(1));
+        assert_eq!(healing_champion_points("Sylas", "Fuerte"), Some(2));
+        assert_eq!(healing_champion_points("Irelia", "Fuerte"), None);
+    }
+
+    #[test]
+    fn shield_priority_ignores_a_single_minor_shield() {
+        assert!(!shield_reduction_priority(1, false, false));
+        assert!(shield_reduction_priority(2, false, false));
+        assert!(shield_reduction_priority(1, true, false));
+        assert!(shield_reduction_priority(1, false, true));
+        assert!(is_major_shield("Locket of the Iron Solari"));
+        assert!(!is_major_shield("Eclipse"));
     }
 
     #[test]

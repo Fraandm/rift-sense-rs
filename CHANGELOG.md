@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.5.1
+
+Ajuste de precisión en antiheal y reducción de escudos.
+
+### Correcciones
+
+- El **antiheal** ya no se recomienda solo porque un campeón tenga una curación
+  menor o esté por detrás. Se prioriza con curación por objetos, campeones
+  dedicados (Soraka, Sona, Nami, Yuumi, Taric, etc.) o auto-curanderos fuertes.
+- Un único **Eclipse** ya no activa Colmillo de Serpiente. La reducción de
+  escudos requiere dos o más portadores, un escudo de equipo (Locket, Seraph's,
+  Fimbulwinter, Gargoyle) o varios escudos apilados en el mismo rival.
+- Las notas nombran la fuente: `Escudos relevantes: Jayce (Eclipse),
+  Nocturne (Maw of Malmortius)` y `Curación por objetos: Nocturne (Maw...)`.
+- La tarjeta **Builds rivales** solo muestra el chip de escudos cuando la señal
+  es relevante y añade los campeones que curan cuando el antiheal está activo.
+- Si la única señal es un auto-curandero flojo, el aviso de curación y la
+  compra de antiheal desaparecen.
+- Añadidos tests de prioridad de curación y escudos.
+
+### Validación
+
+- 28 tests Rust; `cargo fmt`, `clippy -D warnings` y `node --check`.
+- Escenario real: Jayce con Eclipse + Sylas por detrás ya no genera antiheal ni
+  Colmillo de Serpiente.
+- Escenarios sintéticos: Locket activa la reducción de escudos; Soraka o un
+  Sylas fuerte activan el antiheal.
+
+### Instalador
+
+- `RiftSense-Setup-1.5.1.exe`, 27.618.986 bytes, SHA-256
+  `158fa2c9670395ed47ac28b39bad08eb8396d00aca2cdb9c64ebef889aad83ea`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.5.1`, health `ok` y LCU
+  conectado.
+
 ## 1.5.0
 
 Overlay compacto para jugar en una sola pantalla.

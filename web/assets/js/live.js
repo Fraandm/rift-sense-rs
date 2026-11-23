@@ -923,10 +923,12 @@ function renderEnemyBuilds(build) {
   if (enemyBuild.health > 0) chips.push(`Vida ${num(enemyBuild.health)}`);
   if (enemyBuild.adThreats) chips.push(`${enemyBuild.adThreats} AD`);
   if (enemyBuild.apThreats) chips.push(`${enemyBuild.apThreats} AP`);
-  if (enemyBuild.healing?.length) {
-    chips.push(`Curación: ${enemyBuild.healing.slice(0, 3).join(", ")}`);
+  const healingThreat = build?.gameAnalysis?.healingThreat || [];
+  const healingNames = [...new Set([...(enemyBuild.healing || []), ...healingThreat])];
+  if (healingNames.length) {
+    chips.push(`Curación: ${healingNames.slice(0, 3).join(", ")}`);
   }
-  if (enemyBuild.shields?.length) {
+  if (enemyBuild.shieldPriority && enemyBuild.shields?.length) {
     chips.push(`Escudos: ${enemyBuild.shields.slice(0, 3).join(", ")}`);
   }
   host.innerHTML = `<div class="enemy-builds-card">
