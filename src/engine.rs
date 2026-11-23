@@ -1213,7 +1213,19 @@ impl Engine {
             .ok_or_else(|| anyhow::anyhow!("Rol sin indice: {role}"))?;
         let my_slot = (if side == 0 { 0 } else { 5 }) + my_role_idx - 1;
 
-        let tensors = self.draft_inputs(side, &ally_team, &enemy_team, &ban_list);
+        // El pick propio puede estar como "fantasma": la UI deja su hueco
+        // vacío para comparar alternativas. Para la probabilidad de victoria
+        // hay que evaluarlo dentro del equipo; si no, cada jugador ve una
+        // partida distinta según qué hueco tenga vacío.
+        let mut evaluation_allies = ally_team.clone();
+        if let Some(selected) = my_selected {
+            if let Some(slot) = evaluation_allies.get_mut(my_role_idx - 1) {
+                if slot.is_none() {
+                    *slot = Some(selected);
+                }
+            }
+        }
+        let tensors = self.draft_inputs(side, &evaluation_allies, &enemy_team, &ban_list);
         let base_p = self.predict_draft(&tensors, 1)?[0] as f64;
         let base_user_p = if side == 0 { base_p } else { 1.0 - base_p };
         let mode = if self.draft_model.is_some() {
@@ -1334,7 +1346,7 @@ impl Engine {
             .collect();
         let synergies: Vec<MatchupEdge> = candidates
             .iter()
-            .map(|(champ, _)| self.synergy_edge(&champ.name, &ally_team))
+            .map(|(champ, _)| self.synergy_edge(&champ.name, &evaluation_allies))
             .collect();
         let presence: Vec<f64> = candidates.iter().map(|(_, edge)| edge.presence).collect();
         let role_pick: Vec<f64> = candidates
@@ -1556,10 +1568,22 @@ impl Engine {
         let ally_team = self.team(&req.allies)?;
         let enemy_team = self.team(&req.enemies)?;
         let ban_list = self.ban_list(&req.bans);
-        let tensors = self.draft_inputs(side, &ally_team, &enemy_team, &ban_list);
+        let my_selected = req
+            .my_champion
+            .as_ref()
+            .and_then(|value| self.resolve_champion(value));
+        let mut evaluation_allies = ally_team.clone();
+        if let Some(selected) = my_selected {
+            if let Some(slot) = evaluation_allies.get_mut(self.role_idx[&role] - 1) {
+                if slot.is_none() {
+                    *slot = Some(selected);
+                }
+            }
+        }
+        let tensors = self.draft_inputs(side, &evaluation_allies, &enemy_team, &ban_list);
         let p = self.predict_draft(&tensors, 1)?[0] as f64;
         let p_user = if side == 0 { p } else { 1.0 - p };
-        let ally_edge = self.team_edge(&ally_team);
+        let ally_edge = self.team_edge(&evaluation_allies);
         let enemy_edge = self.team_edge(&enemy_team);
         let p_prior = clamp(0.5 + 1.2 * (ally_edge - enemy_edge), 0.03, 0.97);
         let has_model = self.draft_model.is_some();
@@ -1569,10 +1593,10 @@ impl Engine {
         } else {
             p_prior
         };
-        let my_champ = ally_team
+        let my_champ = evaluation_allies
             .get(self.role_idx[&role] - 1)
             .and_then(|champ| *champ);
-        let known = ally_team
+        let known = evaluation_allies
             .iter()
             .chain(enemy_team.iter())
             .filter(|c| c.is_some())

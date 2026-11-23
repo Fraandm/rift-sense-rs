@@ -1,6 +1,6 @@
 # Release validation
 
-This checklist is the minimum for a public 1.6.0 build. Automated checks are in
+This checklist is the minimum for a public 1.6.1 build. Automated checks are in
 `.github/workflows/ci.yml`; installer checks are in
 `scripts/validate-installer.ps1`.
 
@@ -13,12 +13,12 @@ cargo test --lib
 cargo build --bins
 
 .\scripts\validate-installer.ps1 `
-  -Installer .\dist\RiftSense-Setup-1.6.0.exe `
-  -ExpectedSha256 "a497d8bd986dcd2b993a37c5ddec0446eaeb031a88c5f9900b38339fed738178" `
+  -Installer .\dist\RiftSense-Setup-1.6.1.exe `
+  -ExpectedSha256 "67574b785800e7dd70cfb573bf2bc41ce218d54064a77f3f233a015b3e06f10e" `
   -AllowExistingInstall
 ```
 
-The 1.6.0 build is unsigned because no Authenticode certificate is configured;
+The 1.6.1 build is unsigned because no Authenticode certificate is configured;
 add `-RequireSignature` once a signed build is available. The installer validator
 checks SHA-256, Authenticode, silent install, version,
 local health endpoint and uninstall. Run it in a clean VM or Windows Sandbox:
@@ -52,6 +52,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Build order | Infinity Edge and Rabadon are not first purchase; boots are in their own card; `nextPurchase` matches the affordable component. |
 | Runes | Draft shows primary/secondary trees, keystone, minor runes, shards, sample/source and enemy adjustments; unknown champions use class/role rules. |
 | Overlay consistency | Overlay primary item equals the app's `nextPurchase`, including components and target fallback. |
+| Draft probability | Same-team players with different ghost picks see the same probability; opposite sides see complementary values summing to 100%. |
 | Bot role quest | 6 complete items + boots in the dedicated slot; 7 inventory holes; no extra boots recommended. |
 | Support item | World Atlas -> Runic Compass -> Bounty of Worlds -> final upgrade; support item occupies one normal slot. |
 | Mid boots | Tier 2 boots offered as a free tier 3 replacement after the role quest; no extra slot consumed. |
@@ -69,7 +70,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Game end | Live data stops, no stale recommendation, app remains usable. |
 | Fullscreen / borderless | App can be restored from tray and remains readable on a second monitor. |
 | Windows startup | Starts minimized, one instance, tray icon, settings persisted. |
-| Update | 1.5.1 -> 1.6.0, checksum, relaunch, settings preserved. |
+| Update | 1.6.0 -> 1.6.1, checksum, relaunch, settings preserved. |
 | Uninstall | Binaries removed, startup entry removed, user settings/log policy clear. |
 
 ## Acceptance criteria

@@ -67,7 +67,7 @@ function applyModeLayout() {
   const title = $("#draft-reco-title");
   if (title) title.textContent = classic ? "Mejores picks" : "Composición";
   const verdictLabel = $("#draft-verdict .verdict-label");
-  if (verdictLabel) verdictLabel.textContent = classic ? "Prob. estimada" : "Composición";
+  if (verdictLabel) verdictLabel.textContent = classic ? "Prob. tu lado" : "Composición";
   const allyTitle = $("#ally-card h2");
   const allySub = $("#ally-card .card-head p");
   const enemyTitle = $("#enemy-card h2");

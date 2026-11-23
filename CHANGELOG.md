@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.6.1
+
+Probabilidad de victoria consistente entre jugadores del mismo equipo.
+
+### Correcciones
+
+- La probabilidad de Draft incluye el pick propio aunque la interfaz lo deje
+  como fantasma para comparar alternativas. Antes, cada jugador evaluaba una
+  partida con su propio hueco vacío y veía un porcentaje distinto.
+- Todos los jugadores del mismo equipo ven el mismo valor con los mismos
+  picks; el lado contrario ve el complementario (100% − el tuyo).
+- La etiqueta pasa a **Prob. tu lado** y la ayuda explica la diferencia entre
+  equipos y lados.
+- Se mantiene la inclusión del pick propio en `draft_evaluate` y en la
+  sinergia de las recomendaciones.
+
+### Validación
+
+- Mismo equipo, roles MID/BOT/SUPPORT con picks fantasma distintos: misma
+  probabilidad (0.5533).
+- Lados contrarios con los mismos picks: 0.5533 y 0.4467, suma 1.0.
+- 33 tests Rust; `cargo fmt`, `clippy -D warnings` y `node --check`.
+
+### Instalador
+
+- `RiftSense-Setup-1.6.1.exe`, 27.678.666 bytes, SHA-256
+  `67574b785800e7dd70cfb573bf2bc41ce218d54064a77f3f233a015b3e06f10e`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.6.1`, health `ok` y LCU
+  conectado.
+
 ## 1.6.0
 
 Runas recomendadas y correcciones de coherencia en las builds.

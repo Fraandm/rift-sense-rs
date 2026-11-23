@@ -140,8 +140,13 @@ ellas.
 ## Modos y resumen
 
 El **Draft** detecta el modo desde el LCU y se adapta: en Grieta mantiene roles,
-lado y bans; en ARAM, Mayhem y Arena muestra solo la composición (A1–A5 / R1–R5)
+lado y bans; en ARAM, Mayhem y Arena muestra solo la composición (A1-A5 / R1-R5)
 y no intenta encajar campeones en roles. Arena usa **Tu trío** con 3 huecos.
+
+La probabilidad de victoria es **para tu lado** e incluye tu pick aunque la
+interfaz lo muestre como fantasma para comparar alternativas. Todos los
+jugadores del mismo equipo ven el mismo valor con los mismos picks; el lado
+contrario ve el complementario (100% − el tuyo).
 
 El pick propio se detecta desde el LCU y se muestra como **pick fantasma** en su
 rol, sin bloquear la comparación de alternativas. Los roles del equipo rival no
