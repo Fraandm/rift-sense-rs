@@ -37,6 +37,34 @@ fn champion_from_id(engine: &Engine, value: Option<&Value>) -> Option<String> {
         .map(|index| engine.champions[*index].name.clone())
 }
 
+fn action_pick_champion(
+    engine: &Engine,
+    session: &Value,
+    local_cell: Option<i64>,
+) -> Option<String> {
+    let cell = local_cell?;
+    let actions = session.get("actions").and_then(Value::as_array)?;
+    for group in actions {
+        let Some(group) = group.as_array() else {
+            continue;
+        };
+        for action in group {
+            if action.get("actorCellId").and_then(Value::as_i64) != Some(cell) {
+                continue;
+            }
+            if action.get("type").and_then(Value::as_str) != Some("pick") {
+                continue;
+            }
+            if let Some(champion) = champion_from_id(engine, action.get("championId"))
+                .or_else(|| champion_from_id(engine, action.get("championPickIntent")))
+            {
+                return Some(champion);
+            }
+        }
+    }
+    None
+}
+
 fn canonical_champion(engine: &Engine, value: Option<&str>) -> Option<String> {
     let value = value?;
     if value.trim().is_empty() {
@@ -106,6 +134,161 @@ fn fill_team_by_id(engine: &Engine, players: &[Value], position_key: &str) -> Ve
         }
     }
     team
+}
+
+fn role_probabilities(engine: &Engine, champion: &str) -> [f64; 5] {
+    let mut counts = [0.0; 5];
+    let mut total = 0.0;
+    if let Some(data) = engine.priors.champions.get(champion) {
+        for (index, role) in ROLES.iter().enumerate() {
+            if let Some(stat) = data.roles.get(*role) {
+                let n = stat.n.max(0) as f64;
+                counts[index] = n;
+                total += n;
+            }
+        }
+    }
+    if total > 0.0 {
+        for value in &mut counts {
+            *value = (*value / total).max(1e-4);
+        }
+        counts
+    } else {
+        [0.2; 5]
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn search_role_assignment(
+    index: usize,
+    probs: &[[f64; 5]],
+    roles: &[usize],
+    used: &mut [bool],
+    score: f64,
+    current: &mut Vec<usize>,
+    best_score: &mut f64,
+    best: &mut Vec<usize>,
+) {
+    if index == probs.len() {
+        if score > *best_score {
+            *best_score = score;
+            *best = current.clone();
+        }
+        return;
+    }
+    for (position, role) in roles.iter().enumerate() {
+        if used[position] {
+            continue;
+        }
+        used[position] = true;
+        current.push(*role);
+        search_role_assignment(
+            index + 1,
+            probs,
+            roles,
+            used,
+            score + probs[index][*role].ln(),
+            current,
+            best_score,
+            best,
+        );
+        current.pop();
+        used[position] = false;
+    }
+}
+
+/// Asigna los roles libres de un equipo rival de forma conjunta: no elige el
+/// rol más probable de cada campeón por separado, sino la combinación global
+/// más probable para los cinco. El cliente no expone los roles enemigos.
+fn best_role_assignment(probs: &[[f64; 5]], roles: &[usize]) -> Vec<usize> {
+    let count = probs.len().min(roles.len());
+    if count == 0 {
+        return Vec::new();
+    }
+    let probs = &probs[..count];
+    let mut used = vec![false; roles.len()];
+    let mut current = Vec::new();
+    let mut best = Vec::new();
+    let mut best_score = f64::NEG_INFINITY;
+    search_role_assignment(
+        0,
+        probs,
+        roles,
+        &mut used,
+        0.0,
+        &mut current,
+        &mut best_score,
+        &mut best,
+    );
+    best
+}
+
+fn fill_enemy_team_from(
+    engine: &Engine,
+    picks: Vec<(String, Option<usize>)>,
+    limit: usize,
+) -> (Vec<Option<String>>, bool) {
+    let mut team: Vec<Option<String>> = vec![None; limit];
+    let mut used_roles = vec![false; limit];
+    let mut unknown = Vec::new();
+    for (champion, role) in picks {
+        if team.iter().flatten().any(|value| value == &champion) {
+            continue;
+        }
+        if let Some(role) = role.filter(|role| *role < limit && !used_roles[*role]) {
+            team[role] = Some(champion);
+            used_roles[role] = true;
+        } else {
+            unknown.push(champion);
+        }
+    }
+    let roles: Vec<usize> = (0..limit).filter(|role| !used_roles[*role]).collect();
+    let count = unknown.len().min(roles.len());
+    let probs: Vec<[f64; 5]> = unknown[..count]
+        .iter()
+        .map(|champion| role_probabilities(engine, champion))
+        .collect();
+    let assigned = best_role_assignment(&probs, &roles);
+    for (champion, role) in unknown[..count].iter().zip(assigned) {
+        team[role] = Some(champion.clone());
+    }
+    (team, !unknown.is_empty())
+}
+
+fn fill_enemy_team_by_id(engine: &Engine, players: &[Value]) -> (Vec<Option<String>>, bool) {
+    let picks = players
+        .iter()
+        .filter_map(|player| {
+            let champion = champion_from_id(engine, player.get("championId"))
+                .or_else(|| champion_from_id(engine, player.get("championPickIntent")))?;
+            let role = player
+                .get("assignedPosition")
+                .and_then(Value::as_str)
+                .and_then(|value| role_index(Some(value)));
+            Some((champion, role))
+        })
+        .collect();
+    fill_enemy_team_from(engine, picks, 5)
+}
+
+fn fill_enemy_team_by_name(
+    engine: &Engine,
+    players: &[Value],
+    limit: usize,
+) -> (Vec<Option<String>>, bool) {
+    let picks = players
+        .iter()
+        .filter_map(|player| {
+            let champion =
+                canonical_champion(engine, player.get("championName").and_then(Value::as_str))?;
+            let role = player
+                .get("position")
+                .and_then(Value::as_str)
+                .and_then(|value| role_index(Some(value)));
+            Some((champion, role))
+        })
+        .collect();
+    fill_enemy_team_from(engine, picks, limit)
 }
 
 fn fill_team_by_name(engine: &Engine, players: &[Value]) -> Vec<Option<String>> {
@@ -347,6 +530,7 @@ pub fn map_champ_select(
         .cloned()
         .unwrap_or(Value::Null);
     let my_champion = champion_from_id(engine, me.get("championId"))
+        .or_else(|| action_pick_champion(engine, session, local_cell.as_i64()))
         .or_else(|| champion_from_id(engine, me.get("championPickIntent")));
     let queue_id = gameflow
         .and_then(|value| value.get("gameData"))
@@ -394,11 +578,11 @@ pub fn map_champ_select(
     // En ARAM/Mayhem/Arena no existen los roles de Grieta. Colocar el pick
     // propio en el primer hueco evita que el frontend intente encajarlo en un
     // rol inferido y muestra la composicion real.
-    let (mut allies, mut enemies) = if mode.is_classic() {
+    let (mut allies, mut enemies, enemy_roles_inferred) = if mode.is_classic() {
         let mut allies = fill_team_by_id(engine, &my_team, "assignedPosition");
-        let enemies = fill_team_by_id(engine, &their_team, "assignedPosition");
+        let (enemies, inferred) = fill_enemy_team_by_id(engine, &their_team);
         place_champion(engine, &mut allies, my_champion.clone(), &role);
-        (allies, enemies)
+        (allies, enemies, inferred)
     } else {
         let mut allies = Vec::new();
         push_unique_champion(&mut allies, my_champion.clone());
@@ -417,7 +601,7 @@ pub fn map_champ_select(
         }
         allies.resize(5, None);
         enemies.resize(5, None);
-        (allies, enemies)
+        (allies, enemies, false)
     };
     allies.truncate(5);
     enemies.truncate(5);
@@ -430,6 +614,7 @@ pub fn map_champ_select(
         "role": role,
         "allies": names(&allies),
         "enemies": names(&enemies),
+        "enemyRolesInferred": enemy_roles_inferred,
         "bans": map_bans(engine, session),
         "myChampion": my_champion,
         "localPlayerCellId": local_cell,
@@ -563,7 +748,14 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         allies.insert(0, Some(champion.clone()));
         allies.truncate(5);
     }
-    let mut enemies = fill_team_by_name_limited(engine, &enemy_players, mode.max_enemies());
+    let (mut enemies, enemy_roles_inferred) = if mode == GameMode::Classic {
+        fill_enemy_team_by_name(engine, &enemy_players, 5)
+    } else {
+        (
+            fill_team_by_name_limited(engine, &enemy_players, mode.max_enemies()),
+            false,
+        )
+    };
     while enemies.last().is_some_and(Option::is_none) {
         enemies.pop();
     }
@@ -744,6 +936,7 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         "modeLabel": mode.label(),
         "allPlayersCount": players.len(),
         "arenaTeamKnown": arena_team_known,
+        "enemyRolesInferred": enemy_roles_inferred,
         "summoner": active_name,
         "updatedAt": Utc::now().to_rfc3339(),
     })
@@ -752,6 +945,17 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn joint_role_assignment_handles_flex_picks() {
+        let probs = [[0.1, 0.1, 0.1, 0.6, 0.1], [0.1, 0.1, 0.1, 0.2, 0.5]];
+        let assigned = best_role_assignment(&probs, &[3, 4]);
+        assert_eq!(assigned, vec![3, 4]);
+
+        let probs = [[0.1, 0.1, 0.1, 0.1, 0.6], [0.1, 0.1, 0.1, 0.2, 0.5]];
+        let assigned = best_role_assignment(&probs, &[3, 4]);
+        assert_eq!(assigned, vec![4, 3]);
+    }
 
     #[test]
     fn ordered_team_keeps_champion_first_without_duplicates() {

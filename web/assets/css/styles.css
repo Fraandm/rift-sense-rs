@@ -600,6 +600,8 @@ h1 {
 .slot.filled { border-style: solid; border-color: rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); color: var(--text); }
 .slot.mine { border-color: rgba(200, 170, 110, 0.42); background: rgba(200, 170, 110, 0.045); }
 .slot.mine.empty { border-color: rgba(200, 170, 110, 0.3); }
+.slot.detected { border-style: dashed; border-color: rgba(10, 200, 185, 0.45); }
+.slot.detected .slot-text small { color: var(--teal); }
 
 .slot .plus {
   width: 30px;

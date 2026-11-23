@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.2.3
+
+Detección del pick propio y roles rivales estimados.
+
+### Draft y cliente
+
+- El pick del jugador se detecta desde `myTeam`, `championPickIntent` y las
+  acciones del champ select, incluido el hover.
+- En Grieta, el pick detectado se muestra como **pick fantasma** en su rol y
+  sigue dejando el hueco libre para comparar alternativas.
+- El campeón detectado se excluye de las recomendaciones y de la prioridad de
+  bans, aunque el hueco se envíe vacío al motor.
+- La tarjeta del cliente muestra el campeón detectado en vez de “Sin campeón
+  seleccionado”.
+- El contador de picks conocidos incluye el pick detectado.
+
+### Roles rivales
+
+- El cliente no expone los roles del equipo rival. Se estiman con una
+  asignación conjunta por probabilidad de rol de cada campeón, no con
+  `cellId % 5`.
+- La asignación conjunta evita que dos flex picks ocupen el mismo rol.
+- Los roles estimados se marcan con **≈** y un aviso en Draft y En vivo.
+- Si el cliente sí expone los roles (por ejemplo, en partida), se respetan.
+- Tests nuevos para la asignación conjunta de roles.
+
+### Instalador
+
+- `RiftSense-Setup-1.2.3.exe`, 27.533.549 bytes, SHA-256
+  `369cc3cab743ebfad498bf369f5b03796160fc5d03dcb369f2a9ccd175f22c6d`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.2.3`, health `ok` y LCU
+  conectado.
+
 ## 1.2.2
 
 El objetivo legendario se mantiene al empezar la compra.

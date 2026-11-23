@@ -317,6 +317,7 @@ function setMode(mode) {
   live.modeLabel = modeLabel(mode);
   live.gameId = null;
   live.targetLegendary = null;
+  live.enemyRolesInferred = false;
   live.roleQuestBoots = null;
   live.augments = [];
   live.anvils = [];
@@ -601,13 +602,14 @@ function renderMiniSlots() {
         const name = live[team][index];
         const champ = championByName(name);
         const mine = team === "allies" && index === ownIndex();
+        const estimated = classic && team === "enemies" && live.enemyRolesInferred;
         const slotLabel = classic
-          ? roleLabel(role).slice(0, 3).toUpperCase()
+          ? `${roleLabel(role).slice(0, 3).toUpperCase()}${estimated ? " ≈" : ""}`
           : `${team === "allies" ? "A" : "R"}${index + 1}`;
         const title = champ
           ? `Cambiar ${champ.name}`
           : classic
-            ? `Elegir ${roleLabel(role)}`
+            ? `Elegir ${roleLabel(role)}${estimated ? " (rol estimado)" : ""}`
             : `${team === "allies" ? "Aliado" : "Rival"} ${index + 1}`;
         return `<button type="button" class="mini-slot ${champ ? "filled" : ""} ${mine ? "mine" : ""}" data-mini-team="${team}" data-index="${index}" title="${esc(title)}" aria-label="${esc(title)}">
           ${champ ? avatarHTML(champ) : `<svg class="icon"><use href="#i-plus"/></svg>`}
@@ -1237,6 +1239,9 @@ function renderNotes(build, draft) {
       .map((note) => esc(note))
       .join("<br>")}</div>`);
   }
+  if (classic && live.enemyRolesInferred) {
+    rows.push(`<div class="note-box"><strong>Roles rivales</strong>El cliente no expone los roles del equipo rival. Se estiman por campeón y composición; aparecen marcados con ≈.</div>`);
+  }
   if (classic && live.role === "BOT" && maxSlots() === 7) {
     rows.push(`<div class="note-box good"><strong>Role quest del bot completada</strong>Las botas ocupan la septima ranura dedicada: puedes llevar 6 objetos completos ademas de las botas. Antes de completar la quest, las botas siguen ocupando una ranura normal.</div>`);
   }
@@ -1636,6 +1641,7 @@ export function init() {
     live.anvils = arena ? ["stats"] : [];
     live.tracking = false;
     live.targetLegendary = null;
+    live.enemyRolesInferred = false;
     live.gold = arena ? 2500 : 1600;
     live.minute = arena ? 8 : 9;
     itemsExpanded = false;
@@ -1687,6 +1693,7 @@ export function init() {
     live.tracking = false;
     live.gameId = null;
     live.targetLegendary = null;
+    live.enemyRolesInferred = false;
     itemsExpanded = false;
     lastAnnouncedPurchase = "";
     lastItemsSignature = "";
@@ -1755,6 +1762,7 @@ export async function applyClientState(mapped) {
   const nextGameId = Number(mapped.gameId) || null;
   live.mode = mode;
   live.tracking = true;
+  live.enemyRolesInferred = mode === "classic" && mapped.enemyRolesInferred === true;
   live.gameId = nextGameId || live.gameId || null;
   if (
     previousMode !== mode ||

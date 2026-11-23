@@ -92,6 +92,10 @@ El **Draft** detecta el modo desde el LCU y se adapta: en Grieta mantiene roles,
 lado y bans; en ARAM, Mayhem y Arena muestra solo la composición (A1–A5 / R1–R5)
 y no intenta encajar campeones en roles. Arena usa **Tu trío** con 3 huecos.
 
+El pick propio se detecta desde el LCU y se muestra como **pick fantasma** en su
+rol, sin bloquear la comparación de alternativas. Los roles del equipo rival no
+los expone el cliente: se estiman por campeón y se marcan con **≈**.
+
 La pestaña **Resumen** guarda la build real, las compras, el seguimiento de la
 recomendación y el resultado. Al terminar la partida consulta el historial local
 del LCU; si la app no la siguió, importa la última partida disponible. El

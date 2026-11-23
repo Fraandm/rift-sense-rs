@@ -1,6 +1,6 @@
 # Release validation
 
-This checklist is the minimum for a public 1.2.2 build. Automated checks are in
+This checklist is the minimum for a public 1.2.3 build. Automated checks are in
 `.github/workflows/ci.yml`; installer checks are in
 `scripts/validate-installer.ps1`.
 
@@ -13,12 +13,12 @@ cargo test --lib
 cargo build --bins
 
 .\scripts\validate-installer.ps1 `
-  -Installer .\dist\RiftSense-Setup-1.2.2.exe `
-  -ExpectedSha256 "c1110bd5a111249ca5212ae8233afb784cb096a7724d004c87240acf6a72c983" `
+  -Installer .\dist\RiftSense-Setup-1.2.3.exe `
+  -ExpectedSha256 "369cc3cab743ebfad498bf369f5b03796160fc5d03dcb369f2a9ccd175f22c6d" `
   -AllowExistingInstall
 ```
 
-The 1.2.2 build is unsigned because no Authenticode certificate is configured;
+The 1.2.3 build is unsigned because no Authenticode certificate is configured;
 add `-RequireSignature` once a signed build is available. The installer validator
 checks SHA-256, Authenticode, silent install, version,
 local health endpoint and uninstall. Run it in a clean VM or Windows Sandbox:
@@ -41,6 +41,8 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Full inventory | Components do not end the build; pinned next legendary, reuse cost, 2 alternatives and "Completar" consumes components. |
 | ARAM confidence | With model, 5 enemies, live context and sample, confidence is Alta; a complete build shows Build completa instead of a low percentage. |
 | Legendary target | After buying a component of the pinned legendary, the target stays; it changes only on completion or champion/role/mode change. |
+| Own pick | Hover/locked pick is detected, shown as a ghost in Draft, excluded from recommendations and counted in the pick total. |
+| Enemy roles | Enemy roles are jointly estimated from champion-role priors, marked with ≈; explicit client roles, when present, are respected. |
 | Bot role quest | 6 complete items + boots in the dedicated slot; 7 inventory holes; no extra boots recommended. |
 | Support item | World Atlas -> Runic Compass -> Bounty of Worlds -> final upgrade; support item occupies one normal slot. |
 | Mid boots | Tier 2 boots offered as a free tier 3 replacement after the role quest; no extra slot consumed. |
@@ -55,7 +57,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Game end | Live data stops, no stale recommendation, app remains usable. |
 | Fullscreen / borderless | App can be restored from tray and remains readable on a second monitor. |
 | Windows startup | Starts minimized, one instance, tray icon, settings persisted. |
-| Update | 1.2.1 -> 1.2.2, checksum, relaunch, settings preserved. |
+| Update | 1.2.2 -> 1.2.3, checksum, relaunch, settings preserved. |
 | Uninstall | Binaries removed, startup entry removed, user settings/log policy clear. |
 
 ## Acceptance criteria

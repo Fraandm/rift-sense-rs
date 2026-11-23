@@ -216,13 +216,15 @@ function renderStatus() {
   }
 }
 
-function teamBlock(title, side, list, tone = "", classic = true) {
+function teamBlock(title, side, list, tone = "", classic = true, rolesEstimated = false) {
   const rows = meta.roles
     .map((role, index) => {
       const name = Array.isArray(list) ? list[index] : null;
       const champ = name ? championByName(name) : null;
       return `<div class="client-player-row">
-        <span class="role">${classic ? ROLE_SHORT[role] : index + 1}</span>
+        <span class="role" ${
+          rolesEstimated ? `title="Rol estimado; el cliente no expone los roles rivales"` : ""
+        }>${classic ? `${ROLE_SHORT[role]}${rolesEstimated ? " ≈" : ""}` : index + 1}</span>
         ${champ ? avatarHTML(champ, "sm") : `<span class="avatar sm" data-initial="—" aria-hidden="true"></span>`}
         <strong class="${champ ? "" : "missing"}">${esc(champ?.name || "Sin pick")}</strong>
       </div>`;
@@ -260,7 +262,8 @@ function renderDraft(message = "") {
     data.side === "red" ? "Azul" : "Rojo",
     data.enemies,
     "red",
-    classic
+    classic,
+    classic && data.enemyRolesInferred === true
   );
   const bans = (data.bans || [])
     .map((name) => championByName(name))
@@ -277,7 +280,13 @@ function renderDraft(message = "") {
     }</div>
     <p class="fineprint">${myChampion} · ${esc(timerText)} · ${esc(
       phaseLabel(data.phase)
-    )} · ${esc(data.modeLabel || "")}${classic ? " · Tu slot queda libre en Draft para comparar." : " · Sin roles: la composición se importa tal cual."}</p>`;
+    )} · ${esc(data.modeLabel || "")}${
+      classic
+        ? ` · Tu pick se detecta y el slot queda libre en Draft para comparar.${
+            data.enemyRolesInferred ? " Roles rivales estimados." : ""
+          }`
+        : " · Sin roles: la composición se importa tal cual."
+    }</p>`;
 
   setBadge("#client-draft-badge", "En vivo", "teal");
   const button = $("#client-use-draft");
@@ -317,7 +326,8 @@ function renderLive(message = "") {
     data.side === "red" ? "Azul" : "Rojo",
     data.enemies,
     "red",
-    classic
+    classic,
+    classic && data.enemyRolesInferred === true
   );
   const items = (data.items || []).map(itemChip).join("") || `<span class="ban-empty">Sin objetos comprados</span>`;
   const scores = data.scores || {};

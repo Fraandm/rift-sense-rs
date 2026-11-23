@@ -22,6 +22,7 @@ fn main() -> Result<()> {
             .iter()
             .map(|name| Some(ChampionRef::Str(name.to_string())))
             .collect(),
+        my_champion: None,
         limit: 12,
     };
     let draft = engine.draft_recommend(&draft_req)?;

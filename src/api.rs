@@ -245,6 +245,7 @@ async fn live(State(state): State<SharedState>, Json(request): Json<LiveRequest>
         bans: request.bans.clone(),
         allies: request.build.allies.clone(),
         enemies: request.build.enemies.clone(),
+        my_champion: None,
         limit: request.build.limit,
     };
     let draft_state = match engine.draft_evaluate(&draft_request) {

@@ -83,7 +83,9 @@ function applyModeLayout() {
   if (enemyTitle) enemyTitle.textContent = classic ? "Rival" : "Rivales";
   if (enemySub) {
     enemySub.textContent = classic
-      ? "Añade lo que ya viste en el draft"
+      ? draft.enemyRolesInferred
+        ? "Roles estimados por campeón; el cliente no los muestra"
+        : "Añade lo que ya viste en el draft"
       : draft.mode === "arena"
         ? "Los demás equipos de Arena"
         : "Los cinco rivales";
@@ -146,32 +148,43 @@ function slotHTML(team, role, index) {
   const classic = draft.mode === "classic";
   const mine = classic ? role === draft.role : team === "allies" && index === 0;
   const name = draft[team][index];
-  const champ = championByName(name);
-  const roleData = classic ? champ?.roles?.[role] : null;
+  const ghost =
+    !name && mine && classic && team === "allies" && draft.myPick && championByName(draft.myPick)
+      ? draft.myPick
+      : null;
+  const displayed = name || ghost;
+  const champ = championByName(displayed);
+  const detected = Boolean(ghost);
+  const estimated = classic && team === "enemies" && draft.enemyRolesInferred;
+  const roleData = classic && !estimated ? champ?.roles?.[role] : null;
   const subtitle = champ
-    ? `${champ.tags?.[0] || "Flex"}${roleData ? ` · ${pct(roleData.winrate, 0)} WR` : ""}`
+    ? detected
+      ? "Detectado del cliente · slot libre para comparar"
+      : `${champ.tags?.[0] || "Flex"}${roleData ? ` · ${pct(roleData.winrate, 0)} WR` : ""}`
     : mine
       ? classic
         ? "Tu pick queda libre para comparar"
         : "Tu campeón en este modo"
       : "Hueco libre";
   const roleText = classic
-    ? `${ROLE_SHORT[role] || role}${mine ? "<small>TU ROL</small>" : ""}`
+    ? `${ROLE_SHORT[role] || role}${estimated ? " ≈" : ""}${mine ? "<small>TU ROL</small>" : ""}`
     : `${team === "allies" ? "A" : "R"}${index + 1}${mine ? "<small>TU CAMPEÓN</small>" : ""}`;
   const pickerRole = classic ? role : "ALL";
   const title = classic
     ? champ
-      ? `Cambiar ${champ.name} en ${roleLabel(role)}`
+      ? `${detected ? "Cambiar pick detectado" : "Cambiar"} ${champ.name} en ${roleLabel(role)}`
       : `Elegir campeón para ${roleLabel(role)}`
     : champ
       ? `Cambiar ${champ.name}`
       : `Elegir ${team === "allies" ? "aliado" : "rival"} ${index + 1}`;
   return `<div class="slot-row ${mine ? "mine" : ""}">
-    <div class="slot-role">${roleText}</div>
+    <div class="slot-role" ${
+      estimated ? `title="Rol estimado: el cliente no expone los roles rivales"` : ""
+    }>${roleText}</div>
     <div class="slot-wrap">
-      <button type="button" class="slot ${champ ? "filled" : "empty"} ${mine ? "mine" : ""}" data-team="${team}" data-index="${index}" data-role="${pickerRole}" aria-label="${esc(
-        title
-      )}">
+      <button type="button" class="slot ${champ ? "filled" : "empty"} ${mine ? "mine" : ""} ${
+        detected ? "detected" : ""
+      }" data-team="${team}" data-index="${index}" data-role="${pickerRole}" aria-label="${esc(title)}">
         ${
           champ
             ? `${avatarHTML(champ)}<span class="slot-text"><strong>${esc(champ.name)}</strong><small>${esc(
@@ -184,11 +197,15 @@ function slotHTML(team, role, index) {
         }
       </button>
       ${
-        champ
-          ? `<button type="button" class="remove-btn" data-remove="${team}" data-index="${index}" aria-label="Quitar ${esc(
+        detected
+          ? `<button type="button" class="remove-btn" data-clear-my-pick aria-label="Quitar pick detectado ${esc(
               champ.name
             )}"><svg class="icon"><use href="#i-close"/></svg></button>`
-          : ""
+          : champ
+            ? `<button type="button" class="remove-btn" data-remove="${team}" data-index="${index}" aria-label="Quitar ${esc(
+                champ.name
+              )}"><svg class="icon"><use href="#i-close"/></svg></button>`
+            : ""
       }
     </div>
   </div>`;
@@ -239,10 +256,12 @@ function renderAll() {
 function renderVerdict(data) {
   const value = $("#draft-verdict .verdict-value");
   const note = $("#draft-verdict .verdict-note");
+  const detectedPick = draft.mode === "classic" && draft.myPick ? 1 : 0;
   const known = data
     ? (data.knownAllies || []).filter(Boolean).length +
-      (data.knownEnemies || []).filter(Boolean).length
-    : allPicks().length;
+      (data.knownEnemies || []).filter(Boolean).length +
+      detectedPick
+    : allPicks().length + detectedPick;
   if (draft.mode !== "classic") {
     if (value) value.textContent = "—";
     if (note) note.textContent = `${modeLabel()} · ${known}/10 campeones`;
@@ -406,6 +425,7 @@ function payload() {
     bans: draft.bans,
     allies: draft.allies,
     enemies: draft.enemies,
+    myChampion: draft.myPick || null,
     limit: 12,
   };
 }
@@ -454,6 +474,9 @@ async function chooseChampion(team, role, index) {
     kicker: draft.mode === "classic" ? "Elegir campeón" : modeLabel(),
   });
   if (!name) return;
+  if (team === "allies" && draft.mode === "classic" && slotIndex === roleIdx(draft.role)) {
+    draft.myPick = null;
+  }
   draft[team][slotIndex] = name;
   renderAll();
   refresh();
@@ -499,6 +522,8 @@ function removeBan(index) {
 function setDraftMode(mode) {
   if (!DRAFT_MODES.some((entry) => entry.key === mode) || mode === draft.mode) return;
   draft.mode = mode;
+  draft.myPick = null;
+  draft.enemyRolesInferred = false;
   if (mode !== "classic") draft.bans = [];
   renderAll();
   refresh();
@@ -511,6 +536,8 @@ function loadExample() {
       const name = list[index];
       return name && championByName(name) ? name : null;
     });
+  draft.myPick = null;
+  draft.enemyRolesInferred = false;
   if (draft.mode === "classic") {
     draft.role = "MID";
     draft.side = "blue";
@@ -537,6 +564,8 @@ function clearDraft() {
   draft.allies = [null, null, null, null, null];
   draft.enemies = [null, null, null, null, null];
   draft.bans = [];
+  draft.myPick = null;
+  draft.enemyRolesInferred = false;
   renderAll();
   refresh();
 }
@@ -559,6 +588,7 @@ export function init() {
     const button = event.target.closest("button[data-role]");
     if (!button || button.dataset.role === draft.role) return;
     draft.role = button.dataset.role;
+    draft.myPick = null;
     renderAll();
     refresh();
   });
@@ -576,6 +606,13 @@ export function init() {
     ["enemies", "#enemy-slots"],
   ]) {
     $(selector)?.addEventListener("click", (event) => {
+      const clearMine = event.target.closest("[data-clear-my-pick]");
+      if (clearMine) {
+        draft.myPick = null;
+        renderAll();
+        refresh();
+        return;
+      }
       const remove = event.target.closest("[data-remove]");
       if (remove) {
         const index = Number(remove.dataset.index);
@@ -610,6 +647,7 @@ export function init() {
     if (event.target.closest("[data-clear-mine]")) {
       const index = roleIdx(draft.role);
       if (index >= 0) draft.allies[index] = null;
+      draft.myPick = null;
       renderAll();
       refresh();
       return;
@@ -650,17 +688,30 @@ export function applyClientDraft(mapped) {
   draft.side = mapped.side === "red" ? "red" : "blue";
   draft.allies = pad(mapped.allies);
   draft.enemies = pad(mapped.enemies);
+  draft.enemyRolesInferred =
+    detected === "classic" && mapped.enemyRolesInferred === true;
+  const roleIndex = roleIdx(role);
+  draft.myPick =
+    mapped.myChampion && championByName(mapped.myChampion)
+      ? mapped.myChampion
+      : roleIndex >= 0 && draft.allies[roleIndex] && championByName(draft.allies[roleIndex])
+        ? draft.allies[roleIndex]
+        : null;
   draft.bans =
     detected === "classic" && Array.isArray(mapped.bans)
       ? mapped.bans.filter((name) => championByName(name)).slice(0, 10)
       : [];
 
-  // En Grieta el slot propio se deja libre para comparar alternativas. En el
-  // resto de modos el mapper ya coloca tu campeón en el primer hueco y no hay
-  // roles que encajar.
-  if (detected === "classic") {
-    const index = roleIdx(role);
-    if (index >= 0) draft.allies[index] = null;
+  // En Grieta el slot propio se deja libre para comparar alternativas; el
+  // campeón detectado se muestra como pick fantasma en ese hueco. En el resto
+  // de modos el mapper ya coloca tu campeón en el primer hueco.
+  if (detected === "classic" && roleIndex >= 0) {
+    if (draft.myPick) {
+      draft.allies = draft.allies.map((name, index) =>
+        index !== roleIndex && name === draft.myPick ? null : name
+      );
+    }
+    draft.allies[roleIndex] = null;
   }
 
   renderAll();

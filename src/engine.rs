@@ -64,6 +64,10 @@ pub struct DraftRequest {
     pub allies: Vec<Option<ChampionRef>>,
     #[serde(default)]
     pub enemies: Vec<Option<ChampionRef>>,
+    /// Campeón ya elegido por el usuario. Se excluye de las recomendaciones
+    /// aunque su hueco se envíe vacío para comparar alternativas.
+    #[serde(default, rename = "myChampion")]
+    pub my_champion: Option<ChampionRef>,
     #[serde(default = "default_draft_limit")]
     pub limit: usize,
 }
@@ -918,6 +922,16 @@ impl Engine {
         let enemy_team = self.team(&req.enemies)?;
         let ban_list = self.ban_list(&req.bans);
         let limit = req.limit.clamp(1, 25);
+        let my_selected = req
+            .my_champion
+            .as_ref()
+            .and_then(|value| self.resolve_champion(value));
+        let mut exclude = self.exclude_names(&ban_list, &ally_team, &enemy_team);
+        if let Some(selected) = my_selected {
+            if !exclude.contains(&selected.name) {
+                exclude.push(selected.name.clone());
+            }
+        }
 
         let picked: HashSet<i64> = ally_team
             .iter()
@@ -928,6 +942,7 @@ impl Engine {
             .iter()
             .copied()
             .chain(ban_list.iter().map(|champ| champ.key))
+            .chain(my_selected.map(|champ| champ.key))
             .collect();
         let my_role_idx = *self
             .role_idx
@@ -947,7 +962,6 @@ impl Engine {
         let my_champ = ally_team.get(my_role_idx - 1).and_then(|champ| *champ);
         if let Some(my_champ) = my_champ {
             let edge = self.champ_edge(&my_champ.name, &role);
-            let exclude = self.exclude_names(&ban_list, &ally_team, &enemy_team);
             let mut notes = self.model_notes.clone();
             notes.push(
                 "Tu campeón ya está fijado: quítalo del slot para comparar alternativas."
