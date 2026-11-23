@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.3.0
+
+Botas recomendadas y compras adaptadas a las builds rivales.
+
+### Botas
+
+- Nueva tarjeta **Botas recomendadas** en En vivo, separada de la lista
+  principal para que no se pierda entre componentes.
+- Elige botas según campeón, daño AP/AD, rol, tanque/support y perfil físico o
+  mágico del rival.
+- En MID, al completar la role quest, ofrece la mejora tier 3 gratuita.
+- Si ya llevas botas, muestra las actuales; si no, permite comprarlas.
+- En inventario lleno indica **Sin hueco** en lugar de esconder la
+  recomendación.
+
+### Builds rivales
+
+- `En vivo` envía `enemyBuilds` desde el Live Client Data: campeón y objetos de
+  cada rival.
+- El motor analiza armadura, resistencia mágica, vida, crítico, velocidad de
+  ataque, curación y escudos de las builds enemigas.
+- Ajusta la recomendación con penetración de armadura/RM, daño porcentual,
+  reducción de escudos, antiheal y defensas contra autoataques.
+- Nueva tarjeta **Según las builds rivales** con hasta dos compras
+  situacionales y el motivo.
+- La lectura de partida muestra un resumen de las builds rivales.
+- Ejemplo: contra mucha curación y armadura aparece Mortal Reminder; contra
+  mucha vida, Liandry's/Demonic; contra escudos, Serpent's Fang.
+
+### Validación
+
+- La suite cubre asignación de roles y recetas.
+- La selección de botas y el análisis de builds rivales se validaron con la API
+  y con la interfaz en Chromium.
+
+### Instalador
+
+- `RiftSense-Setup-1.3.0.exe`, 27.572.332 bytes, SHA-256
+  `8a3977e3877e067bb0fb362c4b3da2aaa2ab44d7559dfc86beadc1c963dea69d`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.3.0`, health `ok` y LCU
+  conectado.
+
 ## 1.2.3
 
 Detección del pick propio y roles rivales estimados.

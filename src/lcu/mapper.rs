@@ -811,6 +811,25 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         .filter_map(|item| item.get("id").and_then(Value::as_i64))
         .filter(|id| engine.resolve_item(&ItemRef::Int(*id)).is_some())
         .collect();
+    let enemy_builds: Vec<Value> = enemy_players
+        .iter()
+        .filter_map(|player| {
+            let champion =
+                canonical_champion(engine, player.get("championName").and_then(Value::as_str))?;
+            let items: Vec<i64> = player
+                .get("items")
+                .and_then(Value::as_array)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.get("itemID").and_then(Value::as_i64))
+                        .filter(|id| *id > 0)
+                        .collect()
+                })
+                .unwrap_or_default();
+            Some(json!({"champion": champion, "items": items}))
+        })
+        .collect();
 
     let game_time = game_data
         .get("gameTime")
@@ -903,6 +922,7 @@ pub fn map_live_gamedata(engine: &Engine, data: &Value) -> Value {
         "bans": [],
         "owned": owned,
         "items": items,
+        "enemyBuilds": enemy_builds,
         "gold": active.get("currentGold").and_then(Value::as_f64).unwrap_or(0.0) as i64,
         "minute": (game_time / 60.0 * 10.0).round() / 10.0,
         "gameTime": (game_time * 10.0).round() / 10.0,

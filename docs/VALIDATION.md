@@ -1,6 +1,6 @@
 # Release validation
 
-This checklist is the minimum for a public 1.2.3 build. Automated checks are in
+This checklist is the minimum for a public 1.3.0 build. Automated checks are in
 `.github/workflows/ci.yml`; installer checks are in
 `scripts/validate-installer.ps1`.
 
@@ -13,12 +13,12 @@ cargo test --lib
 cargo build --bins
 
 .\scripts\validate-installer.ps1 `
-  -Installer .\dist\RiftSense-Setup-1.2.3.exe `
-  -ExpectedSha256 "369cc3cab743ebfad498bf369f5b03796160fc5d03dcb369f2a9ccd175f22c6d" `
+  -Installer .\dist\RiftSense-Setup-1.3.0.exe `
+  -ExpectedSha256 "8a3977e3877e067bb0fb362c4b3da2aaa2ab44d7559dfc86beadc1c963dea69d" `
   -AllowExistingInstall
 ```
 
-The 1.2.3 build is unsigned because no Authenticode certificate is configured;
+The 1.3.0 build is unsigned because no Authenticode certificate is configured;
 add `-RequireSignature` once a signed build is available. The installer validator
 checks SHA-256, Authenticode, silent install, version,
 local health endpoint and uninstall. Run it in a clean VM or Windows Sandbox:
@@ -43,6 +43,8 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Legendary target | After buying a component of the pinned legendary, the target stays; it changes only on completion or champion/role/mode change. |
 | Own pick | Hover/locked pick is detected, shown as a ghost in Draft, excluded from recommendations and counted in the pick total. |
 | Enemy roles | Enemy roles are jointly estimated from champion-role priors, marked with ≈; explicit client roles, when present, are respected. |
+| Boots | Boots card recommends AP/AD/tank/support boots, shows owned boots or the free tier-3 upgrade, and respects a full inventory. |
+| Enemy builds | Enemy item builds produce armor/MR/HP/heal/shield analysis, situational items and adapted item reasons. |
 | Bot role quest | 6 complete items + boots in the dedicated slot; 7 inventory holes; no extra boots recommended. |
 | Support item | World Atlas -> Runic Compass -> Bounty of Worlds -> final upgrade; support item occupies one normal slot. |
 | Mid boots | Tier 2 boots offered as a free tier 3 replacement after the role quest; no extra slot consumed. |
@@ -57,7 +59,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Game end | Live data stops, no stale recommendation, app remains usable. |
 | Fullscreen / borderless | App can be restored from tray and remains readable on a second monitor. |
 | Windows startup | Starts minimized, one instance, tray icon, settings persisted. |
-| Update | 1.2.2 -> 1.2.3, checksum, relaunch, settings preserved. |
+| Update | 1.2.3 -> 1.3.0, checksum, relaunch, settings preserved. |
 | Uninstall | Binaries removed, startup entry removed, user settings/log policy clear. |
 
 ## Acceptance criteria

@@ -170,9 +170,10 @@ export function recordSession({
         id: Number(build.nextPurchase.id),
         name: build.nextPurchase.name,
         plan: [
+          Number(build.bootsRecommendation?.id) || 0,
           ...(build.items || []).map((item) => Number(item.id)),
           ...(build.buildPlan || []).map((item) => Number(item.id)),
-        ],
+        ].filter((id) => id > 0),
       }
     : null;
   current.role = role || current.role;

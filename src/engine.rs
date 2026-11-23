@@ -81,6 +81,14 @@ pub struct BansRequest {
 }
 
 #[derive(Deserialize, Clone, Debug, Default)]
+pub struct EnemyBuildContext {
+    #[serde(default)]
+    pub champion: String,
+    #[serde(default)]
+    pub items: Vec<i64>,
+}
+
+#[derive(Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GameContext {
     #[serde(default)]
@@ -109,6 +117,8 @@ pub struct GameContext {
     pub enemy_level: f64,
     #[serde(default)]
     pub enemy_fed: Vec<String>,
+    #[serde(default)]
+    pub enemy_builds: Vec<EnemyBuildContext>,
     #[serde(default)]
     pub game_mode: String,
     #[serde(default)]
@@ -231,6 +241,19 @@ struct ItemCandidate<'a> {
     replaces: Option<i64>,
 }
 
+#[derive(Clone, Debug, Default)]
+struct EnemyBuildSummary {
+    known: i64,
+    armor: f64,
+    magic_resist: f64,
+    health: f64,
+    crit: f64,
+    attack_speed: f64,
+    healing: Vec<String>,
+    shields: Vec<String>,
+    notes: Vec<String>,
+}
+
 #[derive(Clone, Debug)]
 struct GameAnalysis {
     state: &'static str,
@@ -255,6 +278,7 @@ struct GameAnalysis {
     kill_participation: f64,
     enemy_fed: Vec<String>,
     healers: Vec<String>,
+    enemy_build: EnemyBuildSummary,
     notes: Vec<String>,
     mode: GameMode,
 }
@@ -304,6 +328,17 @@ impl GameAnalysis {
             "killParticipation": round(self.kill_participation, 3),
             "enemyFed": self.enemy_fed,
             "healingThreat": self.healers,
+            "enemyBuild": {
+                "known": self.enemy_build.known,
+                "armor": round(self.enemy_build.armor, 1),
+                "magicResist": round(self.enemy_build.magic_resist, 1),
+                "health": round(self.enemy_build.health, 1),
+                "crit": round(self.enemy_build.crit, 3),
+                "attackSpeed": round(self.enemy_build.attack_speed, 3),
+                "healing": self.enemy_build.healing,
+                "shields": self.enemy_build.shields,
+                "notes": self.enemy_build.notes,
+            },
             "notes": self.notes,
         })
     }
@@ -1737,7 +1772,7 @@ impl Engine {
             let wr_edge = wr - 0.5;
             let (defense, defense_note) = self.defensive_fit(item, &profile);
             let (context_fit, context_note) = analysis
-                .map(|analysis| self.context_fit(item, analysis, &profile, owned))
+                .map(|analysis| self.context_fit(item, analysis, &profile, owned, champ))
                 .unwrap_or((0.0, String::new()));
             let (mut mode_fit, mut mode_note) = self.item_mode_fit(item, champ, mode, slot);
             let replaces = if is_upgrade {
@@ -2040,6 +2075,100 @@ impl Engine {
         }
     }
 
+    fn analyze_enemy_builds(&self, builds: &[EnemyBuildContext]) -> EnemyBuildSummary {
+        let mut summary = EnemyBuildSummary {
+            known: builds.len() as i64,
+            ..Default::default()
+        };
+        for build in builds {
+            let mut healing = false;
+            let mut shield = false;
+            for id in &build.items {
+                let Some(item) = self.all_items_by_id.get(id) else {
+                    continue;
+                };
+                let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
+                summary.armor += stat("FlatArmorMod");
+                summary.magic_resist += stat("FlatSpellBlockMod");
+                summary.health += stat("FlatHPPoolMod");
+                summary.crit += stat("FlatCritChanceMod");
+                summary.attack_speed += stat("PercentAttackSpeedMod");
+                let name = compact_name(&item.name);
+                if [
+                    "bloodthirster",
+                    "bladeoftheruinedking",
+                    "ravenoushydra",
+                    "spiritvisage",
+                    "sunderedsky",
+                    "deathsdance",
+                    "riftmaker",
+                    "hextechgunblade",
+                    "immortalshieldbow",
+                ]
+                .iter()
+                .any(|needle| name.contains(needle))
+                {
+                    healing = true;
+                }
+                if [
+                    "steraksgage",
+                    "mawofmalmortius",
+                    "immortalshieldbow",
+                    "locket",
+                    "knightsvow",
+                    "fimbulwinter",
+                ]
+                .iter()
+                .any(|needle| name.contains(needle))
+                {
+                    shield = true;
+                }
+            }
+            if healing && !build.champion.is_empty() {
+                summary.healing.push(build.champion.clone());
+            }
+            if shield && !build.champion.is_empty() {
+                summary.shields.push(build.champion.clone());
+            }
+        }
+        summary.healing.sort();
+        summary.healing.dedup();
+        summary.shields.sort();
+        summary.shields.dedup();
+        if summary.armor >= 180.0 {
+            summary.notes.push(format!(
+                "Builds rivales con mucha armadura ({:.0})",
+                summary.armor
+            ));
+        }
+        if summary.magic_resist >= 150.0 {
+            summary.notes.push(format!(
+                "Builds rivales con mucha resistencia mágica ({:.0})",
+                summary.magic_resist
+            ));
+        }
+        if summary.health >= 2_000.0 {
+            summary.notes.push(format!(
+                "Builds rivales con mucha vida ({:.0})",
+                summary.health
+            ));
+        }
+        if summary.crit >= 0.5 || summary.attack_speed >= 0.8 {
+            summary
+                .notes
+                .push("Builds rivales de autoataque/crítico".to_string());
+        }
+        if !summary.healing.is_empty() {
+            summary
+                .notes
+                .push("Curación por objetos en el equipo rival".to_string());
+        }
+        if !summary.shields.is_empty() {
+            summary.notes.push("Escudos en el equipo rival".to_string());
+        }
+        summary
+    }
+
     fn analyze_game(
         &self,
         context: &GameContext,
@@ -2112,12 +2241,14 @@ impl Engine {
             "late"
         };
 
+        let enemy_build = self.analyze_enemy_builds(&context.enemy_builds);
         let mut healers = Vec::new();
         for champion in enemies.iter().flatten() {
             if is_healing_champion(&champion.name) {
                 healers.push(champion.name.clone());
             }
         }
+        healers.extend(enemy_build.healing.iter().cloned());
         healers.sort();
         healers.dedup();
         healers.truncate(4);
@@ -2173,6 +2304,7 @@ impl Engine {
         if !enemy_fed.is_empty() {
             notes.push(format!("Rivales fuertes: {}", enemy_fed.join(", ")));
         }
+        notes.extend(enemy_build.notes.iter().cloned());
 
         Some(GameAnalysis {
             state,
@@ -2197,6 +2329,7 @@ impl Engine {
             kill_participation,
             enemy_fed,
             healers,
+            enemy_build,
             notes,
             mode,
         })
@@ -2208,6 +2341,7 @@ impl Engine {
         analysis: &GameAnalysis,
         profile: &Value,
         owned: &[&Item],
+        champ: &Champion,
     ) -> (f64, String) {
         let tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
         let stat = |key: &str| item.stats.get(key).copied().unwrap_or(0.0);
@@ -2242,7 +2376,7 @@ impl Engine {
         }
 
         if !analysis.healers.is_empty()
-            && is_grievous_item(item)
+            && is_grievous_for_champion(item, champ)
             && !owned.iter().any(|owned| is_grievous_item(owned))
         {
             score += 0.35;
@@ -2264,7 +2398,57 @@ impl Engine {
             score += 0.04;
         }
 
-        (clamp(score, -0.1, 0.55), notes.join(" · "))
+        let armor_pen = tags.contains("ArmorPenetration")
+            || stat("PercentArmorPenetrationMod") > 0.0
+            || stat("FlatArmorPenetrationMod") > 0.0;
+        let magic_pen = tags.contains("MagicPenetration")
+            || stat("PercentMagicPenetrationMod") > 0.0
+            || stat("FlatMagicPenetrationMod") > 0.0;
+        let name = compact_name(&item.name);
+        let hp_shred = [
+            "liandry",
+            "demonic",
+            "bladeoftheruinedking",
+            "kraken",
+            "blackcleaver",
+        ]
+        .iter()
+        .any(|needle| name.contains(needle));
+        let shield_reduction = name.contains("serpentsfang");
+        let enemy_build = &analysis.enemy_build;
+        if enemy_build.armor >= 150.0
+            && armor_pen
+            && (champ.damage == "AD" || champ.tags.iter().any(|tag| tag == "Marksman"))
+        {
+            score += 0.12;
+            notes.push("Penetración de armadura contra las builds rivales");
+        }
+        if enemy_build.magic_resist >= 120.0
+            && magic_pen
+            && (champ.damage == "AP" || champ.tags.iter().any(|tag| tag == "Mage"))
+        {
+            score += 0.12;
+            notes.push("Penetración mágica contra las builds rivales");
+        }
+        if enemy_build.health >= 1_500.0 && hp_shred {
+            score += 0.10;
+            notes.push("Daño porcentual contra la vida rival");
+        }
+        let ad_champion = champ.damage == "AD"
+            || champ
+                .tags
+                .iter()
+                .any(|tag| matches!(tag.as_str(), "Marksman" | "Assassin" | "Fighter"));
+        if !enemy_build.shields.is_empty() && shield_reduction && ad_champion {
+            score += 0.15;
+            notes.push("Reducción de escudos contra el equipo rival");
+        }
+        if (enemy_build.crit >= 0.4 || enemy_build.attack_speed >= 0.6) && armor {
+            score += 0.08;
+            notes.push("Armadura contra el daño de autoataque rival");
+        }
+
+        (clamp(score, -0.1, 0.6), notes.join(" · "))
     }
 
     fn defensive_fit(&self, item: &Item, profile: &Value) -> (f64, String) {
@@ -2500,6 +2684,8 @@ impl Engine {
             "priorGames": prior_n,
             "winrate": round(candidate.winrate, 4),
             "modelProb": round(candidate.model_prob, 5),
+            "contextFit": round(candidate.context_fit, 3),
+            "contextNote": candidate.context_note,
             "components": components,
             "reasons": reasons,
             "slot": display_slot,
@@ -2518,6 +2704,215 @@ impl Engine {
         } else {
             candidate.item.gold
         }
+    }
+
+    fn boots_score(
+        &self,
+        item: &Item,
+        champ: &Champion,
+        profile: &Value,
+        role: &str,
+    ) -> (f64, Vec<String>) {
+        let tags: HashSet<&str> = champ.tags.iter().map(String::as_str).collect();
+        let item_tags: HashSet<&str> = item.tags.iter().map(String::as_str).collect();
+        let tank = tags.contains("Tank");
+        let fighter = tags.contains("Fighter");
+        let support = tags.contains("Support");
+        let ap = !tank && (champ.damage == "AP" || tags.contains("Mage"));
+        let ad = !tank
+            && !ap
+            && (champ.damage == "AD"
+                || tags.contains("Marksman")
+                || tags.contains("Assassin")
+                || fighter);
+        let physical = profile
+            .get("physical")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.5);
+        let magic = profile.get("magic").and_then(Value::as_f64).unwrap_or(0.5);
+        let mut score = 50.0;
+        let mut reasons = Vec::new();
+        match item.id {
+            3020 => {
+                if tank {
+                    score = 55.0;
+                } else if ap {
+                    score = 90.0;
+                    reasons.push("Penetración mágica para tu daño AP".to_string());
+                } else if support {
+                    score = 70.0;
+                } else {
+                    score = 54.0;
+                }
+            }
+            3006 => {
+                if ad {
+                    score = 90.0;
+                    reasons.push("Velocidad de ataque para tu daño AD".to_string());
+                } else {
+                    score = 52.0;
+                }
+            }
+            3047 => {
+                if physical >= 0.55 {
+                    score = 88.0;
+                    reasons.push(format!(
+                        "Armadura contra una composición {:.0}% física",
+                        physical * 100.0
+                    ));
+                } else if tank {
+                    score = 78.0;
+                } else {
+                    score = 55.0;
+                }
+            }
+            3111 => {
+                if magic >= 0.55 {
+                    score = 88.0;
+                    reasons.push(format!(
+                        "Resistencia mágica contra una composición {:.0}% mágica",
+                        magic * 100.0
+                    ));
+                } else if tank {
+                    score = 76.0;
+                } else {
+                    score = 54.0;
+                }
+            }
+            3158 => {
+                if support {
+                    score = 92.0;
+                } else if ap {
+                    score = 74.0;
+                } else if tank {
+                    score = 60.0;
+                } else {
+                    score = 64.0;
+                }
+                reasons.push("Aceleración de habilidades para tu rol".to_string());
+            }
+            3009 => {
+                score = 60.0;
+                reasons.push("Velocidad de movimiento para recomponer".to_string());
+            }
+            _ => {
+                if item_tags.contains("Boots") {
+                    score = 55.0;
+                }
+            }
+        }
+        let prior = self.item_prior(&champ.name, role, item.id);
+        if prior.n >= 20 {
+            let winrate = (prior.wins as f64 + 12.5) / (prior.n as f64 + 25.0);
+            let edge = winrate - 0.5;
+            score += (edge * 24.0).clamp(-4.0, 4.0);
+            if edge > 0.005 {
+                reasons.push(format!(
+                    "Winrate {} en {} con estas botas",
+                    pct(winrate, 1),
+                    role
+                ));
+            }
+        }
+        if reasons.is_empty() {
+            reasons.push("Botas estándar para tu rol".to_string());
+        }
+        (clamp(score, 1.0, 96.0), reasons)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn boots_recommendation(
+        &self,
+        champ: &Champion,
+        role: &str,
+        mode: GameMode,
+        slot: usize,
+        minute: f64,
+        gold: i64,
+        owned: &[&Item],
+        profile: &Value,
+    ) -> Value {
+        let owned_boots = owned.iter().find(|item| item.boots).copied();
+        if let Some(owned) = owned_boots {
+            let upgrade_id = if mode == GameMode::Classic
+                && role == "MID"
+                && role_quest_done(mode, role, minute)
+            {
+                tier3_boots_upgrade(owned.id)
+            } else {
+                None
+            };
+            if let Some(upgrade_id) = upgrade_id {
+                if let Some(upgrade) = self
+                    .items
+                    .iter()
+                    .chain(self.extra_items.iter())
+                    .find(|item| item.id == upgrade_id)
+                {
+                    return json!({
+                        "id": upgrade.id,
+                        "name": upgrade.name,
+                        "icon": upgrade.icon,
+                        "gold": 0,
+                        "price": 0,
+                        "owned": false,
+                        "upgrade": true,
+                        "affordable": true,
+                        "missingGold": 0,
+                        "score": 96.0,
+                        "reasons": ["Mejora gratuita de botas por la role quest"],
+                    });
+                }
+            }
+            return json!({
+                "id": owned.id,
+                "name": owned.name,
+                "icon": owned.icon,
+                "gold": owned.gold,
+                "price": 0,
+                "owned": true,
+                "upgrade": false,
+                "affordable": false,
+                "missingGold": 0,
+                "score": 90.0,
+                "reasons": ["Ya llevas botas"],
+            });
+        }
+
+        let mut best: Option<(&Item, f64, Vec<String>)> = None;
+        for item in self.items.iter().chain(self.extra_items.iter()) {
+            if !item.boots
+                || TIER3_BOOTS.iter().any(|(_, tier3)| *tier3 == item.id)
+                || !self.mode_item_legal(item, mode, slot)
+                || !role_item_legal(item, role, mode, owned)
+            {
+                continue;
+            }
+            let (score, reasons) = self.boots_score(item, champ, profile, role);
+            if best
+                .as_ref()
+                .is_none_or(|(_, best_score, _)| score > *best_score)
+            {
+                best = Some((item, score, reasons));
+            }
+        }
+        let Some((item, score, reasons)) = best else {
+            return Value::Null;
+        };
+        let price = self.mode_price(item, mode, slot);
+        json!({
+            "id": item.id,
+            "name": item.name,
+            "icon": item.icon,
+            "gold": price,
+            "price": price,
+            "owned": false,
+            "upgrade": false,
+            "affordable": gold >= price,
+            "missingGold": (price - gold).max(0),
+            "score": round(score, 1),
+            "reasons": reasons,
+        })
     }
 
     fn format_legendary_item(
@@ -2666,6 +3061,16 @@ impl Engine {
         };
         let regular_count = owned_items.iter().filter(|item| !item.boots).count();
         let profile = self.enemy_profile(&enemy_team);
+        let boots_recommendation = self.boots_recommendation(
+            champ,
+            &role,
+            mode,
+            slot,
+            minute,
+            gold,
+            &owned_items,
+            &profile,
+        );
         let analysis = req
             .game
             .as_ref()
@@ -2706,6 +3111,8 @@ impl Engine {
                 "slotCap": capacity,
                 "fullInventory": true,
                 "targetStatus": target_status,
+                "bootsRecommendation": boots_recommendation,
+                "situationalItems": [],
                 "enemyProfile": profile,
                 "items": [],
                 "buildPlan": [],
@@ -2834,6 +3241,36 @@ impl Engine {
                 .collect();
             (next, options)
         };
+        let next_candidate_id = next_candidate.map(|candidate| candidate.item.id);
+        let mut situational: Vec<&ItemCandidate> = candidates
+            .iter()
+            .filter(|candidate| {
+                !candidate.item.boots
+                    && candidate.context_fit >= 0.05
+                    && Some(candidate.item.id) != next_candidate_id
+                    && (candidate.context_note.contains("rival")
+                        || candidate.context_note.contains("vida rival")
+                        || candidate.context_note.contains("escudos")
+                        || candidate.context_note.contains("autoataque"))
+            })
+            .collect();
+        situational.sort_by(|left, right| {
+            right
+                .context_fit
+                .partial_cmp(&left.context_fit)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    right
+                        .score
+                        .partial_cmp(&left.score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+        });
+        situational.truncate(2);
+        let situational_items: Vec<Value> = situational
+            .iter()
+            .map(|candidate| self.format_item(candidate, gold, slot, &role, mode))
+            .collect();
 
         let mut build_plan = Vec::new();
         if req.simulate {
@@ -2972,6 +3409,8 @@ impl Engine {
             "nextLegendary": next_legendary.unwrap_or(Value::Null),
             "legendaryOptions": legendary_options,
             "targetStatus": target_status,
+            "bootsRecommendation": boots_recommendation,
+            "situationalItems": situational_items,
             "buildPlan": build_plan,
             "powerSpike": {
                 "slot": (slot + 1).min(capacity),

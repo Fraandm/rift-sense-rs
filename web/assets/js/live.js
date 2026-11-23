@@ -845,6 +845,92 @@ function renderItemCard(item, isNext = false) {
   </article>`;
 }
 
+function renderBoots(build) {
+  const host = $("#live-boots");
+  if (!host) return;
+  const boots = build?.bootsRecommendation;
+  if (!live.champion || !boots) {
+    host.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+  const cap = maxSlots();
+  const owned = boots.owned === true;
+  const upgrade = boots.upgrade === true;
+  const full = live.owned.length >= cap;
+  const canBuy = !owned && boots.affordable && (upgrade || !full);
+  const label = upgrade ? "Mejorar" : "Comprar";
+  const action = owned
+    ? "Ya las llevas"
+    : full && !upgrade
+      ? "Sin hueco"
+      : boots.affordable
+        ? label
+        : `Faltan ${num(boots.missingGold)}`;
+  const reasons = (boots.reasons || []).slice(0, 2).map((reason) => esc(reason)).join(" · ");
+  host.innerHTML = `<div class="boots-card ${owned ? "owned" : ""}">
+    <div class="boots-copy">
+      <span class="eyebrow">Botas${owned ? " actuales" : " recomendadas"}</span>
+      <div class="boots-main">
+        ${avatarHTML(boots, "sm", "item")}
+        <div>
+          <strong>${esc(boots.name)}</strong>
+          <p>${reasons || (owned ? "Ya las llevas equipadas" : "Siguiente compra de botas")}</p>
+        </div>
+        <span class="boots-price">${owned ? "—" : `${num(boots.gold)} oro`}</span>
+        ${
+          owned
+            ? ""
+            : `<button type="button" class="btn tiny" data-buy="${boots.id}" data-buy-gold="${
+                boots.gold
+              }" data-buy-name="${esc(boots.name)}" ${canBuy ? "" : "disabled"}>${action}</button>`
+        }
+      </div>
+    </div>
+  </div>`;
+  host.classList.remove("hidden");
+}
+
+function renderSituational(build) {
+  const host = $("#live-situational");
+  if (!host) return;
+  const items = build?.situationalItems || [];
+  if (!live.champion || !items.length) {
+    host.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+  const cap = maxSlots();
+  const full = live.owned.length >= cap;
+  host.innerHTML = `<div class="situational-card">
+    <div class="situational-head">
+      <span class="eyebrow">Según las builds rivales</span>
+      <span class="badge gold">Ajuste</span>
+    </div>
+    <div class="situational-list">${items
+      .slice(0, 2)
+      .map((item) => {
+        const ready = item.affordable && !full;
+        const reason = item.contextNote || (item.reasons || [])[0] || "Compra situacional";
+        return `<div class="situational-item">
+          ${avatarHTML(item, "sm", "item")}
+          <div class="situational-copy">
+            <strong>${esc(item.name)}</strong>
+            <p>${esc(reason)}</p>
+          </div>
+          <span class="situational-price">${num(item.gold)} oro</span>
+          <button type="button" class="btn tiny" data-buy="${item.id}" data-buy-gold="${
+            item.gold
+          }" data-buy-name="${esc(item.name)}" ${ready ? "" : "disabled"}>${
+            full ? "Sin hueco" : item.affordable ? "Comprar" : `Faltan ${num(item.missingGold)}`
+          }</button>
+        </div>`;
+      })
+      .join("")}</div>
+  </div>`;
+  host.classList.remove("hidden");
+}
+
 function renderItems(build) {
   const host = $("#live-items");
   const subtitle = $("#live-reco-subtitle");
@@ -853,6 +939,8 @@ function renderItems(build) {
   if (!host) return;
   setModeBadge(badge, build?.mode);
   renderLegendary(build);
+  renderBoots(build);
+  renderSituational(build);
 
   if (!live.champion) {
     host.innerHTML = emptyState("i-brain", "Elige tu campeón", "RiftSense necesita el campeón para buscar builds con contexto.");
@@ -1285,6 +1373,27 @@ function renderNotes(build, draft) {
       profile.label === "Mixta" ? "de daño mixto" : `principalmente ${profile.label}`
     } (${pct(profile.physical, 0)} físico / ${pct(profile.magic, 0)} mágico).</div>`);
   }
+  const enemyBuild = build?.gameAnalysis?.enemyBuild;
+  if (enemyBuild?.known) {
+    const bits = [];
+    if (enemyBuild.armor >= 150) bits.push(`armadura ${num(enemyBuild.armor)}`);
+    if (enemyBuild.magicResist >= 120) bits.push(`RM ${num(enemyBuild.magicResist)}`);
+    if (enemyBuild.health >= 1500) bits.push(`vida ${num(enemyBuild.health)}`);
+    if (enemyBuild.crit >= 0.4 || enemyBuild.attackSpeed >= 0.6) {
+      bits.push("autoataque/crítico");
+    }
+    if (enemyBuild.healing?.length) {
+      bits.push(`curación (${enemyBuild.healing.slice(0, 3).join(", ")})`);
+    }
+    if (enemyBuild.shields?.length) {
+      bits.push(`escudos (${enemyBuild.shields.slice(0, 3).join(", ")})`);
+    }
+    if (bits.length) {
+      rows.push(`<div class="note-box"><strong>Builds rivales</strong>${bits
+        .map((bit) => esc(bit))
+        .join(" · ")}. Se usa para ajustar penetración, antiheal y defensas.</div>`);
+    }
+  }
 
   if (classic && draft) {
     rows.push(`<div class="note-box ${draft.complete ? "good" : "warn"}"><strong>Draft ${
@@ -1588,6 +1697,14 @@ export function init() {
     buyFromButton(event.target.closest("[data-buy]"));
   });
 
+  $("#live-boots")?.addEventListener("click", (event) => {
+    buyFromButton(event.target.closest("[data-buy]"));
+  });
+
+  $("#live-situational")?.addEventListener("click", (event) => {
+    buyFromButton(event.target.closest("[data-buy]"));
+  });
+
   $("#live-mobile-buy")?.addEventListener("click", (event) => {
     buyFromButton(event.target.closest("[data-buy]"));
   });
@@ -1662,6 +1779,7 @@ export function init() {
       teamLevel: arena ? 0 : 9.6,
       enemyLevel: arena ? 0 : 9.1,
       enemyFed: arena ? ["Aatrox", "Kai'Sa"] : ["Vi"],
+      enemyBuilds: [],
       gameMode: arena ? "CHERRY" : mode === "mayhem" ? "KIWI" : aram ? "ARAM" : "CLASSIC",
       mapName: arena ? "Map30" : aram ? "Map12" : "Map11",
       queueId: arena ? 1700 : mode === "mayhem" ? 2400 : aram ? 450 : 420,
@@ -1714,6 +1832,7 @@ export function init() {
       teamLevel: 0,
       enemyLevel: 0,
       enemyFed: [],
+      enemyBuilds: [],
       gameMode: "",
       mapName: "",
       queueId: null,
@@ -1836,6 +1955,7 @@ export async function applyClientState(mapped) {
     teamLevel: Number(mapped.teamLevel) || 0,
     enemyLevel: Number(mapped.enemyLevel) || 0,
     enemyFed: Array.isArray(mapped.enemyFed) ? mapped.enemyFed.filter(Boolean) : [],
+    enemyBuilds: Array.isArray(mapped.enemyBuilds) ? mapped.enemyBuilds : [],
     gameMode: mapped.gameMode || "",
     mapName: mapped.mapName || "",
     queueId: mapped.queueId ?? null,
