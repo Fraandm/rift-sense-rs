@@ -53,7 +53,11 @@ variaciones de contexto:
 - si el objeto completo no entra en oro, se sugiere el componente asequible;
 - cuando el inventario se llena de componentes, la tarjeta **Objetivo
   legendario** fija el siguiente objeto completo, calcula el coste de mejora
-  reutilizando lo que ya llevas y muestra dos alternativas.
+  reutilizando lo que ya llevas y muestra dos alternativas;
+- la **confianza** de la recomendación combina modelo, rivales identificados,
+  contexto de partida, muestra histórica y claridad frente a la alternativa.
+  En ARAM se muestra como datos de Grieta adaptados y una build completa no
+  aparece como recomendación de baja confianza.
 
 Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni

@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.2.1
+
+Confianza de la recomendación revisada en ARAM.
+
+### Build en vivo
+
+- La confianza ya no se degrada cuando la build está completa: se muestra
+  **Build completa** en lugar de un porcentaje bajo sin siguiente objeto.
+- Se reconoce el modelo aunque la respuesta use `recommendationMode`, no solo
+  `mode: model`.
+- La muestra se calcula con el mejor dato de los tres primeros candidatos y de
+  la siguiente compra, no solo con el primer objeto.
+- Se añade la claridad de la recomendación (diferencia con la segunda opción).
+- La penalización de ARAM es menor y se explica como **datos de Grieta
+  adaptados**, en lugar de tratarlo como un modo sin datos.
+- Los componentes se consideran material de mejora solo si forman parte real
+  de un legendario legal; Doran's o botas ya no impiden marcar la build como
+  completa.
+- Con contexto completo (modelo, 5 rivales, partida en vivo y muestra amplia),
+  la confianza de ARAM sube a **Alta** en lugar de quedarse en 44%.
+
+### Instalador
+
+- `RiftSense-Setup-1.2.1.exe`, 27.525.332 bytes, SHA-256
+  `9bbe7e61af51ae625a1a9ac79ea7c258510f53bb48e462021523ee796d946d22`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.2.1`, health `ok` y LCU
+  conectado.
+
 ## 1.2.0
 
 Objetivo legendario fijo en la build en vivo.

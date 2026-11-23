@@ -174,40 +174,93 @@ function supportStepAllowed(id) {
 }
 
 function confidenceFor(build) {
+  if (!live.champion) {
+    return { score: 0.1, label: "Baja", tone: "bad", reasons: ["Sin campeón seleccionado"] };
+  }
+  if (build?.mode === "complete" && !build?.nextLegendary) {
+    return {
+      score: 0.92,
+      label: "Alta",
+      tone: "teal",
+      reasons: ["Build completa: no hay siguiente objeto que recomendar"],
+    };
+  }
+
   let score = 0.38;
   const reasons = [];
-  if (build?.mode === "model") {
+  const hasModel =
+    build?.mode === "model" || build?.recommendationMode === "model_first";
+  if (hasModel) {
     score += 0.16;
-    reasons.push("modelo ONNX disponible");
+    reasons.push("Modelo BuildNet disponible");
   } else {
-    reasons.push("sin modelo: se usan priors");
+    reasons.push("Sin modelo ONNX: se usan priors");
   }
+
   const known = Number(build?.enemyProfile?.known) || 0;
   if (known >= 5) {
     score += 0.1;
-    reasons.push(`${known} rivales identificados`);
+    reasons.push("5 rivales identificados");
   } else if (known > 0) {
-    score += 0.04;
-    reasons.push(`solo ${known} rivales identificados`);
+    score += 0.05;
+    reasons.push(`Solo ${known} rivales identificados`);
+  } else {
+    reasons.push("Faltan rivales: perfil de daño aproximado");
   }
+
   if (build?.gameAnalysis) {
-    score += 0.1;
-    reasons.push("contexto de partida en vivo");
+    score += 0.09;
+    reasons.push("Contexto de partida en vivo");
+  } else {
+    reasons.push("Sin contexto de partida en vivo");
   }
-  const prior = Number(build?.items?.[0]?.priorGames) || 0;
+
+  const candidates = build?.items || [];
+  const prior = Math.max(
+    ...candidates.slice(0, 3).map((item) => Number(item.priorGames) || 0),
+    Number(build?.nextPurchase?.priorGames) || 0
+  );
   if (prior >= 50) {
-    score += 0.12;
-    reasons.push("muestra amplia para el objeto principal");
+    score += 0.09;
+    reasons.push("Muestra amplia para los objetos principales");
   } else if (prior >= 10) {
+    score += 0.05;
+    reasons.push("Muestra moderada para los objetos principales");
+  } else {
+    reasons.push("Muestra pequeña para los objetos principales");
+  }
+
+  const top = candidates[0] || build?.nextPurchase || null;
+  if (top?.replacement) {
     score += 0.06;
-    reasons.push("muestra moderada para el objeto principal");
+    reasons.push("Mejora gratuita de role quest");
   }
-  if (build?.gameMode && build.gameMode !== "classic") {
-    score -= 0.08;
-    reasons.push("modo con datos específicos limitados");
+
+  const topScore = Number(candidates[0]?.score) || 0;
+  const secondScore = Number(candidates[1]?.score) || 0;
+  const margin = topScore - secondScore;
+  if (margin >= 10) {
+    score += 0.04;
+    reasons.push("Recomendación clara frente a la alternativa");
+  } else if (margin >= 5) {
+    score += 0.02;
+    reasons.push("Recomendación moderadamente clara");
+  } else if (candidates.length > 1) {
+    reasons.push("Alternativas muy igualadas");
   }
-  if (!live.champion) score = 0.1;
-  score = Math.max(0.1, Math.min(0.92, score));
+
+  const modeKey = String(build?.gameMode || live.mode || "classic").toLowerCase();
+  if (modeKey !== "classic") {
+    if (modeKey === "aram") {
+      score -= 0.03;
+      reasons.push("ARAM: objetos legales con datos de Grieta adaptados");
+    } else {
+      score -= 0.05;
+      reasons.push("Modo con datos específicos limitados");
+    }
+  }
+
+  score = Math.max(0.15, Math.min(0.92, score));
   const label = score >= 0.72 ? "Alta" : score >= 0.5 ? "Media" : "Baja";
   const tone = score >= 0.72 ? "teal" : score >= 0.5 ? "gold" : "bad";
   return { score, label, tone, reasons };
@@ -1001,6 +1054,11 @@ function renderVerdict(draft, build) {
   const mode = build?.gameMode || live.mode || "classic";
   const classic = mode === "classic";
   const info = MODE_INFO[mode] || MODE_INFO.classic;
+  const confidence = confidenceFor(build);
+  const confidencePill =
+    build?.mode === "complete" && !build?.nextLegendary
+      ? `<span class="pill teal">Build completa</span>`
+      : `<span class="pill ${confidence.tone}">Confianza ${confidence.label}</span>`;
   $("#live-gauge")?.classList.toggle("hidden", !classic);
 
   if (!champ) {
@@ -1026,7 +1084,7 @@ function renderVerdict(draft, build) {
       pills.innerHTML = [
         `<span class="pill gold">${esc(build?.modeLabel || modeLabel(mode))}</span>`,
         `<span class="pill">${live.owned.length}/${Number(build?.slotCap) || maxSlots()} objetos</span>`,
-        `<span class="pill ${confidenceFor(build).tone}">Confianza ${confidenceFor(build).label}</span>`,
+        confidencePill,
         analysis
           ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
               analysis.label
@@ -1062,7 +1120,7 @@ function renderVerdict(draft, build) {
     pills.innerHTML = [
       `<span class="pill">${esc(roleLabel(live.role))}</span>`,
       `<span class="pill gold">${live.owned.length}/${Number(build?.slotCap) || maxSlots()} objetos</span>`,
-      `<span class="pill ${confidenceFor(build).tone}">Confianza ${confidenceFor(build).label}</span>`,
+      confidencePill,
       analysis
         ? `<span class="pill ${analysis.state === "ahead" ? "teal" : analysis.state === "behind" ? "bad" : ""}">${esc(
             analysis.label
@@ -1154,10 +1212,23 @@ function renderNotes(build, draft) {
       suggestion.name
     )} cuesta ${num(suggestion.gold)}. Es una sugerencia situacional para la curación enemiga; no sustituye la compra principal.</div>`);
   }
-  const confidence = confidenceFor(build);
-  rows.push(`<div class="note-box"><strong>Confianza de la recomendación: ${confidence.label} (${Math.round(
-    confidence.score * 100
-  )}%)</strong>${confidence.reasons.map((reason) => esc(reason)).join("<br>")}</div>`);
+  if (build?.mode === "complete" && !build?.nextLegendary) {
+    const cap = Number(build?.slotCap) || maxSlots();
+    rows.push(
+      `<div class="note-box good"><strong>Build completa</strong>${
+        live.mode === "arena"
+          ? "Ya tienes 6 objetos de Arena."
+          : cap === 7
+            ? "Ya tienes 6 objetos completos y las botas en la ranura de role quest."
+            : "Ya tienes 6 objetos. Reserva oro para el trinket y consumibles."
+      }</div>`
+    );
+  } else {
+    const confidence = confidenceFor(build);
+    rows.push(`<div class="note-box"><strong>Confianza de la recomendación: ${confidence.label} (${Math.round(
+      confidence.score * 100
+    )}%)</strong>${confidence.reasons.map((reason) => esc(reason)).join("<br>")}</div>`);
+  }
   if (build?.modeNotes?.length) {
     rows.push(`<div class="note-box mode-note"><strong>${esc(build.modeLabel || modeLabel(mode))}</strong>${build.modeNotes
       .map((note) => esc(note))

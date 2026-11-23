@@ -1389,9 +1389,27 @@ impl Engine {
             .unwrap_or_else(|| item.into.is_empty() && item.gold >= 2000)
     }
 
-    /// Componente que puede formar parte de un legendario.
-    fn is_upgrade_material(&self, item: &Item) -> bool {
-        !self.is_legendary_item(item) && !item.boots && !is_support_item(item.id)
+    /// Indica si alguno de los objetos actuales puede formar parte de un
+    /// legendario legal para este campeón, rol y modo.
+    fn has_legendary_upgrade(
+        &self,
+        owned: &[&Item],
+        mode: GameMode,
+        role: &str,
+        slot: usize,
+    ) -> bool {
+        let eligible = |item: &Item| {
+            self.is_legendary_item(item)
+                && self.mode_item_legal(item, mode, slot)
+                && role_item_legal(item, role, mode, owned)
+                && !recipe_progress(item, owned, &self.all_items_by_id)
+                    .owned
+                    .is_empty()
+        };
+        if self.items.iter().any(eligible) {
+            return true;
+        }
+        mode == GameMode::Mayhem && self.extra_items.iter().any(eligible)
     }
 
     fn mode_item_legal(&self, item: &Item, mode: GameMode, slot: usize) -> bool {
@@ -2614,9 +2632,7 @@ impl Engine {
         let bot_build_full =
             mode == GameMode::Classic && role == "BOT" && capacity > 6 && regular_count >= 6;
         let full_inventory = slot >= capacity || bot_build_full;
-        let has_upgrade_material = owned_items
-            .iter()
-            .any(|item| self.is_upgrade_material(item));
+        let has_upgrade_material = self.has_legendary_upgrade(&owned_items, mode, &role, slot);
         // Con el inventario lleno de componentes no damos la build por
         // terminada: buscamos un legendario que reutilice esos componentes.
         let full_upgrades = full_inventory && mode.uses_components() && has_upgrade_material;
