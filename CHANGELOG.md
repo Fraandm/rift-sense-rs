@@ -56,6 +56,14 @@ cada recomendación y menos sugerencias absurdas.
   Arena 173). Ningún objeto fuera del mapa o sin compras reales en su modo, ni
   placeholders, ni duplicados.
 - 48 tests Rust; `cargo fmt`, `clippy -D warnings`.
+- Instalación local de 1.7.0: versión 1.7.0, parche 16.23.1, health `ok` y el
+  actualizador responde que no hay versión nueva.
+
+### Instalador
+
+- `RiftSense-Setup-1.7.0.exe`, 27.873.667 bytes, SHA-256
+  `e5cad22ddce5ab1f6f8f33aba6ee78c74ab13c6a4cd2f13b9886d6ec2b527a3e`.
+- Sin firma Authenticode; SmartScreen puede avisar.
 
 ### Limitaciones conocidas
 
