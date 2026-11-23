@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RiftSense Overlay</title>
+    <link rel="stylesheet" href="/assets/css/overlay.css" />
+  </head>
+  <body>
+    <main class="overlay" id="overlay" aria-live="polite">
+      <section class="card" id="card">
+        <div class="art" id="art">
+          <img id="item-icon" alt="" />
+          <span class="pulse" id="pulse" aria-hidden="true"></span>
+        </div>
+        <div class="copy">
+          <div class="topline">
+            <span class="eyebrow" id="eyebrow">RIFTSENSE</span>
+            <span class="champ" id="champ"></span>
+          </div>
+          <strong class="item" id="item-name">Esperando partida</strong>
+          <span class="hint" id="hint">Se activa al entrar en partida</span>
+        </div>
+        <div class="gold">
+          <span>ORO</span>
+          <strong id="gold">—</strong>
+        </div>
+      </section>
+      <div class="extras hidden" id="extras">
+        <span class="chip" id="boots"></span>
+        <span class="chip warn" id="situational"></span>
+      </div>
+    </main>
+    <script type="module" src="/assets/js/overlay.js"></script>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 # Release validation
 
-This checklist is the minimum for a public 1.4.0 build. Automated checks are in
+This checklist is the minimum for a public 1.5.0 build. Automated checks are in
 `.github/workflows/ci.yml`; installer checks are in
 `scripts/validate-installer.ps1`.
 
@@ -13,12 +13,12 @@ cargo test --lib
 cargo build --bins
 
 .\scripts\validate-installer.ps1 `
-  -Installer .\dist\RiftSense-Setup-1.4.0.exe `
-  -ExpectedSha256 "76834d5623ffcb903e13e6960fd81b5e8627d9417f1ba38afa7eeab65a3aefc2" `
+  -Installer .\dist\RiftSense-Setup-1.5.0.exe `
+  -ExpectedSha256 "4c41b71b21cca871af44506e01cf47085d4233e5bc4305ea67c07541fc89ca29" `
   -AllowExistingInstall
 ```
 
-The 1.4.0 build is unsigned because no Authenticode certificate is configured;
+The 1.5.0 build is unsigned because no Authenticode certificate is configured;
 add `-RequireSignature` once a signed build is available. The installer validator
 checks SHA-256, Authenticode, silent install, version,
 local health endpoint and uninstall. Run it in a clean VM or Windows Sandbox:
@@ -50,6 +50,9 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Support item | World Atlas -> Runic Compass -> Bounty of Worlds -> final upgrade; support item occupies one normal slot. |
 | Mid boots | Tier 2 boots offered as a free tier 3 replacement after the role quest; no extra slot consumed. |
 | Jungle / Doran | Jungle pets only for jungle; Doran not offered to support with a support item. |
+| Overlay | With the setting enabled, a compact transparent window appears over League when it is foreground; it shows the next purchase, gold, boots and one situational item, hides on alt-tab and toggles with Ctrl+Shift+O and the tray item. |
+| Overlay input | The overlay is click-through and never takes focus; no game input, purchase or automation is sent. |
+| Overlay display | Works in borderless/windowed fullscreen; if the game uses exclusive fullscreen, the app documents that Windows may not compose normal windows above it. |
 | Responsive UI | 390/768/1440 px without horizontal scroll; sticky mobile buy bar; inventory remove buttons visible on touch. |
 | UI feedback | No CSP/console errors, toasts auto-dismiss and clear on tab change, accessible names and focus visible. |
 | ARAM | Map 12/35/36, no illegal items, no-recall advice, CS as reference. |
@@ -60,7 +63,7 @@ Run at least 10 matches per mode, on Windows 10 or 11, with a clean install:
 | Game end | Live data stops, no stale recommendation, app remains usable. |
 | Fullscreen / borderless | App can be restored from tray and remains readable on a second monitor. |
 | Windows startup | Starts minimized, one instance, tray icon, settings persisted. |
-| Update | 1.3.0 -> 1.4.0, checksum, relaunch, settings preserved. |
+| Update | 1.4.0 -> 1.5.0, checksum, relaunch, settings preserved. |
 | Uninstall | Binaries removed, startup entry removed, user settings/log policy clear. |
 
 ## Acceptance criteria

@@ -322,6 +322,7 @@ fn settings_payload(settings: &Settings) -> Value {
         "showAdvanced": settings.show_advanced,
         "startWithWindows": settings.start_with_windows,
         "minimizeToTray": settings.minimize_to_tray,
+        "overlayEnabled": settings.overlay_enabled,
         "startupSupported": crate::settings::startup_supported(),
         "version": crate::update::current_version(),
     })
@@ -342,6 +343,7 @@ struct SettingsPatch {
     show_advanced: Option<bool>,
     start_with_windows: Option<bool>,
     minimize_to_tray: Option<bool>,
+    overlay_enabled: Option<bool>,
 }
 
 async fn settings_update(
@@ -374,6 +376,9 @@ async fn settings_update(
     }
     if let Some(value) = patch.minimize_to_tray {
         next.minimize_to_tray = value;
+    }
+    if let Some(value) = patch.overlay_enabled {
+        next.overlay_enabled = value;
     }
 
     if let Err(error_value) = next.save(&state.paths) {
@@ -599,7 +604,7 @@ async fn static_asset(uri: Uri) -> Response {
         header::HeaderName::from_static("permissions-policy"),
         HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
     );
-    if path.starts_with("assets/") || path == "index.html" {
+    if path.starts_with("assets/") || path == "index.html" || path == "overlay.html" {
         headers.insert(
             header::CACHE_CONTROL,
             HeaderValue::from_static("no-store, must-revalidate"),

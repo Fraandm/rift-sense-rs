@@ -9,6 +9,7 @@ const DEFAULTS = Object.freeze({
   showAdvanced: false,
   startWithWindows: false,
   minimizeToTray: false,
+  overlayEnabled: true,
 });
 const ADVANCED_TABS = new Set(["model", "data"]);
 
@@ -22,6 +23,7 @@ function normalize(payload) {
     showAdvanced: Boolean(payload?.showAdvanced),
     startWithWindows: Boolean(payload?.startWithWindows),
     minimizeToTray: Boolean(payload?.minimizeToTray),
+    overlayEnabled: payload?.overlayEnabled !== false,
   };
 }
 
@@ -47,6 +49,7 @@ function apply() {
     ["showAdvanced", "#settings-advanced"],
     ["startWithWindows", "#settings-startup"],
     ["minimizeToTray", "#settings-tray"],
+    ["overlayEnabled", "#settings-overlay"],
   ]) {
     const input = $(selector);
     if (input && input.checked !== current[key]) input.checked = current[key];
@@ -107,6 +110,7 @@ async function update(patch) {
         showAdvanced: current.showAdvanced,
         startWithWindows: current.startWithWindows,
         minimizeToTray: current.minimizeToTray,
+        overlayEnabled: current.overlayEnabled,
       },
       { timeout: 15000 }
     );
@@ -163,6 +167,9 @@ function bind() {
   });
   $("#settings-tray")?.addEventListener("change", (event) => {
     update({ minimizeToTray: event.target.checked });
+  });
+  $("#settings-overlay")?.addEventListener("change", (event) => {
+    update({ overlayEnabled: event.target.checked });
   });
 }
 

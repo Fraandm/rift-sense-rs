@@ -8,9 +8,9 @@ use std::sync::mpsc;
 use std::sync::{Arc, RwLock as StdRwLock};
 use std::time::{Duration, Instant};
 use tao::{
-    dpi::LogicalSize,
+    dpi::{LogicalSize, PhysicalPosition},
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoopBuilder},
+    event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
     window::{Icon, Window, WindowBuilder},
 };
 use tokio::{net::TcpListener, sync::RwLock};
@@ -23,9 +23,15 @@ use wry::{PageLoadEvent, WebViewBuilder};
 enum UserEvent {
     Tray(TrayIconEvent),
     Menu(MenuEvent),
+    ToggleOverlay,
 }
 
 const WINDOW_TITLE: &str = "RiftSense — Analizador de draft y build";
+const OVERLAY_TITLE: &str = "RiftSense Overlay";
+const OVERLAY_WIDTH: f64 = 392.0;
+const OVERLAY_HEIGHT: f64 = 132.0;
+const OVERLAY_MARGIN: f64 = 18.0;
+const OVERLAY_TOP: f64 = 64.0;
 
 #[cfg(windows)]
 struct InstanceGuard(windows_sys::Win32::Foundation::HANDLE);
@@ -45,7 +51,12 @@ fn single_instance() -> Result<Option<InstanceGuard>> {
     use windows_sys::Win32::Foundation::{ERROR_ALREADY_EXISTS, GetLastError};
     use windows_sys::Win32::System::Threading::CreateMutexW;
 
-    let name: Vec<u16> = std::ffi::OsStr::new("Local\\RiftSenseDesktop")
+    #[cfg(debug_assertions)]
+    let instance_name = std::env::var("RIFTSENSE_DEV_MUTEX")
+        .unwrap_or_else(|_| "Local\\RiftSenseDesktop".to_string());
+    #[cfg(not(debug_assertions))]
+    let instance_name = "Local\\RiftSenseDesktop".to_string();
+    let name: Vec<u16> = std::ffi::OsStr::new(&instance_name)
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
@@ -155,6 +166,156 @@ fn minimize_to_tray(settings: &SettingsHandle) -> bool {
         .unwrap_or(false)
 }
 
+fn overlay_enabled(settings: &SettingsHandle) -> bool {
+    settings
+        .read()
+        .map(|settings| settings.overlay_enabled)
+        .unwrap_or(false)
+}
+
+fn toggle_overlay_setting(settings: &SettingsHandle, paths: &Paths) {
+    let next = match settings.write() {
+        Ok(mut settings) => {
+            settings.overlay_enabled = !settings.overlay_enabled;
+            settings.clone()
+        }
+        Err(_) => return,
+    };
+    if let Err(error) = next.save(paths) {
+        eprintln!("No se pudo guardar el estado del overlay: {error}");
+    }
+}
+
+fn show_overlay(window: &Window) {
+    window.set_visible(true);
+    window.set_always_on_top(true);
+    apply_overlay_styles(window);
+    #[cfg(windows)]
+    {
+        use tao::platform::windows::WindowExtWindows;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SetWindowPos,
+        };
+        let hwnd = window.hwnd() as windows_sys::Win32::Foundation::HWND;
+        unsafe {
+            SetWindowPos(
+                hwnd,
+                HWND_TOPMOST as windows_sys::Win32::Foundation::HWND,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            );
+        }
+    }
+}
+
+#[cfg(windows)]
+fn apply_overlay_styles(window: &Window) {
+    use tao::platform::windows::WindowExtWindows;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GWL_EXSTYLE, GWL_STYLE, GetWindowLongPtrW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+        SWP_NOSIZE, SetWindowLongPtrW, SetWindowPos, WS_CAPTION, WS_EX_ACCEPTFILES,
+        WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
+        WS_EX_WINDOWEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
+    };
+
+    let hwnd = window.hwnd() as windows_sys::Win32::Foundation::HWND;
+    unsafe {
+        let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+        let chrome =
+            (WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU) as isize;
+        SetWindowLongPtrW(hwnd, GWL_STYLE, (style & !chrome) | WS_POPUP as isize);
+
+        let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let ex_chrome =
+            (WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_APPWINDOW | WS_EX_ACCEPTFILES) as isize;
+        let overlay_style = (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT) as isize;
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex_style & !ex_chrome) | overlay_style);
+
+        SetWindowPos(
+            hwnd,
+            std::ptr::null_mut(),
+            0,
+            0,
+            0,
+            0,
+            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+    }
+    let _ = window.set_ignore_cursor_events(true);
+}
+
+#[cfg(not(windows))]
+fn apply_overlay_styles(_window: &Window) {}
+
+#[cfg(windows)]
+fn league_in_foreground() -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+    };
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetForegroundWindow, GetWindowThreadProcessId,
+    };
+
+    let foreground = unsafe { GetForegroundWindow() };
+    if foreground.is_null() {
+        return false;
+    }
+    let mut process_id = 0u32;
+    unsafe {
+        GetWindowThreadProcessId(foreground, &mut process_id);
+    }
+    if process_id == 0 {
+        return false;
+    }
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, process_id) };
+    if process.is_null() {
+        return false;
+    }
+    let mut buffer = [0u16; 1024];
+    let mut size = buffer.len() as u32;
+    let ok = unsafe { QueryFullProcessImageNameW(process, 0, buffer.as_mut_ptr(), &mut size) };
+    unsafe {
+        CloseHandle(process);
+    }
+    if ok == 0 {
+        return false;
+    }
+    let path = String::from_utf16_lossy(&buffer[..size as usize]).to_ascii_lowercase();
+    path.ends_with("league of legends.exe")
+}
+
+#[cfg(not(windows))]
+fn league_in_foreground() -> bool {
+    false
+}
+
+#[cfg(windows)]
+fn spawn_overlay_hotkey(proxy: EventLoopProxy<UserEvent>) {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+        GetAsyncKeyState, VK_CONTROL, VK_O, VK_SHIFT,
+    };
+
+    std::thread::spawn(move || {
+        let mut pressed = false;
+        loop {
+            let down = |key: i32| unsafe { (GetAsyncKeyState(key) as u16 & 0x8000) != 0 };
+            let active = down(VK_CONTROL as i32) && down(VK_SHIFT as i32) && down(VK_O as i32);
+            if active && !pressed {
+                let _ = proxy.send_event(UserEvent::ToggleOverlay);
+            }
+            pressed = active;
+            std::thread::sleep(Duration::from_millis(80));
+        }
+    });
+}
+
+#[cfg(not(windows))]
+fn spawn_overlay_hotkey(_proxy: EventLoopProxy<UserEvent>) {}
+
 fn main() -> Result<()> {
     let _instance = match single_instance()? {
         Some(guard) => guard,
@@ -186,6 +347,7 @@ fn main() -> Result<()> {
     }
 
     let paths = Paths::discover()?;
+    let desktop_paths = paths.clone();
     let settings: SettingsHandle = Arc::new(StdRwLock::new(Settings::load(&paths)));
     let port = start_server(preferred_port, paths, settings.clone())?;
     let url = format!("http://127.0.0.1:{port}");
@@ -204,6 +366,7 @@ fn main() -> Result<()> {
     MenuEvent::set_event_handler(Some(move |event| {
         let _ = proxy.send_event(UserEvent::Menu(event));
     }));
+    spawn_overlay_hotkey(event_loop.create_proxy());
 
     const ICON_RGBA: &[u8] = include_bytes!("../../assets/RiftSense-64.rgba");
     let window_icon = Icon::from_rgba(ICON_RGBA.to_vec(), 64, 64).ok();
@@ -232,11 +395,66 @@ fn main() -> Result<()> {
         .build(&window)
         .context("No se pudo crear WebView2")?;
 
+    let overlay_position = event_loop.primary_monitor().map(|monitor| {
+        let scale = monitor.scale_factor();
+        let origin = monitor.position();
+        let size = monitor.size();
+        PhysicalPosition::new(
+            origin.x + size.width as i32
+                - (OVERLAY_WIDTH * scale) as i32
+                - (OVERLAY_MARGIN * scale) as i32,
+            origin.y + (OVERLAY_TOP * scale) as i32,
+        )
+    });
+    let mut overlay_builder = WindowBuilder::new()
+        .with_title(OVERLAY_TITLE)
+        .with_window_icon(Icon::from_rgba(ICON_RGBA.to_vec(), 64, 64).ok())
+        .with_inner_size(LogicalSize::new(OVERLAY_WIDTH, OVERLAY_HEIGHT))
+        .with_decorations(false)
+        .with_transparent(true)
+        .with_always_on_top(true)
+        .with_resizable(false)
+        .with_visible(false)
+        .with_focused(false);
+    if let Some(position) = overlay_position {
+        overlay_builder = overlay_builder.with_position(position);
+    }
+    #[cfg(windows)]
+    {
+        use tao::platform::windows::WindowBuilderExtWindows;
+        overlay_builder = overlay_builder.with_undecorated_shadow(false);
+    }
+    let overlay_window = overlay_builder
+        .build(&event_loop)
+        .context("No se pudo crear la ventana del overlay")?;
+    apply_overlay_styles(&overlay_window);
+    let _overlay_webview = WebViewBuilder::new()
+        .with_url(format!("{url}/overlay.html"))
+        .with_transparent(true)
+        .with_background_color((0, 0, 0, 0))
+        .with_background_throttling(wry::BackgroundThrottlingPolicy::Disabled)
+        .build(&overlay_window)
+        .context("No se pudo crear el WebView del overlay")?;
+
+    if let Err(error) = _overlay_webview.set_background_color((0, 0, 0, 0)) {
+        eprintln!("No se pudo hacer transparente el overlay: {error}");
+    }
+
     let show_item = MenuItem::with_id("show", "Abrir RiftSense", true, None);
+    let overlay_item = MenuItem::with_id(
+        "overlay",
+        if overlay_enabled(&settings) {
+            "Overlay en partida: activado"
+        } else {
+            "Overlay en partida: desactivado"
+        },
+        true,
+        None,
+    );
     let quit_item = MenuItem::with_id("quit", "Salir", true, None);
     let separator = PredefinedMenuItem::separator();
     let menu = Menu::new();
-    menu.append_items(&[&show_item, &separator, &quit_item])
+    menu.append_items(&[&show_item, &overlay_item, &separator, &quit_item])
         .context("No se pudo montar el menu de la bandeja")?;
     let tray = TrayIconBuilder::new()
         .with_icon(
@@ -260,25 +478,40 @@ fn main() -> Result<()> {
         show_window(&window);
     }
 
+    let main_window_id = window.id();
+    let overlay_window_id = overlay_window.id();
+    let mut overlay_visible = false;
+    let mut last_overlay_setting = overlay_enabled(&settings);
+    let mut next_overlay_check = Instant::now();
+
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(250));
+        let mut check_overlay_now = false;
         match event {
             Event::WindowEvent {
+                window_id,
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                let hide = tray.is_some() && minimize_to_tray(&settings);
-                if hide {
-                    window.set_visible(false);
+                if window_id == overlay_window_id {
+                    overlay_window.set_visible(false);
+                    overlay_visible = false;
                 } else {
-                    *control_flow = ControlFlow::Exit;
+                    let hide = tray.is_some() && minimize_to_tray(&settings);
+                    if hide {
+                        window.set_visible(false);
+                    } else {
+                        *control_flow = ControlFlow::Exit;
+                    }
                 }
             }
             Event::WindowEvent {
+                window_id,
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                if (size.width == 0 || size.height == 0)
+                if window_id == main_window_id
+                    && (size.width == 0 || size.height == 0)
                     && tray.is_some()
                     && minimize_to_tray(&settings)
                 {
@@ -287,15 +520,45 @@ fn main() -> Result<()> {
             }
             Event::UserEvent(UserEvent::Menu(event)) => match event.id().as_ref() {
                 "show" => show_window(&window),
+                "overlay" => {
+                    toggle_overlay_setting(&settings, &desktop_paths);
+                    check_overlay_now = true;
+                }
                 "quit" => *control_flow = ControlFlow::Exit,
                 _ => {}
             },
+            Event::UserEvent(UserEvent::ToggleOverlay) => {
+                toggle_overlay_setting(&settings, &desktop_paths);
+                check_overlay_now = true;
+            }
             Event::UserEvent(UserEvent::Tray(TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
             })) => show_window(&window),
             _ => {}
+        }
+
+        if check_overlay_now || Instant::now() >= next_overlay_check {
+            next_overlay_check = Instant::now() + Duration::from_millis(400);
+            let enabled = overlay_enabled(&settings);
+            let show = enabled && league_in_foreground();
+            if show != overlay_visible {
+                if show {
+                    show_overlay(&overlay_window);
+                } else {
+                    overlay_window.set_visible(false);
+                }
+                overlay_visible = show;
+            }
+            if enabled != last_overlay_setting {
+                overlay_item.set_text(if enabled {
+                    "Overlay en partida: activado"
+                } else {
+                    "Overlay en partida: desactivado"
+                });
+                last_overlay_setting = enabled;
+            }
         }
     })
 }

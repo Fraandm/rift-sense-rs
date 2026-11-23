@@ -1,6 +1,6 @@
 [package]
 name = "riftsense-rs"
-version = "1.4.0"
+version = "1.5.0"
 edition = "2024"
 rust-version = "1.85"
 description = "RiftSense reescrito en Rust"
@@ -61,5 +61,6 @@ windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
     "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_WindowsAndMessaging",
 ] }

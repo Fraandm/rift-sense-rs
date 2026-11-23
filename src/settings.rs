@@ -11,7 +11,7 @@ pub type SettingsHandle = Arc<RwLock<Settings>>;
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 const RUN_VALUE: &str = "RiftSense";
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Settings {
     /// Muestra las pestañas técnicas Modelo y Datos.
@@ -20,6 +20,20 @@ pub struct Settings {
     pub start_with_windows: bool,
     /// Al cerrar o minimizar, mantiene la app en la bandeja del sistema.
     pub minimize_to_tray: bool,
+    /// Muestra la ventana compacta superpuesta durante la partida.
+    pub overlay_enabled: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            show_advanced: false,
+            start_with_windows: false,
+            minimize_to_tray: false,
+            // El overlay es la vista pensada para una sola pantalla.
+            overlay_enabled: true,
+        }
+    }
 }
 
 impl Settings {
@@ -130,11 +144,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_are_conservative() {
+    fn defaults_keep_the_overlay_ready() {
         let settings = Settings::default();
         assert!(!settings.show_advanced);
         assert!(!settings.start_with_windows);
         assert!(!settings.minimize_to_tray);
+        assert!(settings.overlay_enabled);
     }
 
     #[test]
@@ -143,10 +158,12 @@ mod tests {
             show_advanced: true,
             start_with_windows: false,
             minimize_to_tray: true,
+            overlay_enabled: false,
         };
         let text = serde_json::to_string(&settings).unwrap();
         assert!(text.contains("\"showAdvanced\":true"));
         assert!(text.contains("\"minimizeToTray\":true"));
+        assert!(text.contains("\"overlayEnabled\":false"));
         let parsed: Settings = serde_json::from_str(&text).unwrap();
         assert_eq!(parsed, settings);
     }
@@ -156,5 +173,12 @@ mod tests {
         let path = std::env::temp_dir().join("riftsense-settings-missing.json");
         let _ = std::fs::remove_file(&path);
         assert_eq!(load_from(&path).unwrap(), Settings::default());
+    }
+
+    #[test]
+    fn old_settings_enable_overlay_by_default() {
+        let parsed: Settings = serde_json::from_str("{\"showAdvanced\":true}").unwrap();
+        assert!(parsed.show_advanced);
+        assert!(parsed.overlay_enabled);
     }
 }

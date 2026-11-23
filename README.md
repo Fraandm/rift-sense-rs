@@ -72,6 +72,23 @@ Con **Auto** activo (por defecto), la lectura se actualiza cada 3 segundos
 mientras la aplicación está visible. Sigue siendo solo lectura: no compra ni
 envía inputs al juego.
 
+### Overlay para una sola pantalla
+
+RiftSense incluye una ventana compacta que se superpone al juego y muestra solo
+lo necesario para la siguiente compra:
+
+- objeto recomendado, oro disponible y oro que falta;
+- botas recomendadas y un ajuste situacional (antiheal, penetración, escudos o
+  daño porcentual);
+- build completa cuando ya no hay compras pendientes.
+
+El overlay aparece únicamente cuando **League of Legends** está en primer plano,
+es transparente, no recibe clics y se oculta al alt-tab. Se puede activar o
+desactivar en **Ajustes > Overlay en partida**, desde la bandeja del sistema o
+con **Ctrl+Shift+O**. Está pensado para jugar en ventana sin bordes; en pantalla
+completa exclusiva Windows puede impedir que cualquier ventana normal se dibuje
+encima del juego.
+
 ## Inventario por rol
 
 - **Bot:** las botas se mueven a la ranura de role quest al completar la

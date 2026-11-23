@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.5.0
+
+Overlay compacto para jugar en una sola pantalla.
+
+### Overlay
+
+- Ventana transparente, sin bordes, siempre encima y **click-through** sobre
+  League of Legends.
+- Muestra solo lo necesario: siguiente compra, oro, oro que falta, botas
+  recomendadas y un ajuste situacional.
+- Indica **Build completa** cuando ya no hay compras pendientes.
+- Aparece únicamente cuando el proceso del juego está en primer plano y se
+  oculta al alt-tab.
+- Se activa o desactiva en **Ajustes > Overlay en partida**, desde la bandeja
+  del sistema o con **Ctrl+Shift+O**.
+- El ajuste se guarda y se aplica al instante; por defecto queda activado.
+- El overlay usa el mismo motor y datos que En vivo, pero sin abrir la ventana
+  principal. No compra, no envía inputs y no captura el ratón.
+- Probado con una partida real en ventana sin bordes: transparencia, posición,
+  topmost, click-through, tamaño 392×132 y actualización cada 2,6 s.
+- En pantalla completa exclusiva Windows puede impedir que una ventana normal
+  se dibuje encima; se recomienda ventana sin bordes.
+
+### Validación
+
+- 26 tests Rust; `cargo fmt`, `clippy -D warnings` y `node --check`.
+- Página del overlay probada en Chromium a 392×132 con datos reales y estados
+  de espera, compra y build completa.
+- Integración de escritorio probada: la ventana aparece al estar el juego en
+  primer plano y se muestra/oculta al cambiar el ajuste.
+
+### Instalador
+
+- `RiftSense-Setup-1.5.0.exe`, 27.613.441 bytes, SHA-256
+  `4c41b71b21cca871af44506e01cf47085d4233e5bc4305ea67c07541fc89ca29`.
+- Sin firma Authenticode (no hay certificado configurado).
+- Validado con instalación silenciosa, versión `1.5.0`, health `ok` y LCU
+  conectado.
+
 ## 1.4.0
 
 Análisis de builds rivales más profundo y visible en En vivo.
