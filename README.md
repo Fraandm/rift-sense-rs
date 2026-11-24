@@ -32,10 +32,24 @@ estables y funciones locales sin cambiar ese contrato.
 ## Datos actuales
 
 - Data Dragon **16.23.1** (parche **26.23**).
-- **41.211** partidas validas; **238** del parche actual.
-- Modelos reentrenados y exportados el **2026-11-22** con vocabulario de
+- **160.885** partidas válidas y **924.095** builds; **238** del parche actual.
+- Fuentes: Leaguepedia, Riot API de high elo y tres datasets de Kaggle
+  (Oracle's Elixir 2026, snapshots por minuto y ranked con timeline). La
+  etiqueta interna «EUW» del dataset ranked corresponde a partidas **EUN1**;
+  se conserva para trazabilidad.
+- Particiones fijas por partida (`GameId`): entrenamiento antes del
+  **2026-09-15**, validación hasta el **2026-10-14** y test desde el
+  **2026-10-15** (929 partidas, 48.190 objetivos de build). Las fechas
+  estimadas no entran en validación ni en test.
+- BuildNet en test: top-1 **33,4 %**, top-3 **60,3 %**, top-5 **72,4 %**
+  (línea base de popularidad 3,2 %); frente a 1.7.0 sobre las mismas partidas,
+  top-3 pasa de **46,3 %** a **60,3 %** (+13,9 puntos; IC 95 %: +13,1 a +14,7).
+- DraftNet en test: AUC **0,567**, logloss **0,692**, accuracy **0,522**. La
+  mejora de logloss frente a 1.7.0 no es concluyente y el test es histórico,
+  no un holdout prospectivo.
+- Modelos reentrenados y exportados el **2026-11-23** con vocabulario de
   **173 campeones** y **213 objetos** (incluye los 8 objetos de la
-  quest de soporte).
+  quest de soporte). Protocolo y límites: [`docs/MODEL_QUALITY.md`](docs/MODEL_QUALITY.md).
 
 Resultados de rendimiento frente a la app original: [`PERFORMANCE.md`](PERFORMANCE.md).
 
@@ -306,6 +320,10 @@ RiftSense y se distribuyen para uso personal no comercial. Consulta
   seguridad de la API local.
 - [`docs/VALIDATION.md`](docs/VALIDATION.md): matriz de validación real y
   criterios de salida para 1.1.
+- [`docs/MODEL_QUALITY.md`](docs/MODEL_QUALITY.md): protocolo, resultados y
+  límites del reentrenamiento.
+- [`docs/INTERFACE_REMASTER.md`](docs/INTERFACE_REMASTER.md): dirección visual y
+  comprobaciones del remaster.
 
 RiftSense no está afiliado a Riot Games. No lee memoria del juego, no inyecta
 código, no automatiza compras ni envía inputs.
@@ -359,9 +377,10 @@ Para ejecutar la release hay que llevar también `data/processed` y `artifacts`.
 ## Modelos ONNX
 
 `models/draft_net.onnx` y `models/build_net.onnx` se exportaron desde los
-checkpoints PyTorch del proyecto original. La validación contra PyTorch dio una
-diferencia máxima de `5.96e-08` en draft y `2.86e-06` en build. El runtime usa
-`tract-onnx`, por lo que la inferencia es 100 % Rust.
+checkpoints PyTorch reentrenados. La validación contra PyTorch dio una
+diferencia máxima de `5.96e-08` en draft y `6.26e-07` en build. El runtime usa
+`tract-onnx`, por lo que la inferencia es 100 % Rust. `models/quality-report.json`
+guarda hashes, métricas y límites de la evaluación.
 
 Para regenerar BuildNet desde los checkpoints del proyecto original:
 

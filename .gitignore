@@ -9,6 +9,8 @@ __pycache__/
 !scripts/validate-modes.py
 perf_results.json
 startup_results.json
+sweep_modes*.json
+dataset_kaggle/
 parity_rust.json
 parity_python.json
 installer/payload/

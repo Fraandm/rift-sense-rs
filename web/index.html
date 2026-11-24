@@ -3,16 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#060a12" />
+  <meta name="theme-color" content="#0b1017" />
   <meta name="description" content="RiftSense: análisis de draft y builds de League of Legends con datos de high elo y partidas profesionales." />
   <title>RiftSense · Analizador de draft y build</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/assets/css/styles.css" />
+  <link rel="stylesheet" href="/assets/css/remaster.css" />
 </head>
 <body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
   <div class="bg-layer" aria-hidden="true"></div>
 
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -55,6 +54,7 @@
       <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
       <path d="M19.3 13.6a7.7 7.7 0 0 0 0-3.2l2-1.5-2-3.4-2.4 1a8.3 8.3 0 0 0-2.7-1.6L13.8 2h-3.6l-.4 2.9a8.3 8.3 0 0 0-2.7 1.6l-2.4-1-2 3.4 2 1.5a7.7 7.7 0 0 0 0 3.2l-2 1.5 2 3.4 2.4-1a8.3 8.3 0 0 0 2.7 1.6l.4 2.9h3.6l.4-2.9a8.3 8.3 0 0 0 2.7-1.6l2.4 1 2-3.4-2-1.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
     </symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m8.5 11.5 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </svg>
 
   <div class="update-banner hidden" id="update-banner" role="status" aria-live="polite">
@@ -75,10 +75,11 @@
         <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
         <span class="brand-text">
           <strong>RiftSense</strong>
-          <small>Draft · Build · Datos</small>
+          <small>Análisis táctico</small>
         </span>
       </div>
 
+      <p class="nav-caption">Tu espacio de juego</p>
       <nav class="nav" aria-label="Navegación principal">
         <button class="nav-item active" data-tab="draft" type="button" aria-label="Draft">
           <svg class="icon"><use href="#i-draft"/></svg><span>Draft</span>
@@ -117,18 +118,34 @@
         </dl>
       </div>
 
-      <p class="side-foot">Datos pro de Leaguepedia · No afiliado a Riot Games</p>
+      <p class="side-foot">Tu partida. Tus decisiones.<br><span>No afiliado a Riot Games.</span></p>
     </aside>
 
-    <main class="main" id="main">
+    <main class="main" id="main" tabindex="-1">
+      <header class="workspace-bar">
+        <div class="workspace-location"><span>RiftSense</span><span aria-hidden="true">/</span><strong id="workspace-section">Preparación</strong></div>
+        <div class="workspace-tools">
+          <span class="readonly-label"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>Local · Solo lectura</span>
+          <button class="workspace-help" id="workspace-help" type="button" aria-label="Abrir guía de RiftSense" title="Guía rápida"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></button>
+        </div>
+      </header>
       <!-- ===================== DRAFT ===================== -->
       <section class="view" id="view-draft" aria-labelledby="draft-title">
-        <div class="view-head">
+        <div class="view-head draft-hero">
           <div>
-            <p class="eyebrow">Sala de draft</p>
-            <h1 id="draft-title">Elige con ventaja</h1>
-            <p class="lead">Valora tu composición y encuentra el pick que más suma. Entrena con partidas profesionales reales.</p>
+            <p class="eyebrow"><span class="section-index">01</span> Antes de la partida</p>
+            <h1 id="draft-title">Tu próxima <span>ventaja.</span></h1>
+            <p class="lead">Lee la composición. Encuentra la pieza que falta.<br>Prepara tu partida con datos, no con suposiciones.</p>
           </div>
+          <svg class="rift-schematic" viewBox="0 0 280 180" fill="none" aria-hidden="true">
+            <path d="m140 8 122 82-122 82L18 90 140 8Z" stroke="currentColor" opacity=".18"/>
+            <path d="m140 32 88 58-88 58-88-58 88-58Z" stroke="currentColor" opacity=".3"/>
+            <path d="m140 56 52 34-52 34-52-34 52-34Z" stroke="currentColor" opacity=".65"/>
+            <path d="m67 122 45-30 28 18 35-24 40-27M67 122l5-35 67-44 62 42 14-26M140 8v164M18 90h244" stroke="currentColor" opacity=".25"/>
+            <path d="m140 69 32 21-32 21-32-21 32-21Z" fill="currentColor" opacity=".12"/>
+            <circle cx="67" cy="122" r="5" fill="currentColor"/><circle cx="215" cy="59" r="5" fill="currentColor"/>
+            <circle cx="140" cy="90" r="4" fill="currentColor"/>
+          </svg>
           <div class="head-actions">
             <button class="btn ghost" id="draft-import" type="button"><svg class="icon"><use href="#i-plug"/></svg>Importar cliente</button>
             <button class="btn ghost" id="draft-example" type="button"><svg class="icon"><use href="#i-bolt"/></svg>Ejemplo</button>
@@ -164,7 +181,7 @@
         <div class="draft-grid">
           <div class="card team-card" id="ally-card">
             <header class="card-head">
-              <div><h2>Tu equipo</h2><p>Marca tu rol y deja libre tu slot</p></div>
+              <div><h2>Tu equipo</h2><p>Cinco piezas, una composición</p></div>
               <span class="badge blue" id="ally-side-badge">Azul</span>
             </header>
             <div class="team-slots" id="ally-slots"></div>
@@ -172,7 +189,7 @@
 
           <div class="card team-card" id="enemy-card">
             <header class="card-head">
-              <div><h2>Rival</h2><p>Añade lo que ya viste en el draft</p></div>
+              <div><h2>Equipo rival</h2><p>Anticipa su siguiente movimiento</p></div>
               <span class="badge red" id="enemy-side-badge">Rojo</span>
             </header>
             <div class="team-slots" id="enemy-slots"></div>
@@ -185,7 +202,6 @@
             </header>
             <div class="reco-list" id="draft-reco" aria-live="polite"></div>
           </div>
-        </div>
 
         <div class="card rune-card hidden" id="draft-rune-card">
           <header class="card-head">
@@ -193,6 +209,7 @@
             <span class="badge" id="draft-rune-source">—</span>
           </header>
           <div class="rune-page" id="draft-runes"></div>
+        </div>
         </div>
 
         <div class="card ban-card" id="draft-ban-card">
@@ -216,7 +233,7 @@
             </header>
             <ul class="insight-list">
               <li><span class="dot gold"></span><div><strong>Modelo</strong><p>DraftNet valora la composición completa y los huecos desconocidos. La probabilidad es una estimacion, no una garantia.</p></div></li>
-              <li><span class="dot teal"></span><div><strong>Datos pro</strong><p>Winrates y sinergias suavizadas con partidas de ligas profesionales. Filtra por rol y revisa el tamaño de muestra.</p></div></li>
+              <li><span class="dot teal"></span><div><strong>Datos de partidas</strong><p>Winrates y sinergias suavizadas con partidas profesionales y clasificatorias. Filtra por rol y revisa el tamaño de muestra.</p></div></li>
               <li><span class="dot red"></span><div><strong>Contexto</strong><p>El draft importa, pero la ejecución pesa más. Usa la herramienta como segunda opinión, no como oráculo.</p></div></li>
               <li><span class="dot gold"></span><div><strong>Probabilidad por lado</strong><p>El porcentaje es para tu lado. Si un amigo está en el lado contrario verá el complementario (100% − el tuyo); si está en tu equipo verá el mismo valor con los mismos picks.</p></div></li>
             </ul>
@@ -228,9 +245,9 @@
       <section class="view hidden" id="view-live" aria-labelledby="live-title">
         <div class="view-head">
           <div>
-            <p class="eyebrow">Asistente en partida</p>
-            <h1 id="live-title">Build en vivo</h1>
-            <p class="lead">RiftSense sigue la partida, lee cómo va el transcurso y prioriza la siguiente compra con contexto real.</p>
+            <p class="eyebrow"><span class="section-index">02</span> Durante la partida</p>
+            <h1 id="live-title">Cada compra <span>cuenta.</span></h1>
+            <p class="lead">Tu siguiente decisión, en primer plano. Build, oro y amenazas en un mismo lugar.</p>
           </div>
           <div class="head-actions">
             <button class="btn ghost" id="live-sync" type="button"><svg class="icon"><use href="#i-plug"/></svg>Leer cliente</button>
@@ -360,6 +377,16 @@
 
             <div class="live-coach hidden" id="live-coach"></div>
 
+            <section class="purchase-focus" aria-labelledby="purchase-title">
+              <div class="reco-head">
+                <div><p class="eyebrow">Tu siguiente movimiento</p><h2 id="purchase-title">Siguiente compra</h2><p id="live-reco-subtitle">Recomendaciones contextualizadas</p></div>
+                <span class="mode-badge" id="live-mode">—</span>
+              </div>
+              <p class="sr-only" id="live-reco-status" role="status" aria-live="polite" aria-atomic="true"></p>
+              <div class="legendary-target hidden" id="live-legendary"></div>
+              <div class="item-list" id="live-items"></div>
+            </section>
+
             <div class="build-head">
               <div>
                 <h2>Tu inventario</h2>
@@ -372,13 +399,6 @@
             <div class="enemy-builds hidden" id="live-enemy-builds"></div>
             <div class="situational hidden" id="live-situational"></div>
 
-            <div class="reco-head">
-              <div><h2>Siguiente compra</h2><p id="live-reco-subtitle">Recomendaciones contextualizadas</p></div>
-              <span class="mode-badge" id="live-mode">—</span>
-            </div>
-            <p class="sr-only" id="live-reco-status" role="status" aria-live="polite" aria-atomic="true"></p>
-            <div class="legendary-target hidden" id="live-legendary"></div>
-            <div class="item-list" id="live-items"></div>
           </section>
         </div>
 
@@ -739,7 +759,7 @@
         <button class="icon-btn" data-close type="button" aria-label="Cerrar"><svg class="icon"><use href="#i-close"/></svg></button>
       </header>
       <div class="modal-tools">
-        <label class="search-field big"><svg class="icon"><use href="#i-search"/></svg><input id="champ-search" type="search" placeholder="Buscar por nombre o tag…" autocomplete="off" /></label>
+        <label class="search-field big"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input id="champ-search" type="search" placeholder="Buscar por nombre o tag…" autocomplete="off" aria-label="Buscar campeón por nombre o clase" /></label>
         <div class="chips compact" id="champ-role-filter" role="group" aria-label="Filtrar por rol"></div>
       </div>
       <p class="modal-hint" id="champ-picker-hint">Elige un campeón disponible.</p>

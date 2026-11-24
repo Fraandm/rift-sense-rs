@@ -1,5 +1,63 @@
 # Changelog
 
+## 1.8.0
+
+Reentrenamiento con 160.885 partidas, modelos corregidos y remaster visual.
+
+### Modelos
+
+- **BuildNet**: inventario como conjunto (mover un objeto de ranura ya no
+  cambia la recomendación), prior jerárquico campeón/rol/posición aprendido
+  solo con entrenamiento y ponderación temporal de 180 días.
+- En el test compartido (929 partidas, 48.190 objetivos), BuildNet pasa de
+  top-1 23,0 % a **33,4 %**, top-3 46,3 % a **60,3 %** y top-5 58,3 % a
+  **72,4 %**. La diferencia pareada de top-3 es **+13,9 puntos** (IC 95 %:
+  +13,1 a +14,7), con bootstrap por partida.
+- **DraftNet**: arquitectura factorizada con fortalezas por campeón y rol,
+  sinergias y emparejamientos, calibrada con temperatura e intercepto.
+  Test: AUC **0,567** y logloss **0,692**; la referencia publicada, corregida
+  sobre las mismas partidas, daba 0,541 y 0,693. La mejora de logloss no es
+  concluyente (±0,01) y el test es histórico, no prospectivo.
+- Corregido el objetivo de DraftNet: la probabilidad es **P(gana el lado
+  azul)**. El dataset también marcaba a todos los jugadores como rojos; ahora
+  el lado, los aliados, los rivales y los winrates corresponden al jugador.
+- ONNX reexportados y verificados contra PyTorch: error máximo `6,26e-07` en
+  build y `5,96e-08` en draft, con lotes de 1, 2 y 7.
+
+### Datos
+
+- **160.885** partidas válidas, **924.095** builds, 173 campeones y 213 objetos.
+- Importados todos los registros de los datasets de Kaggle; el ranked usa
+  snapshots y timelines para ordenar inventarios en vez de truncar
+  componentes, y ya no descarta 7 de cada 8 partidas.
+- Particiones fijas por `GameId`: entrenamiento antes del 2026-09-15,
+  validación hasta el 2026-10-14 y test desde el 2026-10-15. Las fechas
+  estimadas nunca entran en validación ni en test.
+- Deduplicación por fuente y `GameId`, rechazo de fechas futuras y validación
+  estricta de campeones y objetos.
+- Las compras truncadas por Riot se reconvierten desde caché en lugar de tomar
+  los primeros componentes como build final.
+
+### Interfaz
+
+- Remaster **Command**: grafito y turquesa, jerarquía más clara y SVG
+  estático. Sin frameworks nuevos, fuentes remotas, blur ni animación continua
+  del overlay.
+- La siguiente compra y el objetivo legendario aparecen antes del inventario;
+  las runas aprovechan las columnas de escritorio.
+- Con **Auto** activo, la app abre **En vivo** una vez por partida al
+  detectarla, sin robar el foco y respetando cambios manuales y reconexiones.
+- Navegación, contexto, guía rápida, foco y nombres accesibles mejorados;
+  solo el equipo propio marca **TU ROL**.
+
+### Verificación
+
+- 1.384 builds en los cuatro modos con **0 incidencias** de legalidad.
+- Pruebas Rust, clippy y formato; paridad ONNX; smoke visual con Playwright a
+  1440, 1024, 768 y 390 px y prueba de navegación automática con LCU simulado.
+- El overlay no se ha probado aún sobre una partida real: en pantalla completa
+  exclusiva Windows puede ocultarlo; se recomienda ventana sin bordes.
+
 ## 1.7.0
 
 Builds coherentes por modo: objetos legales en cada modo, evidencia real para

@@ -11,6 +11,7 @@ import {
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const numberFormatter = new Intl.NumberFormat("es-ES");
 
 // La CSP no permite `onerror` inline. Centralizamos el fallback de imagenes
 // rotas para no dejar iconos vacios ni errores en consola.
@@ -46,7 +47,7 @@ export function pp(value, decimals = 1) {
 }
 
 export function num(value) {
-  return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
+  return numberFormatter.format(Number(value) || 0);
 }
 
 export function debounce(fn, wait = 250) {

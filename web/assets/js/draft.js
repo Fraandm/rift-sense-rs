@@ -146,7 +146,7 @@ function renderSide() {
 
 function slotHTML(team, role, index) {
   const classic = draft.mode === "classic";
-  const mine = classic ? role === draft.role : team === "allies" && index === 0;
+  const mine = team === "allies" && (classic ? role === draft.role : index === 0);
   const name = draft[team][index];
   const ghost =
     !name && mine && classic && team === "allies" && draft.myPick && championByName(draft.myPick)
@@ -178,20 +178,20 @@ function slotHTML(team, role, index) {
       ? `Cambiar ${champ.name}`
       : `Elegir ${team === "allies" ? "aliado" : "rival"} ${index + 1}`;
   return `<div class="slot-row ${mine ? "mine" : ""}">
-    <div class="slot-role" ${
+    <div class="slot-role" id="slot-role-${team}-${index}" ${
       estimated ? `title="Rol estimado: el cliente no expone los roles rivales"` : ""
     }>${roleText}</div>
     <div class="slot-wrap">
       <button type="button" class="slot ${champ ? "filled" : "empty"} ${mine ? "mine" : ""} ${
         detected ? "detected" : ""
-      }" data-team="${team}" data-index="${index}" data-role="${pickerRole}" aria-label="${esc(title)}">
+      }" data-team="${team}" data-index="${index}" data-role="${pickerRole}" title="${esc(title)}" aria-labelledby="slot-copy-${team}-${index} slot-role-${team}-${index}">
         ${
           champ
-            ? `${avatarHTML(champ)}<span class="slot-text"><strong>${esc(champ.name)}</strong><small>${esc(
+            ? `${avatarHTML(champ)}<span class="slot-text" id="slot-copy-${team}-${index}"><strong>${esc(champ.name)}</strong><small>${esc(
                 subtitle
               )}</small></span>`
             : `<span class="plus"><svg class="icon"><use href="#i-plus"/></svg></span>
-               <span class="slot-text"><strong>${mine ? "Elegir campeón" : "Añadir campeón"}</strong><small>${esc(
+               <span class="slot-text" id="slot-copy-${team}-${index}"><strong>${mine ? "Elegir campeón" : "Añadir campeón"}</strong><small>${esc(
                  subtitle
                )}</small></span>`
         }

@@ -6,6 +6,7 @@ import { $, avatarHTML, emptyState, esc, num, toast } from "./ui.js";
 import { applyClientDraft } from "./draft.js";
 import { applyClientState, stopTracking } from "./live.js";
 import { activeSession, finalizeSession } from "./session.js";
+import { createAutoLiveTransition } from "./auto-live.js";
 
 const PHASE_LABELS = {
   None: "Cliente abierto",
@@ -44,6 +45,15 @@ let lastDraftSig = null;
 let lastConnected = null;
 let wasInGame = false;
 let initialized = false;
+const shouldOpenLive = createAutoLiveTransition();
+
+function navigateToLiveIfStarted(currentGameId = null) {
+  if (shouldOpenLive(status, auto, currentGameId)) {
+    // Solo navegación dentro de RiftSense: nunca enfoca ventanas ni envía
+    // entradas al juego. El usuario puede cambiar luego de pestaña libremente.
+    location.hash = "#live";
+  }
+}
 
 function phaseLabel(phase) {
   return PHASE_LABELS[phase] || phase || "Sin fase";
@@ -499,6 +509,7 @@ async function poll() {
     status = await api.get("/api/client/status");
     maybeNotify(previous, status);
     renderStatus();
+    navigateToLiveIfStarted();
 
     if (status.champSelect) {
       const ok = await fetchDraft();
@@ -508,6 +519,7 @@ async function poll() {
     } else if (status.inGame || status.liveClient) {
       const ok = await fetchLive();
       if (ok && auto) await applyLiveNow();
+      if (ok) navigateToLiveIfStarted(liveData?.gameId);
       renderDraft(
         draftData
           ? ""
@@ -565,7 +577,7 @@ function syncAutoUi() {
   const note = $("#client-auto-note");
   if (note) {
     note.textContent = auto
-      ? "Sincronización activa: champ select en Draft y partida en En vivo."
+      ? "Sincronización activa: se abre En vivo al empezar la partida, sin bloquear tu navegación después."
       : "Cada 3 segundos mientras la aplicación esté visible. No envía inputs al juego.";
   }
 }

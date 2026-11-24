@@ -1,8 +1,16 @@
 {
   "draft": "draft_net.onnx",
   "build": "build_net.onnx",
-  "draft_n_champions": 173,
+  "exported_at": "2026-11-23T23:55:22.555004+00:00",
   "build_n_items": 213,
-  "exported_at": "2026-11-22T21:52:15.243300+00:00",
-  "build_n_champions": 173
+  "build_n_champions": 173,
+  "build_selected": "set_recent",
+  "build_history_mode": "set",
+  "draft_n_champions": 173,
+  "draft_target": "blue_win",
+  "draft_selected": "factorized_calibrated",
+  "draft_architecture": "factorized",
+  "dataset_sha256": "220496170ce295fd7e156616b27c047d824ae8a6fbf40e77cdafe4b119bcb034",
+  "vocab_sha256": "564f494269752eda566cd2ec397c04908afa0c00c2911e252592aeb9fee04124",
+  "quality_report": "quality-report.json"
 }

@@ -1,0 +1,427 @@
+{
+  "datasetSha256": "220496170ce295fd7e156616b27c047d824ae8a6fbf40e77cdafe4b119bcb034",
+  "vocabSha256": "564f494269752eda566cd2ec397c04908afa0c00c2911e252592aeb9fee04124",
+  "policy": "Select on validation only; fixed temporal GameId split; imputed dates never in holdout.",
+  "limitations": [
+    "Test historico consultado en entrenamientos anteriores; no es una validacion prospectiva.",
+    "Orden de snapshots es aproximado; inventario final no equivale a historial completo de compras.",
+    "Ranked sin fechas exactas solo entrena si su parche precede validacion; nunca evalua.",
+    "Winrate de objetos es descriptivo, no estima el efecto causal de comprarlos."
+  ],
+  "build": {
+    "selected": "set_recent",
+    "candidates": {
+      "published_1.7.0": {
+        "path": "build_net.pt",
+        "val": {
+          "n": 55795,
+          "top1": 0.27252,
+          "top3": 0.51954,
+          "top5": 0.64439,
+          "mrr": 0.44011,
+          "perRoleTop1": {
+            "TOP": 0.27924,
+            "JUNGLE": 0.2169,
+            "MID": 0.25216,
+            "BOT": 0.2357,
+            "SUPPORT": 0.37513
+          }
+        }
+      },
+      "prior_only": {
+        "path": "build_prior_only.pt",
+        "val": {
+          "n": 55795,
+          "top1": 0.13501,
+          "top3": 0.35596,
+          "top5": 0.49252,
+          "mrr": 0.30557,
+          "perRoleTop1": {
+            "TOP": 0.12906,
+            "JUNGLE": 0.14029,
+            "MID": 0.13443,
+            "BOT": 0.12277,
+            "SUPPORT": 0.14895
+          }
+        }
+      },
+      "sequence_prior": {
+        "path": "build_sequence_prior.pt",
+        "val": {
+          "n": 55795,
+          "top1": 0.30843,
+          "top3": 0.5748,
+          "top5": 0.70209,
+          "mrr": 0.48267,
+          "perRoleTop1": {
+            "TOP": 0.29756,
+            "JUNGLE": 0.271,
+            "MID": 0.2837,
+            "BOT": 0.3166,
+            "SUPPORT": 0.37122
+          }
+        }
+      },
+      "set_prior": {
+        "path": "build_set_prior.pt",
+        "val": {
+          "n": 55795,
+          "top1": 0.30691,
+          "top3": 0.57548,
+          "top5": 0.70268,
+          "mrr": 0.482,
+          "perRoleTop1": {
+            "TOP": 0.29335,
+            "JUNGLE": 0.27499,
+            "MID": 0.2814,
+            "BOT": 0.31606,
+            "SUPPORT": 0.36705
+          }
+        }
+      },
+      "set_recent": {
+        "path": "build_set_recent.pt",
+        "val": {
+          "n": 55795,
+          "top1": 0.31641,
+          "top3": 0.58654,
+          "top5": 0.71031,
+          "mrr": 0.49013,
+          "perRoleTop1": {
+            "TOP": 0.29948,
+            "JUNGLE": 0.29046,
+            "MID": 0.28961,
+            "BOT": 0.32653,
+            "SUPPORT": 0.37469
+          }
+        }
+      }
+    },
+    "referenceTest": {
+      "n": 48190,
+      "top1": 0.2304,
+      "top3": 0.46346,
+      "top5": 0.58332,
+      "mrr": 0.39446,
+      "perRoleTop1": {
+        "TOP": 0.24469,
+        "JUNGLE": 0.17425,
+        "MID": 0.21805,
+        "BOT": 0.22667,
+        "SUPPORT": 0.28601
+      }
+    },
+    "selectedTest": {
+      "n": 48190,
+      "top1": 0.3343,
+      "top3": 0.60268,
+      "top5": 0.72411,
+      "mrr": 0.50565,
+      "perRoleTop1": {
+        "TOP": 0.3232,
+        "JUNGLE": 0.29948,
+        "MID": 0.32708,
+        "BOT": 0.34594,
+        "SUPPORT": 0.37377
+      }
+    },
+    "pairedTop3": {
+      "difference": 0.1392197551359203,
+      "ci95": [
+        0.13141450080072356,
+        0.1468311928278747
+      ],
+      "independentGames": 929
+    },
+    "samples": {
+      "train": 675760,
+      "selection": 11088,
+      "test": 9287
+    }
+  },
+  "draft": {
+    "selected": "factorized_calibrated",
+    "candidates": {
+      "published_direction_corrected": {
+        "path": "draft_net.pt",
+        "val": {
+          "logloss": 0.69694,
+          "auc": 0.53132,
+          "accuracy": 0.52277,
+          "brier": 0.25184,
+          "n": 549,
+          "calibration": [
+            {
+              "lo": 0.3,
+              "hi": 0.4,
+              "n": 32,
+              "pred": 0.3728,
+              "actual": 0.4688
+            },
+            {
+              "lo": 0.4,
+              "hi": 0.5,
+              "n": 161,
+              "pred": 0.4617,
+              "actual": 0.441
+            },
+            {
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 311,
+              "pred": 0.5459,
+              "actual": 0.4952
+            },
+            {
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 45,
+              "pred": 0.6206,
+              "actual": 0.5778
+            }
+          ]
+        }
+      },
+      "linear_calibrated": {
+        "path": "draft_linear.pt",
+        "val": {
+          "logloss": 0.70012,
+          "auc": 0.56674,
+          "accuracy": 0.47905,
+          "brier": 0.25347,
+          "n": 549,
+          "calibration": [
+            {
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 474,
+              "pred": 0.5584,
+              "actual": 0.4641
+            },
+            {
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 64,
+              "pred": 0.6124,
+              "actual": 0.6094
+            }
+          ]
+        }
+      },
+      "transformer_calibrated": {
+        "path": "draft_transformer.pt",
+        "val": {
+          "logloss": 0.6995,
+          "auc": 0.55954,
+          "accuracy": 0.50091,
+          "brier": 0.25315,
+          "n": 549,
+          "calibration": [
+            {
+              "lo": 0.4,
+              "hi": 0.5,
+              "n": 41,
+              "pred": 0.4774,
+              "actual": 0.3902
+            },
+            {
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 371,
+              "pred": 0.5525,
+              "actual": 0.4582
+            },
+            {
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 135,
+              "pred": 0.6279,
+              "actual": 0.5852
+            }
+          ]
+        }
+      },
+      "linear_all_calibrated": {
+        "path": "draft_linear_all.pt",
+        "val": {
+          "logloss": 0.69669,
+          "auc": 0.60036,
+          "accuracy": 0.48452,
+          "brier": 0.25178,
+          "n": 549,
+          "calibration": [
+            {
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 504,
+              "pred": 0.5583,
+              "actual": 0.4762
+            },
+            {
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 37,
+              "pred": 0.6149,
+              "actual": 0.5946
+            }
+          ]
+        }
+      },
+      "factorized_calibrated": {
+        "path": "draft_factorized.pt",
+        "val": {
+          "logloss": 0.69399,
+          "auc": 0.59903,
+          "accuracy": 0.48998,
+          "brier": 0.25042,
+          "n": 549,
+          "calibration": [
+            {
+              "lo": 0.4,
+              "hi": 0.5,
+              "n": 53,
+              "pred": 0.4805,
+              "actual": 0.4717
+            },
+            {
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 400,
+              "pred": 0.5548,
+              "actual": 0.45
+            },
+            {
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 96,
+              "pred": 0.6208,
+              "actual": 0.6354
+            }
+          ]
+        }
+      }
+    },
+    "publishedAsDeployedTest": {
+      "logloss": 0.70824,
+      "auc": 0.4591,
+      "accuracy": 0.44931,
+      "brier": 0.25744,
+      "n": 799,
+      "calibration": [
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 46,
+          "pred": 0.3756,
+          "actual": 0.5652
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 452,
+          "pred": 0.4562,
+          "actual": 0.5442
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 271,
+          "pred": 0.5358,
+          "actual": 0.4244
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 30,
+          "pred": 0.6288,
+          "actual": 0.6
+        }
+      ]
+    },
+    "referenceDirectionCorrectedTest": {
+      "logloss": 0.69309,
+      "auc": 0.5409,
+      "accuracy": 0.55069,
+      "brier": 0.24991,
+      "n": 799,
+      "calibration": [
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 30,
+          "pred": 0.3712,
+          "actual": 0.6
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 271,
+          "pred": 0.4642,
+          "actual": 0.4244
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 452,
+          "pred": 0.5438,
+          "actual": 0.5442
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 46,
+          "pred": 0.6244,
+          "actual": 0.5652
+        }
+      ]
+    },
+    "selectedTest": {
+      "logloss": 0.69243,
+      "auc": 0.56739,
+      "accuracy": 0.5219,
+      "brier": 0.24964,
+      "n": 799,
+      "calibration": [
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 58,
+          "pred": 0.4834,
+          "actual": 0.3966
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 609,
+          "pred": 0.554,
+          "actual": 0.4959
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 132,
+          "pred": 0.6178,
+          "actual": 0.6061
+        }
+      ]
+    },
+    "pairedLogloss": {
+      "difference": -0.0006618725418000108,
+      "ci95": [
+        -0.01134696716957904,
+        0.00916825070492316
+      ],
+      "independentGames": 799
+    },
+    "samples": {
+      "train": 158847,
+      "selection": 549,
+      "calibration": 548,
+      "test": 799
+    }
+  },
+  "artifacts": {
+    "build_net.pt": "84727adf106aa31631ed2bb77c0ecdd1df13fbbcb1b20f96ee9436c420d04e93",
+    "draft_net.pt": "c0936649b43ab1315930e3f586073d0dd56a1a7a6b0c0e45ffea59c08fb3a820"
+  }
+}

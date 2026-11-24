@@ -12,6 +12,7 @@ import * as data from "./data.js";
 import * as settings from "./settings.js";
 
 const TABS = ["draft", "live", "summary", "client", "model", "data", "settings"];
+const TAB_LABELS = { draft: "Preparación", live: "En partida", summary: "Tu historial", client: "Conexión local", model: "Modelos", data: "Explorador de datos", settings: "Preferencias" };
 const ONBOARDING_KEY = "riftsense.onboarding.v1";
 let booted = false;
 
@@ -63,6 +64,9 @@ function setTab(tab, updateHash = true) {
   const requested = TABS.includes(tab) ? tab : "draft";
   tab = settings.tabVisible(requested) ? requested : "settings";
   state.activeTab = tab;
+  document.body.dataset.view = tab;
+  const sectionLabel = $("#workspace-section");
+  if (sectionLabel) sectionLabel.textContent = TAB_LABELS[tab];
   clearToasts();
   for (const name of TABS) {
     $(`#view-${name}`)?.classList.toggle("hidden", name !== tab);
@@ -85,6 +89,13 @@ function setTab(tab, updateHash = true) {
 }
 
 function bindNav() {
+  $("#workspace-help")?.addEventListener("click", () => openOnboarding(true));
+  $(".skip-link")?.addEventListener("click", (event) => {
+    // #main no es una ruta: saltar al contenido no debe cambiar de vista.
+    event.preventDefault();
+    $("#main")?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: "auto" });
+  });
   $$(".nav-item").forEach((button) => {
     button.addEventListener("click", () => setTab(button.dataset.tab));
   });
