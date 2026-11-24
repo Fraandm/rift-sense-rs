@@ -3626,9 +3626,14 @@ impl Engine {
                 }
             }
             3006 => {
-                if ad {
+                if tags.contains("Marksman") {
                     score = 90.0;
                     reasons.push("Velocidad de ataque para tu daño AD".to_string());
+                } else if ad {
+                    score = 70.0;
+                    reasons.push(
+                        "Velocidad de ataque, aunque no es tu prioridad principal".to_string(),
+                    );
                 } else {
                     score = 52.0;
                 }
@@ -3683,10 +3688,12 @@ impl Engine {
             3158 => {
                 if support {
                     score = 92.0;
-                } else if ap {
-                    score = 74.0;
                 } else if tank {
                     score = 60.0;
+                } else if tags.contains("Assassin") || fighter {
+                    score = 82.0;
+                } else if ap {
+                    score = 74.0;
                 } else {
                     score = 64.0;
                 }
@@ -3703,6 +3710,13 @@ impl Engine {
             }
         }
         let prior = self.item_prior(&champ.name, role, item.id);
+        let champ_games = self
+            .priors
+            .champions
+            .get(&champ.name)
+            .and_then(|data| data.roles.get(role))
+            .map(|data| data.n)
+            .unwrap_or(0);
         if prior.n >= 20 {
             let winrate = (prior.wins as f64 + 12.5) / (prior.n as f64 + 25.0);
             let edge = winrate - 0.5;
@@ -3714,11 +3728,21 @@ impl Engine {
                     role
                 ));
             }
+            if champ_games >= 100 {
+                let share = prior.n as f64 / champ_games as f64;
+                score += (share * 80.0).clamp(0.0, 24.0);
+                if share >= 0.10 {
+                    reasons.push(format!("Uso histórico {} en {}", pct(share, 0), role));
+                }
+            }
+        } else if champ_games >= 200 {
+            score -= 10.0;
+            reasons.push("Sin muestra histórica de estas botas".to_string());
         }
         if reasons.is_empty() {
             reasons.push("Botas estándar para tu rol".to_string());
         }
-        (clamp(score, 1.0, 96.0), reasons)
+        (score.max(1.0), reasons)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -3735,7 +3759,7 @@ impl Engine {
         enemy_build: Option<&EnemyBuildSummary>,
     ) -> Value {
         let owned_boots = owned.iter().find(|item| item.boots).copied();
-        if let Some(owned) = owned_boots {
+        if let Some(owned) = owned_boots.filter(|item| item.id != 1001) {
             let upgrade_id = if mode == GameMode::Classic
                 && role == "MID"
                 && role_quest_done(mode, role, minute)
@@ -3811,7 +3835,12 @@ impl Engine {
         let Some((item, score, reasons)) = best else {
             return Value::Null;
         };
-        let price = self.mode_price(item, mode, slot);
+        let basic_boots = owned_boots.filter(|owned| owned.id == 1001);
+        let price = (self.mode_price(item, mode, slot)
+            - basic_boots
+                .filter(|owned| item.from.contains(&owned.id))
+                .map_or(0, |owned| owned.gold))
+        .max(0);
         json!({
             "id": item.id,
             "name": item.name,
@@ -3819,10 +3848,10 @@ impl Engine {
             "gold": price,
             "price": price,
             "owned": false,
-            "upgrade": false,
+            "upgrade": basic_boots.is_some_and(|owned| item.from.contains(&owned.id)),
             "affordable": gold >= price,
             "missingGold": (price - gold).max(0),
-            "score": round(score, 1),
+            "score": round(score.min(96.0), 1),
             "reasons": reasons,
         })
     }
@@ -4003,6 +4032,27 @@ impl Engine {
         let bot_build_full =
             mode == GameMode::Classic && role == "BOT" && capacity > 6 && regular_count >= 6;
         let full_inventory = slot >= capacity || bot_build_full;
+        // Orientación conservadora, no una optimización aprendida: mantener
+        // los iniciales hasta necesitar realmente su ranura.
+        let sell_starter = if mode == GameMode::Classic {
+            owned_items
+                .iter()
+                .find(|item| matches!(item.id, 1054..=1056))
+                .map(|item| json!({
+                    "id": item.id,
+                    "name": item.name,
+                    "recommended": full_inventory,
+                    "reason": if full_inventory {
+                        "Considera venderlo al volver a base si necesitas su ranura para una compra útil; conserva el objeto si puedes completar una receta sin vender."
+                    } else {
+                        "Consérvalo mientras no necesites la ranura; véndelo al volver a base para completar una mejora útil."
+                    },
+                    "method": "heuristic"
+                }))
+                .unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
         let has_upgrade_material = self.has_legendary_upgrade(&owned_items, mode, &role, slot);
         // Con el inventario lleno de componentes no damos la build por
         // terminada: buscamos un legendario que reutilice esos componentes.
@@ -4030,7 +4080,10 @@ impl Engine {
                 "enemyProfile": profile,
                 "items": [],
                 "buildPlan": [],
-                "notes": [complete_note],
+                "sellStarter": sell_starter,
+                "notes": [if sell_starter.is_null() { complete_note } else {
+                    "Inventario lleno con objeto inicial: revisa si conviene venderlo para liberar una ranura; no es necesariamente una build final.".to_string()
+                }],
             });
             if !mode.is_classic() {
                 complete["gameMode"] = json!(mode.key());
@@ -4362,6 +4415,7 @@ impl Engine {
             "legendaryOptions": legendary_options,
             "targetStatus": target_status,
             "bootsRecommendation": boots_recommendation,
+            "sellStarter": sell_starter,
             "situationalItems": situational_items,
             "buildPlan": build_plan,
             "powerSpike": {

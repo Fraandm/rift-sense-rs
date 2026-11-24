@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0
+
+- Ajustada la prioridad de botas para distinguir tiradores y otros campeones AD,
+  con señales de uso histórico por campeón y rol.
+- Las botas básicas pueden recomendar su mejora y descontar el componente.
+- Orientación de venta de objetos iniciales Doran cuando hace falta espacio.
+  Es una regla heurística y no realiza ventas automáticas.
+- Los modelos y su dataset no cambian respecto de 1.8.0.
+
 ## 1.8.0
 
 Reentrenamiento con 160.885 partidas, modelos corregidos y remaster visual.

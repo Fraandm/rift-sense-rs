@@ -1053,8 +1053,10 @@ function renderItems(build) {
     const cap = Number(build?.slotCap) || maxSlots();
     host.innerHTML = emptyState(
       "i-trophy",
-      "Build completa",
-      live.mode === "arena"
+      build?.sellStarter ? "Inventario lleno" : "Build completa",
+      build?.sellStarter
+        ? build.sellStarter.reason
+        : live.mode === "arena"
         ? "Ya tienes 6 objetos de Arena."
         : cap === 7
           ? "Ya tienes 6 objetos completos y las botas en la ranura de role quest."
@@ -1384,6 +1386,9 @@ function renderNotes(build, draft) {
     return;
   }
   const rows = [];
+  if (build?.sellStarter) {
+    rows.push(`<div class="note-box ${build.sellStarter.recommended ? "warn" : ""}"><strong>Objeto inicial: ${esc(build.sellStarter.name)}</strong>${esc(build.sellStarter.reason)} Es una orientación, no una compra ni venta automática.</div>`);
+  }
   const mode = build?.gameMode || live.mode || "classic";
   const classic = mode === "classic";
   const nearby = build?.powerSpike?.nearby || {};
@@ -1403,7 +1408,7 @@ function renderNotes(build, draft) {
       suggestion.name
     )} cuesta ${num(suggestion.gold)}. Es una sugerencia situacional para la curación enemiga; no sustituye la compra principal.</div>`);
   }
-  if (build?.mode === "complete" && !build?.nextLegendary) {
+  if (build?.mode === "complete" && !build?.nextLegendary && !build?.sellStarter) {
     const cap = Number(build?.slotCap) || maxSlots();
     rows.push(
       `<div class="note-box good"><strong>Build completa</strong>${
