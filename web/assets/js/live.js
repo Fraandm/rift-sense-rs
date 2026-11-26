@@ -1546,9 +1546,23 @@ function payload() {
   };
 }
 
+let overlayPublish = Promise.resolve();
+function publishOverlay(build, seq) {
+  overlayPublish = overlayPublish.catch(() => {}).then(async () => {
+    if (seq !== requestSeq) return;
+    await fetch("/api/overlay/snapshot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(build),
+    });
+  });
+}
+
 async function refresh(immediate = false) {
   if (!state.meta) return;
   if (!live.champion) {
+    requestSeq += 1;
+    publishOverlay(null, requestSeq);
     lastData = null;
     renderVerdict(null, null);
     renderItems(null);
@@ -1570,6 +1584,7 @@ async function refresh(immediate = false) {
     if (seq !== requestSeq) return;
     lastData = data;
     const build = data.build;
+    publishOverlay(build, seq);
     if (
       live.targetLegendary &&
       (build?.targetStatus === "completed" || build?.targetStatus === "invalid")

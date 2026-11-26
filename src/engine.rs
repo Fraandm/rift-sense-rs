@@ -732,11 +732,35 @@ pub struct Engine {
     pub icon_base: String,
     pub draft_model: Option<DraftModel>,
     pub build_model: Option<BuildModel>,
+    pub lab_build_model: Option<BuildModel>,
+    pub lab_enabled: std::sync::atomic::AtomicBool,
     pub runes: RuneCatalog,
     pub model_notes: Vec<String>,
     pub mode_priors: ModePriors,
     pub share_groups: HashMap<String, ShareGroup>,
     pub tag_role_shares: HashMap<String, f64>,
+}
+
+fn lab_artifacts_match(paths: &Paths) -> bool {
+    use sha2::{Digest, Sha256};
+    fn matches(path: &std::path::Path, expected: &str) -> bool {
+        std::fs::read(path)
+            .map(|bytes| {
+                Sha256::digest(bytes)
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>()
+                    == expected
+            })
+            .unwrap_or(false)
+    }
+    matches(
+        &paths.models.join("build_net_lab.onnx"),
+        "25ab7c617c84b875873c866acbf4cd63bd28c44b4bc58e13bf39ee60b9a0403d",
+    ) && matches(
+        &paths.processed.join("vocab.json"),
+        "564f494269752eda566cd2ec397c04908afa0c00c2911e252592aeb9fee04124",
+    )
 }
 
 impl Engine {
@@ -819,6 +843,24 @@ impl Engine {
             model_notes.push("BuildNet no entrenada: se usan estadísticas empíricas.".to_string());
         }
 
+        let lab_path = paths.models.join("build_net_lab.onnx");
+        let lab_build_model = if lab_path.is_file() && lab_artifacts_match(&paths) {
+            match BuildModel::load(&lab_path) {
+                Ok(model) => Some(model),
+                Err(error) => {
+                    model_notes.push(format!("Modelo Lab no disponible: {error}"));
+                    None
+                }
+            }
+        } else {
+            if lab_path.is_file() {
+                model_notes.push(
+                    "Modelo Lab desactivado: archivo o vocabulario incompatible.".to_string(),
+                );
+            }
+            None
+        };
+
         let mut extra_items: Vec<Item> = catalog
             .all_items_by_id
             .values()
@@ -863,6 +905,8 @@ impl Engine {
             icon_base: catalog.icon_base,
             draft_model,
             build_model,
+            lab_build_model,
+            lab_enabled: std::sync::atomic::AtomicBool::new(false),
             runes,
             model_notes,
             mode_priors,
@@ -1921,7 +1965,7 @@ impl Engine {
 
     /// Partidas propias del campeón con el objeto, en su rol (Grieta) o en el modo.
     fn own_item_games(&self, champ: &Champion, role: &str, mode: GameMode, item: &Item) -> i64 {
-        if mode.is_classic() {
+        if mode.is_classic() || mode == GameMode::Aram {
             return self
                 .priors
                 .champions
@@ -2055,7 +2099,7 @@ impl Engine {
         item: &Item,
     ) -> ItemShareInfo {
         let tag = champ.tags.first().map(String::as_str).unwrap_or("");
-        if mode.is_classic() {
+        if mode.is_classic() || mode == GameMode::Aram {
             let key = item.id.to_string();
             let own = self
                 .priors
@@ -2228,7 +2272,7 @@ impl Engine {
         let owned_ids: HashSet<i64> = owned.iter().map(|item| item.id).collect();
         let slot = owned.len();
         let profile = self.enemy_profile(enemy_team);
-        let universe: Vec<&'a Item> = if mode.is_classic() {
+        let universe: Vec<&'a Item> = if mode.is_classic() || mode == GameMode::Aram {
             self.items.iter().collect()
         } else {
             self.items.iter().chain(self.extra_items.iter()).collect()
@@ -2237,6 +2281,11 @@ impl Engine {
         let mut index_by_name: HashMap<String, usize> = HashMap::new();
         for item in universe {
             if item.boots
+                || (item.gold < 850
+                    && !(mode == GameMode::Classic
+                        && role == "SUPPORT"
+                        && is_support_item(item.id)
+                        && item.id != 3865))
                 || !self.is_tracked_item(item)
                 || !self.mode_item_legal(item, mode, slot)
                 || !role_item_legal(item, role, mode, owned)
@@ -2245,7 +2294,7 @@ impl Engine {
             {
                 continue;
             }
-            if mode.is_classic() {
+            if mode.is_classic() || mode == GameMode::Aram {
                 pool.push(item);
                 continue;
             }
@@ -2328,10 +2377,16 @@ impl Engine {
 
         // BuildNet solo se entrena con partidas de Grieta: fuera de un rol con
         // datos suficientes extrapola sin base y no se usa.
-        let model_reliable =
-            mode.is_classic() && self.role_games(champ, role) >= MODEL_RELIABLE_GAMES;
+        let model_reliable = (mode.is_classic() || mode == GameMode::Aram)
+            && self.role_games(champ, role) >= MODEL_RELIABLE_GAMES;
         let probs = if use_model && model_reliable {
-            if let Some(model) = &self.build_model {
+            let use_lab = self.lab_enabled.load(std::sync::atomic::Ordering::Relaxed);
+            let selected = if use_lab {
+                self.lab_build_model.as_ref()
+            } else {
+                self.build_model.as_ref()
+            };
+            if let Some(model) = selected {
                 model.predict(
                     champ.idx,
                     *self.role_idx.get(role).unwrap_or(&1) as i64,
@@ -2359,7 +2414,10 @@ impl Engine {
         let mut candidates = Vec::new();
         for item in pool {
             let item_id = item.id;
-            if owned_ids.contains(&item_id) {
+            if owned_ids
+                .iter()
+                .any(|owned| same_evolving_item(*owned, item_id))
+            {
                 continue;
             }
             let is_upgrade = mode == GameMode::Classic
@@ -2421,7 +2479,12 @@ impl Engine {
             let (context_fit, context_note) = analysis
                 .map(|analysis| self.context_fit(item, analysis, &profile, owned, champ))
                 .unwrap_or((0.0, String::new()));
-            let (mut mode_fit, mut mode_note) = self.item_mode_fit(item, champ, mode, slot);
+            let scoring_mode = if mode == GameMode::Aram {
+                GameMode::Classic
+            } else {
+                mode
+            };
+            let (mut mode_fit, mut mode_note) = self.item_mode_fit(item, champ, scoring_mode, slot);
             let replaces = if is_upgrade {
                 owned_boots.map(|owned| owned.id)
             } else if support_upgrade {
@@ -2484,8 +2547,12 @@ impl Engine {
         // Puntuación aditiva en 0..100. Cada señal está acotada, así que un
         // objeto solo sube si tiene evidencia real; no se normaliza contra la
         // lista, que convertía diferencias de ruido en puntuaciones máximas.
-        let weights = score_weights(stable, mode.is_classic());
-        let pop_scale = if mode.is_classic() { 0.30 } else { 0.22 };
+        let weights = score_weights(stable, mode.is_classic() || mode == GameMode::Aram);
+        let pop_scale = if mode.is_classic() || mode == GameMode::Aram {
+            0.30
+        } else {
+            0.22
+        };
         for candidate in candidates.iter_mut() {
             let popularity = popularity_points(candidate.share, pop_scale);
             let winrate = (candidate.wr_edge / 0.04).clamp(-1.0, 1.0);
@@ -3916,9 +3983,9 @@ impl Engine {
                     .unwrap_or(false);
                 let id = component.get("id").and_then(Value::as_i64).unwrap_or(0);
                 let legal = id > 0
-                    && self
-                        .resolve_item(&ItemRef::Int(id))
-                        .is_some_and(|item| self.mode_item_legal(item, mode, 0));
+                    && self.resolve_item(&ItemRef::Int(id)).is_some_and(|item| {
+                        item.gold >= 850 && self.mode_item_legal(item, mode, 0)
+                    });
                 if affordable && legal && !owned_ids.contains(&id) {
                     return json!({
                         "id": id,
@@ -3983,8 +4050,11 @@ impl Engine {
             .target_item
             .as_ref()
             .and_then(|value| self.resolve_item(value));
-        let target_owned = requested_target
-            .is_some_and(|item| owned_items.iter().any(|owned| owned.id == item.id));
+        let target_owned = requested_target.is_some_and(|item| {
+            owned_items
+                .iter()
+                .any(|owned| same_evolving_item(owned.id, item.id))
+        });
         let target_active = requested_target.filter(|item| {
             !target_owned
                 && self.is_legendary_item(item)
@@ -4159,15 +4229,6 @@ impl Engine {
         } else {
             candidates.iter().collect()
         };
-        let next_candidate = focus
-            .iter()
-            .copied()
-            .find(|candidate| gold >= candidate.price)
-            .or_else(|| candidates.iter().find(|candidate| gold >= candidate.price));
-        let next_purchase =
-            next_candidate.map(|candidate| self.format_item(candidate, gold, slot, &role, mode));
-        let antiheal_source =
-            next_candidate.is_some_and(|candidate| is_grievous_for_champion(candidate.item, champ));
         let legendary_pool: Vec<&ItemCandidate> = candidates
             .iter()
             .filter(|candidate| self.is_legendary_item(candidate.item))
@@ -4208,6 +4269,20 @@ impl Engine {
                 .collect();
             (next, options)
         };
+        // Si hay objetivo, la compra debe ser el propio legendario o una
+        // pieza de su receta; nunca un componente no relacionado.
+        let chosen_target = target_active.or_else(|| target_legendary.map(|c| c.item));
+        let next_candidate = focus.iter().copied().find(|candidate| {
+            gold >= candidate.price
+                && chosen_target.is_none_or(|target| {
+                    candidate.item.id == target.id
+                        || recipe_contains(target, candidate.item.id, &self.all_items_by_id)
+                })
+        });
+        let next_purchase =
+            next_candidate.map(|candidate| self.format_item(candidate, gold, slot, &role, mode));
+        let antiheal_source =
+            next_candidate.is_some_and(|candidate| is_grievous_for_champion(candidate.item, champ));
         let next_candidate_id = next_candidate.map(|candidate| candidate.item.id);
         let mut situational: Vec<&ItemCandidate> = candidates
             .iter()
@@ -4384,7 +4459,14 @@ impl Engine {
 
         let owned_ids: HashSet<i64> = owned_items.iter().map(|item| item.id).collect();
         let next_component = if analysis.is_some() && !full_upgrades && next_purchase.is_none() {
-            self.next_component(&focus, gold, &owned_ids, mode)
+            let target_candidates: Vec<&ItemCandidate> = focus
+                .iter()
+                .copied()
+                .filter(|candidate| {
+                    chosen_target.is_some_and(|target| target.id == candidate.item.id)
+                })
+                .collect();
+            self.next_component(&target_candidates, gold, &owned_ids, mode)
         } else {
             Value::Null
         };
@@ -4399,6 +4481,7 @@ impl Engine {
         };
         let mut output = json!({
             "mode": if self.build_model.is_some() { "model" } else { "priors" },
+            "buildModel": if self.lab_enabled.load(std::sync::atomic::Ordering::Relaxed) { "lab" } else { "standard" },
             "champion": champion_brief(champ),
             "role": role,
             "roleLabel": self.role_labels.get(&role).cloned().unwrap_or_else(|| role.clone()),
@@ -4945,6 +5028,31 @@ fn item_from_meta(item: &MetaItem) -> Item {
     }
 }
 
+fn same_evolving_item(left: i64, right: i64) -> bool {
+    left == right
+        || [(3003, 3040), (3004, 3042), (3119, 3121)]
+            .iter()
+            .any(|&(base, evolved)| {
+                (left == base && right == evolved) || (left == evolved && right == base)
+            })
+}
+
+fn recipe_contains(target: &Item, wanted: i64, items: &HashMap<i64, MetaItem>) -> bool {
+    let mut pending = target.from.clone();
+    let mut visited = HashSet::new();
+    while let Some(id) = pending.pop() {
+        if id == wanted {
+            return true;
+        }
+        if visited.insert(id) {
+            if let Some(item) = items.get(&id) {
+                pending.extend(item.from.iter().copied());
+            }
+        }
+    }
+    false
+}
+
 fn recipe_progress(
     target: &Item,
     owned: &[&Item],
@@ -5139,6 +5247,30 @@ mod tests {
         let progress = recipe_progress(&ludens, &[&amp, &sapphire], &items);
         assert_eq!(progress.owned, vec![1052, 1027]);
         assert_eq!(progress.owned_gold, 750);
+    }
+
+    #[test]
+    fn evolved_tear_items_block_their_untransformed_form() {
+        for (base, evolved) in [(3003, 3040), (3004, 3042), (3119, 3121)] {
+            assert!(same_evolving_item(base, evolved));
+            assert!(same_evolving_item(evolved, base));
+            assert!(!same_evolving_item(evolved, 3118));
+        }
+        assert!(!same_evolving_item(3040, 3042));
+    }
+
+    #[test]
+    fn recipe_membership_only_accepts_linked_components() {
+        let mut catalog = HashMap::new();
+        catalog.insert(
+            3802,
+            meta_item(3802, "Lost Chapter", 1200, vec![1052, 1027]),
+        );
+        let mut target = item(3003, "Archangel", false);
+        target.from = vec![3802, 3070];
+        assert!(recipe_contains(&target, 3802, &catalog));
+        assert!(recipe_contains(&target, 1052, &catalog));
+        assert!(!recipe_contains(&target, 3067, &catalog));
     }
 
     #[test]

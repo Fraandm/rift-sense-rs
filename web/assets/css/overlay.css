@@ -173,9 +173,8 @@ body {
 }
 
 .extras {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  display: grid;
+  gap: 3px;
   margin: 5px 2px 0;
 }
 
@@ -184,9 +183,7 @@ body {
 }
 
 .chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  display: block;
   min-width: 0;
   max-width: 100%;
   padding: 3px 7px;
@@ -194,7 +191,7 @@ body {
   border-radius: 999px;
   background: rgba(8, 15, 20, 0.82);
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 11px;
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;

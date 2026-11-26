@@ -28,6 +28,7 @@ pub struct AppState {
     pub paths: Paths,
     pub lcu: LcuService,
     pub settings: SettingsHandle,
+    pub overlay_snapshot: RwLock<Option<(std::time::Instant, Value)>>,
 }
 
 type SharedState = Arc<AppState>;
@@ -41,6 +42,10 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/draft/bans", post(draft_bans))
         .route("/api/build", post(build))
         .route("/api/live", post(live))
+        .route(
+            "/api/overlay/snapshot",
+            get(overlay_snapshot).post(publish_overlay_snapshot),
+        )
         .route("/api/dataset", get(dataset))
         .route("/api/model", get(model))
         .route("/api/reload", post(reload))
@@ -62,6 +67,22 @@ pub fn router(state: SharedState) -> Router {
         .with_state(state)
         .layer(middleware::from_fn(same_origin))
         .layer(TraceLayer::new_for_http())
+}
+
+async fn publish_overlay_snapshot(
+    State(state): State<SharedState>,
+    Json(snapshot): Json<Value>,
+) -> StatusCode {
+    *state.overlay_snapshot.write().await = Some((std::time::Instant::now(), snapshot));
+    StatusCode::NO_CONTENT
+}
+
+async fn overlay_snapshot(State(state): State<SharedState>) -> Json<Value> {
+    let snapshot = state.overlay_snapshot.read().await;
+    match snapshot.as_ref() {
+        Some((at, value)) if at.elapsed().as_secs() < 10 => Json(value.clone()),
+        _ => Json(Value::Null),
+    }
 }
 
 fn split_host_port(value: &str) -> (&str, Option<&str>) {
@@ -276,6 +297,15 @@ async fn reload(State(state): State<SharedState>) -> Response {
     let paths = state.paths.clone();
     match tokio::task::spawn_blocking(move || Engine::load(paths)).await {
         Ok(Ok(engine)) => {
+            let lab_enabled = state
+                .settings
+                .read()
+                .map(|settings| settings.lab_enabled)
+                .unwrap_or(false);
+            engine.lab_enabled.store(
+                lab_enabled && engine.lab_build_model.is_some(),
+                std::sync::atomic::Ordering::Relaxed,
+            );
             let draft = engine.draft_model.is_some();
             let build = engine.build_model.is_some();
             let patch = engine.patch.clone();
@@ -323,6 +353,8 @@ fn settings_payload(settings: &Settings) -> Value {
         "startWithWindows": settings.start_with_windows,
         "minimizeToTray": settings.minimize_to_tray,
         "overlayEnabled": settings.overlay_enabled,
+        "overlayPosition": settings.overlay_position,
+        "labEnabled": settings.lab_enabled,
         "startupSupported": crate::settings::startup_supported(),
         "version": crate::update::current_version(),
     })
@@ -334,7 +366,15 @@ async fn settings_get(State(state): State<SharedState>) -> Json<Value> {
         .read()
         .map(|settings| settings.clone())
         .unwrap_or_default();
-    Json(settings_payload(&settings))
+    let engine = engine(&state).await;
+    let mut payload = settings_payload(&settings);
+    payload["labAvailable"] = json!(engine.lab_build_model.is_some());
+    payload["labEnabled"] = json!(
+        engine
+            .lab_enabled
+            .load(std::sync::atomic::Ordering::Relaxed)
+    );
+    Json(payload)
 }
 
 #[derive(Deserialize, Default)]
@@ -344,6 +384,8 @@ struct SettingsPatch {
     start_with_windows: Option<bool>,
     minimize_to_tray: Option<bool>,
     overlay_enabled: Option<bool>,
+    overlay_position: Option<settings::OverlayPosition>,
+    lab_enabled: Option<bool>,
 }
 
 async fn settings_update(
@@ -380,6 +422,16 @@ async fn settings_update(
     if let Some(value) = patch.overlay_enabled {
         next.overlay_enabled = value;
     }
+    if let Some(value) = patch.overlay_position {
+        next.overlay_position = value;
+    }
+    let engine = engine(&state).await;
+    if let Some(value) = patch.lab_enabled {
+        if value && engine.lab_build_model.is_none() {
+            return error(StatusCode::BAD_REQUEST, "El modelo Lab no está disponible.");
+        }
+        next.lab_enabled = value;
+    }
 
     if let Err(error_value) = next.save(&state.paths) {
         return error(StatusCode::INTERNAL_SERVER_ERROR, error_value.to_string());
@@ -387,7 +439,19 @@ async fn settings_update(
     if let Ok(mut current) = state.settings.write() {
         *current = next.clone();
     }
-    Json(settings_payload(&next)).into_response()
+    engine.lab_enabled.store(
+        next.lab_enabled && engine.lab_build_model.is_some(),
+        std::sync::atomic::Ordering::Relaxed,
+    );
+    *state.overlay_snapshot.write().await = None;
+    let mut payload = settings_payload(&next);
+    payload["labAvailable"] = json!(engine.lab_build_model.is_some());
+    payload["labEnabled"] = json!(
+        engine
+            .lab_enabled
+            .load(std::sync::atomic::Ordering::Relaxed)
+    );
+    Json(payload).into_response()
 }
 
 async fn diagnostics(State(state): State<SharedState>) -> Json<Value> {

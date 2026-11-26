@@ -11,8 +11,8 @@ import * as model from "./model.js";
 import * as data from "./data.js";
 import * as settings from "./settings.js";
 
-const TABS = ["draft", "live", "summary", "client", "model", "data", "settings"];
-const TAB_LABELS = { draft: "Preparación", live: "En partida", summary: "Tu historial", client: "Conexión local", model: "Modelos", data: "Explorador de datos", settings: "Preferencias" };
+const TABS = ["home", "draft", "live", "summary", "client", "model", "data", "settings"];
+const TAB_LABELS = { home: "Inicio", draft: "Preparación", live: "En partida", summary: "Tu historial", client: "Conexión local", model: "Modelos", data: "Explorador de datos", settings: "Preferencias" };
 const ONBOARDING_KEY = "riftsense.onboarding.v1";
 let booted = false;
 

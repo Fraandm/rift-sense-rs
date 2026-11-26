@@ -9,6 +9,7 @@
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/assets/css/styles.css" />
   <link rel="stylesheet" href="/assets/css/remaster.css" />
+  <link rel="stylesheet" href="/assets/css/workspace-v2.css" />
 </head>
 <body>
   <a class="skip-link" href="#main">Saltar al contenido</a>
@@ -75,12 +76,15 @@
         <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
         <span class="brand-text">
           <strong>RiftSense</strong>
-          <small>Análisis táctico</small>
+          <small class="edition-name">Deidades Deidadosas <span>Update</span></small>
         </span>
       </div>
 
       <p class="nav-caption">Tu espacio de juego</p>
       <nav class="nav" aria-label="Navegación principal">
+        <button class="nav-item" data-tab="home" type="button" aria-label="Inicio">
+          <svg class="icon"><use href="#i-logo"/></svg><span>Inicio</span>
+        </button>
         <button class="nav-item active" data-tab="draft" type="button" aria-label="Draft">
           <svg class="icon"><use href="#i-draft"/></svg><span>Draft</span>
         </button>
@@ -129,6 +133,44 @@
           <button class="workspace-help" id="workspace-help" type="button" aria-label="Abrir guía de RiftSense" title="Guía rápida"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></button>
         </div>
       </header>
+      <section class="view hidden" id="view-home" aria-labelledby="home-title">
+        <div class="home-hero">
+          <div class="home-hero-copy">
+            <p class="home-edition"><span>RIFTSENSE 2.0</span> Deidades Deidadosas Update</p>
+            <h1 id="home-title">Tu partida.<br><span>Tus decisiones.</span></h1>
+            <p class="lead">Prepara el draft, sigue tu build y aprende de cada partida desde un mismo espacio.</p>
+            <div class="home-actions">
+              <a class="btn home-primary" href="#draft">Preparar draft <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+              <a class="btn ghost" href="#live">Abrir En vivo</a>
+            </div>
+          </div>
+          <div class="home-emblem" aria-hidden="true">
+            <div class="home-orbit orbit-outer"></div>
+            <div class="home-orbit orbit-inner"></div>
+            <svg class="icon"><use href="#i-logo"/></svg>
+            <span>ANÁLISIS · CONTEXTO · DECISIÓN</span>
+          </div>
+        </div>
+        <div class="home-heading"><div><p class="eyebrow">ELIGE TU MOMENTO</p><h2>Tu espacio de juego</h2></div><span>01 — 03</span></div>
+        <div class="home-grid">
+          <a class="home-tile" href="#draft">
+            <span class="home-tile-top"><svg class="icon" aria-hidden="true"><use href="#i-draft"/></svg><span>01 / PREPARAR</span></span>
+            <strong>Draft</strong><p>Explora picks, bans y runas según tu composición.</p>
+            <span class="home-tile-link">Abrir draft <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="home-tile" href="#live">
+            <span class="home-tile-top"><svg class="icon" aria-hidden="true"><use href="#i-live"/></svg><span>02 / JUGAR</span></span>
+            <strong>En vivo</strong><p>Consulta objetivos legendarios y alternativas durante la partida.</p>
+            <span class="home-tile-link">Ver partida <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="home-tile" href="#summary">
+            <span class="home-tile-top"><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg><span>03 / REVISAR</span></span>
+            <strong>Resumen</strong><p>Revisa tu historial y las decisiones de tus partidas.</p>
+            <span class="home-tile-link">Abrir resumen <span aria-hidden="true">↗</span></span>
+          </a>
+        </div>
+        <div class="home-footnote"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span><strong>Siempre bajo tu control.</strong> RiftSense funciona en modo de solo lectura y no envía acciones al juego.</span></div>
+      </section>
       <!-- ===================== DRAFT ===================== -->
       <section class="view" id="view-draft" aria-labelledby="draft-title">
         <div class="view-head draft-hero">
@@ -354,6 +396,16 @@
           </aside>
 
           <section class="card live-main">
+            <section class="purchase-focus" aria-labelledby="purchase-title">
+              <div class="reco-head">
+                <div><p class="eyebrow">Tu siguiente movimiento</p><h2 id="purchase-title">Siguiente compra</h2><p id="live-reco-subtitle">Recomendaciones contextualizadas</p></div>
+                <span class="mode-badge" id="live-mode">—</span>
+              </div>
+              <p class="sr-only" id="live-reco-status" role="status" aria-live="polite" aria-atomic="true"></p>
+              <div class="legendary-target hidden" id="live-legendary"></div>
+              <div class="item-list" id="live-items"></div>
+            </section>
+
             <div class="live-hero">
               <div class="gauge" id="live-gauge" aria-label="Probabilidad estimada de victoria">
                 <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
@@ -374,18 +426,7 @@
                 <div class="damage-legend"><span>AD</span><span>AP</span></div>
               </div>
             </div>
-
             <div class="live-coach hidden" id="live-coach"></div>
-
-            <section class="purchase-focus" aria-labelledby="purchase-title">
-              <div class="reco-head">
-                <div><p class="eyebrow">Tu siguiente movimiento</p><h2 id="purchase-title">Siguiente compra</h2><p id="live-reco-subtitle">Recomendaciones contextualizadas</p></div>
-                <span class="mode-badge" id="live-mode">—</span>
-              </div>
-              <p class="sr-only" id="live-reco-status" role="status" aria-live="polite" aria-atomic="true"></p>
-              <div class="legendary-target hidden" id="live-legendary"></div>
-              <div class="item-list" id="live-items"></div>
-            </section>
 
             <div class="build-head">
               <div>
@@ -658,7 +699,7 @@
           <div>
             <p class="eyebrow">Preferencias</p>
             <h1 id="settings-title">Ajustes</h1>
-            <p class="lead">Controla el arranque con Windows, la bandeja del sistema y qué pestañas quieres ver.</p>
+            <p class="lead">Personaliza la aplicación, el overlay y tus funciones experimentales desde un solo lugar.</p>
           </div>
           <span class="badge" id="settings-version">RiftSense</span>
         </div>
@@ -679,6 +720,24 @@
               </label>
             </div>
             <p class="fineprint">Si las desactivas mientras estás en una de ellas, RiftSense vuelve a Draft.</p>
+          </section>
+
+          <section class="card settings-card">
+            <header class="card-head">
+              <div><h2>RiftSense Lab</h2><p>Funciones experimentales, bajo tu control</p></div>
+              <span class="badge teal">Experimental</span>
+            </header>
+            <div class="setting-row">
+              <div class="setting-copy">
+                <strong>Modelo de objetos Lab</strong>
+                <span>Experimental: usa el candidato de builds en lugar del modelo habitual. No está validado en partidas reales y sus recomendaciones pueden ser peores.</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="settings-lab" aria-label="Modelo de objetos Lab" aria-describedby="settings-lab-note" />
+                <span class="track" aria-hidden="true"></span>
+              </label>
+            </div>
+            <p class="fineprint" id="settings-lab-note">Comprobando disponibilidad del modelo experimental…</p>
           </section>
 
           <section class="card settings-card">
@@ -705,17 +764,35 @@
                 <span class="track" aria-hidden="true"></span>
               </label>
             </div>
+            <p class="fineprint" id="settings-startup-note">El arranque con Windows se aplica al instante.</p>
+          </section>
+
+          <section class="card settings-card">
+            <header class="card-head">
+              <div><h2>Overlay</h2><p>Información discreta durante la partida</p></div>
+            </header>
             <div class="setting-row">
               <div class="setting-copy">
                 <strong>Overlay en partida</strong>
-                <span>Ventana compacta sobre League of Legends con la siguiente compra. Solo aparece cuando el juego está en primer plano. Usa <b>Ctrl+Shift+O</b> para mostrarlo u ocultarlo.</span>
+                <span>Ventana compacta sobre League of Legends con el objetivo legendario. Solo aparece cuando el juego está en primer plano. Usa <b>Ctrl+Shift+O</b> para mostrarlo u ocultarlo.</span>
               </div>
               <label class="switch">
                 <input type="checkbox" id="settings-overlay" aria-label="Overlay en partida" />
                 <span class="track" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="fineprint" id="settings-startup-note">El arranque con Windows se aplica al instante.</p>
+            <div class="setting-row">
+              <div class="setting-copy">
+                <label for="settings-overlay-position"><strong>Posición del overlay</strong></label>
+                <span>Elige una esquina del monitor principal. Se aplica al guardar.</span>
+              </div>
+              <select id="settings-overlay-position">
+                <option value="topRight">Superior derecha</option>
+                <option value="topLeft">Superior izquierda</option>
+                <option value="bottomRight">Inferior derecha</option>
+                <option value="bottomLeft">Inferior izquierda</option>
+              </select>
+            </div>
           </section>
 
           <section class="card settings-card settings-about">

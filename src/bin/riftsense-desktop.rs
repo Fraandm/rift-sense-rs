@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use riftsense::logging;
-use riftsense::settings::{Settings, SettingsHandle};
+use riftsense::settings::{OverlayPosition, Settings, SettingsHandle};
 use riftsense::{api, config::Paths, engine::Engine, lcu::LcuService};
 use std::sync::mpsc;
 use std::sync::{Arc, RwLock as StdRwLock};
@@ -126,12 +126,18 @@ fn start_server(preferred_port: u16, paths: Paths, settings: SettingsHandle) -> 
                     move || Engine::load(paths)
                 })
                 .await??;
+                engine.lab_enabled.store(
+                    settings.read().map(|s| s.lab_enabled).unwrap_or(false)
+                        && engine.lab_build_model.is_some(),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
                 let lcu = LcuService::new(&paths.root)?;
                 let state = Arc::new(api::AppState {
                     engine: RwLock::new(Arc::new(engine)),
                     paths,
                     lcu,
                     settings,
+                    overlay_snapshot: RwLock::new(None),
                 });
                 let listener = TcpListener::bind(("127.0.0.1", preferred_port)).await?;
                 let port = listener.local_addr()?.port();
@@ -171,6 +177,75 @@ fn overlay_enabled(settings: &SettingsHandle) -> bool {
         .read()
         .map(|settings| settings.overlay_enabled)
         .unwrap_or(false)
+}
+
+fn overlay_position_setting(settings: &SettingsHandle) -> OverlayPosition {
+    settings
+        .read()
+        .map(|settings| settings.overlay_position)
+        .unwrap_or_default()
+}
+
+fn overlay_coordinates(
+    position: OverlayPosition,
+    origin: PhysicalPosition<i32>,
+    size: tao::dpi::PhysicalSize<u32>,
+    scale: f64,
+) -> PhysicalPosition<i32> {
+    let left = matches!(
+        position,
+        OverlayPosition::TopLeft | OverlayPosition::BottomLeft
+    );
+    let top = matches!(
+        position,
+        OverlayPosition::TopLeft | OverlayPosition::TopRight
+    );
+    let margin = (OVERLAY_MARGIN * scale) as i32;
+    let width = (OVERLAY_WIDTH * scale) as i32;
+    let height = (OVERLAY_HEIGHT * scale) as i32;
+    let x = if left {
+        margin
+    } else {
+        (size.width as i32 - width - margin).max(0)
+    };
+    let y = if top {
+        (OVERLAY_TOP * scale) as i32
+    } else {
+        (size.height as i32 - height - margin).max(0)
+    };
+    PhysicalPosition::new(origin.x + x, origin.y + y)
+}
+
+#[cfg(test)]
+mod overlay_position_tests {
+    use super::*;
+
+    #[test]
+    fn corners_respect_origin_scale_and_overlay_size() {
+        let origin = PhysicalPosition::new(-1920, 100);
+        let size = tao::dpi::PhysicalSize::new(1920, 1080);
+        let tl = overlay_coordinates(OverlayPosition::TopLeft, origin, size, 1.0);
+        let tr = overlay_coordinates(OverlayPosition::TopRight, origin, size, 1.0);
+        let bl = overlay_coordinates(OverlayPosition::BottomLeft, origin, size, 1.0);
+        let br = overlay_coordinates(OverlayPosition::BottomRight, origin, size, 1.0);
+        assert_eq!(tl.x, origin.x + OVERLAY_MARGIN as i32);
+        assert_eq!(
+            tr.x,
+            origin.x + 1920 - OVERLAY_WIDTH as i32 - OVERLAY_MARGIN as i32
+        );
+        assert_eq!(tl.y, origin.y + OVERLAY_TOP as i32);
+        assert_eq!(
+            bl.y,
+            origin.y + 1080 - OVERLAY_HEIGHT as i32 - OVERLAY_MARGIN as i32
+        );
+        assert_eq!((bl.x, br.y), (tl.x, bl.y));
+        assert_eq!((br.x, tr.y), (tr.x, tl.y));
+        let scaled = overlay_coordinates(OverlayPosition::BottomRight, origin, size, 1.5);
+        assert_eq!(
+            scaled.x,
+            origin.x + 1920 - (OVERLAY_WIDTH * 1.5) as i32 - (OVERLAY_MARGIN * 1.5) as i32
+        );
+    }
 }
 
 fn toggle_overlay_setting(settings: &SettingsHandle, paths: &Paths) {
@@ -396,14 +471,11 @@ fn main() -> Result<()> {
         .context("No se pudo crear WebView2")?;
 
     let overlay_position = event_loop.primary_monitor().map(|monitor| {
-        let scale = monitor.scale_factor();
-        let origin = monitor.position();
-        let size = monitor.size();
-        PhysicalPosition::new(
-            origin.x + size.width as i32
-                - (OVERLAY_WIDTH * scale) as i32
-                - (OVERLAY_MARGIN * scale) as i32,
-            origin.y + (OVERLAY_TOP * scale) as i32,
+        overlay_coordinates(
+            overlay_position_setting(&settings),
+            monitor.position(),
+            monitor.size(),
+            monitor.scale_factor(),
         )
     });
     let mut overlay_builder = WindowBuilder::new()
@@ -482,6 +554,7 @@ fn main() -> Result<()> {
     let overlay_window_id = overlay_window.id();
     let mut overlay_visible = false;
     let mut last_overlay_setting = overlay_enabled(&settings);
+    let mut last_overlay_position = overlay_position_setting(&settings);
     let mut next_overlay_check = Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
@@ -542,6 +615,18 @@ fn main() -> Result<()> {
         if check_overlay_now || Instant::now() >= next_overlay_check {
             next_overlay_check = Instant::now() + Duration::from_millis(400);
             let enabled = overlay_enabled(&settings);
+            let position = overlay_position_setting(&settings);
+            if position != last_overlay_position {
+                if let Some(monitor) = overlay_window.primary_monitor() {
+                    overlay_window.set_outer_position(overlay_coordinates(
+                        position,
+                        monitor.position(),
+                        monitor.size(),
+                        monitor.scale_factor(),
+                    ));
+                    last_overlay_position = position;
+                }
+            }
             let show = enabled && league_in_foreground();
             if show != overlay_visible {
                 if show {

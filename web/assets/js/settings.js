@@ -10,11 +10,14 @@ const DEFAULTS = Object.freeze({
   startWithWindows: false,
   minimizeToTray: false,
   overlayEnabled: true,
+  overlayPosition: "topRight",
+  labEnabled: false,
 });
 const ADVANCED_TABS = new Set(["model", "data"]);
 
 let current = { ...DEFAULTS };
 let startupSupported = false;
+let labAvailable = false;
 let version = "";
 let bound = false;
 
@@ -24,6 +27,9 @@ function normalize(payload) {
     startWithWindows: Boolean(payload?.startWithWindows),
     minimizeToTray: Boolean(payload?.minimizeToTray),
     overlayEnabled: payload?.overlayEnabled !== false,
+    overlayPosition: ["topRight", "topLeft", "bottomRight", "bottomLeft"].includes(payload?.overlayPosition)
+      ? payload.overlayPosition : "topRight",
+    labEnabled: payload?.labEnabled === true,
   };
 }
 
@@ -50,10 +56,19 @@ function apply() {
     ["startWithWindows", "#settings-startup"],
     ["minimizeToTray", "#settings-tray"],
     ["overlayEnabled", "#settings-overlay"],
+    ["labEnabled", "#settings-lab"],
   ]) {
     const input = $(selector);
     if (input && input.checked !== current[key]) input.checked = current[key];
   }
+  const position = $("#settings-overlay-position");
+  if (position) position.value = current.overlayPosition;
+  const lab = $("#settings-lab");
+  if (lab) lab.disabled = !labAvailable;
+  const labNote = $("#settings-lab-note");
+  if (labNote) labNote.textContent = !labAvailable
+    ? "Modelo Lab no disponible; se mantiene el modelo habitual."
+    : current.labEnabled ? "Lab activo · recomendaciones experimentales." : "Modelo habitual activo · Lab desactivado.";
 
   document.querySelectorAll("[data-advanced]").forEach((element) => {
     element.classList.toggle("hidden", !current.showAdvanced);
@@ -111,11 +126,14 @@ async function update(patch) {
         startWithWindows: current.startWithWindows,
         minimizeToTray: current.minimizeToTray,
         overlayEnabled: current.overlayEnabled,
+        overlayPosition: current.overlayPosition,
+        labEnabled: current.labEnabled,
       },
       { timeout: 15000 }
     );
     current = normalize(saved);
     startupSupported = saved?.startupSupported === true;
+    labAvailable = saved?.labAvailable === true;
     if (saved?.version) version = String(saved.version);
     localWrite(current);
     apply();
@@ -171,6 +189,12 @@ function bind() {
   $("#settings-overlay")?.addEventListener("change", (event) => {
     update({ overlayEnabled: event.target.checked });
   });
+  $("#settings-overlay-position")?.addEventListener("change", (event) => {
+    update({ overlayPosition: event.target.value });
+  });
+  $("#settings-lab")?.addEventListener("change", (event) => {
+    update({ labEnabled: event.target.checked });
+  });
 }
 
 export async function init() {
@@ -183,6 +207,7 @@ export async function init() {
   if (remote) {
     current = normalize(remote);
     startupSupported = remote.startupSupported === true;
+    labAvailable = remote.labAvailable === true;
     version = String(remote.version || "");
     localWrite(current);
   } else {

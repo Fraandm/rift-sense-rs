@@ -8,6 +8,16 @@ use std::sync::{Arc, RwLock};
 
 pub type SettingsHandle = Arc<RwLock<Settings>>;
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum OverlayPosition {
+    TopLeft,
+    #[default]
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 const RUN_VALUE: &str = "RiftSense";
 
@@ -22,6 +32,10 @@ pub struct Settings {
     pub minimize_to_tray: bool,
     /// Muestra la ventana compacta superpuesta durante la partida.
     pub overlay_enabled: bool,
+    /// Esquina del monitor principal donde aparece el overlay.
+    pub overlay_position: OverlayPosition,
+    /// Selección explícita del modelo de builds experimental.
+    pub lab_enabled: bool,
 }
 
 impl Default for Settings {
@@ -32,6 +46,8 @@ impl Default for Settings {
             minimize_to_tray: false,
             // El overlay es la vista pensada para una sola pantalla.
             overlay_enabled: true,
+            overlay_position: OverlayPosition::default(),
+            lab_enabled: false,
         }
     }
 }
@@ -159,11 +175,14 @@ mod tests {
             start_with_windows: false,
             minimize_to_tray: true,
             overlay_enabled: false,
+            overlay_position: OverlayPosition::BottomLeft,
+            lab_enabled: false,
         };
         let text = serde_json::to_string(&settings).unwrap();
         assert!(text.contains("\"showAdvanced\":true"));
         assert!(text.contains("\"minimizeToTray\":true"));
         assert!(text.contains("\"overlayEnabled\":false"));
+        assert!(text.contains("\"overlayPosition\":\"bottomLeft\""));
         let parsed: Settings = serde_json::from_str(&text).unwrap();
         assert_eq!(parsed, settings);
     }
@@ -180,5 +199,6 @@ mod tests {
         let parsed: Settings = serde_json::from_str("{\"showAdvanced\":true}").unwrap();
         assert!(parsed.show_advanced);
         assert!(parsed.overlay_enabled);
+        assert_eq!(parsed.overlay_position, OverlayPosition::TopRight);
     }
 }

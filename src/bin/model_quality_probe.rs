@@ -53,7 +53,11 @@ fn main() -> Result<()> {
     let fixtures_path = args.next().context("Falta archivo de fixtures")?;
     let fixtures: Fixtures = serde_json::from_slice(&fs::read(fixtures_path)?)?;
     let build = BuildModel::load(&models.join("build_net.onnx"))?;
-    let draft = DraftModel::load(&models.join("draft_net.onnx"))?;
+    let draft = if fixtures.draft.is_empty() {
+        None
+    } else {
+        Some(DraftModel::load(&models.join("draft_net.onnx"))?)
+    };
     let mut max_build = 0.0_f32;
     let mut max_draft = 0.0_f32;
     for case in &fixtures.build {
@@ -73,7 +77,7 @@ fn main() -> Result<()> {
         let x = &case.inputs;
         let flatten = |v: &[Vec<i64>]| v.iter().flatten().copied().collect::<Vec<_>>();
         let mask = x.mask.iter().flatten().copied().collect::<Vec<_>>();
-        let actual = draft.predict(
+        let actual = draft.as_ref().context("Falta DraftNet")?.predict(
             x.champ.len(),
             &flatten(&x.champ),
             &flatten(&x.role),

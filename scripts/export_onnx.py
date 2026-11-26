@@ -33,9 +33,9 @@ def load_classes(root: Path):
     return BuildNet, DraftNet
 
 
-def export_build(root: Path, out_dir: Path, checkpoint_dir: Path | None = None) -> dict:
+def export_build(root: Path, out_dir: Path, checkpoint_dir: Path | None = None, checkpoint_file: Path | None = None) -> dict:
     BuildNet, _ = load_classes(root)
-    checkpoint = (checkpoint_dir or root / "artifacts") / "build_net.pt"
+    checkpoint = checkpoint_file or (checkpoint_dir or root / "artifacts") / "build_net.pt"
     ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
     model = BuildNet(
         n_champions=int(ckpt["n_champions"]),
@@ -162,13 +162,21 @@ def main() -> None:
     parser.add_argument("--only", choices=["build", "draft"], default=None)
     parser.add_argument("--checkpoint-dir", type=Path, default=None,
                         help="Checkpoints candidatos aislados; no sobrescribe produccion")
+    parser.add_argument("--build-checkpoint", type=Path, default=None,
+                        help="Checkpoint BuildNet explícito para exportación aislada")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
     out_dir = Path(args.out).resolve()
     checkpoint_dir = args.checkpoint_dir or root / "artifacts"
     required = ("build_net.pt",) if args.only == "build" else ("draft_net.pt",) if args.only == "draft" else ("build_net.pt", "draft_net.pt")
+    if args.build_checkpoint and (args.only != "build" or out_dir == (Path(__file__).resolve().parents[1] / "models").resolve()):
+        raise SystemExit("--build-checkpoint exige --only build y una carpeta de salida aislada")
     for name in required:
+        if name == "build_net.pt" and args.build_checkpoint:
+            if not args.build_checkpoint.is_file():
+                raise SystemExit(f"No existe {args.build_checkpoint}")
+            continue
         if not (checkpoint_dir / name).exists():
             raise SystemExit(f"No existe {checkpoint_dir / name}")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -187,7 +195,7 @@ def main() -> None:
 
     if args.only in (None, "build"):
         print(f"Exportando BuildNet -> {out_dir / 'build_net.onnx'}")
-        manifest.update(export_build(root, out_dir, checkpoint_dir))
+        manifest.update(export_build(root, out_dir, checkpoint_dir, args.build_checkpoint))
     if args.only in (None, "draft"):
         print(f"Exportando DraftNet -> {out_dir / 'draft_net.onnx'}")
         manifest.update(export_draft(root, out_dir, checkpoint_dir))

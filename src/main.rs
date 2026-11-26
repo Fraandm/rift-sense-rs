@@ -46,11 +46,16 @@ async fn main() -> Result<()> {
 
     let lcu = riftsense::lcu::LcuService::new(&paths.root)?;
     let settings = StdRwLock::new(Settings::load(&paths));
+    engine.lab_enabled.store(
+        settings.read().map(|s| s.lab_enabled).unwrap_or(false) && engine.lab_build_model.is_some(),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     let state = Arc::new(api::AppState {
         engine: RwLock::new(Arc::new(engine)),
         paths,
         lcu,
         settings: Arc::new(settings),
+        overlay_snapshot: RwLock::new(None),
     });
 
     let mut bound = None;

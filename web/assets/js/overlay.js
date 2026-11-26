@@ -1,4 +1,4 @@
-/* Overlay compacto de partida: solo la siguiente compra y los ajustes clave. */
+/* Overlay compacto: objetivo legendario y alternativas de la vista En vivo. */
 
 const $ = (id) => document.getElementById(id);
 const ROLE_LABEL = {
@@ -20,13 +20,11 @@ const itemName = $("item-name");
 const hint = $("hint");
 const gold = $("gold");
 const extras = $("extras");
-const bootsChip = $("boots");
-const situationalChip = $("situational");
+const optionOne = $("option-one");
+const optionTwo = $("option-two");
 
 let patch = "";
 let busy = false;
-let hasBuild = false;
-let lastSignature = "";
 
 function number(value) {
   const numeric = Number(value);
@@ -70,8 +68,6 @@ function showExtras(show) {
 }
 
 function waiting(title = "Esperando partida", detail = "Se activa al entrar en partida") {
-  hasBuild = false;
-  lastSignature = "";
   overlay.classList.add("waiting");
   overlay.classList.remove("complete");
   pulse.classList.remove("hidden");
@@ -83,31 +79,19 @@ function waiting(title = "Esperando partida", detail = "Se activa al entrar en p
   setText(itemName, title);
   setText(hint, detail);
   setText(gold, "—");
-  setChip(bootsChip, "", "");
-  setChip(situationalChip, "", "");
+  setChip(optionOne, "", "");
+  setChip(optionTwo, "", "");
   showExtras(false);
 }
 
-function situationalLabel(note) {
-  const text = String(note || "").toLowerCase();
-  if (text.includes("antiheal")) return "Antiheal";
-  if (text.includes("penetración de armadura")) return "AD";
-  if (text.includes("penetración mágica")) return "AP";
-  if (text.includes("escudo")) return "Escudos";
-  if (text.includes("vida")) return "Vida";
-  if (text.includes("autoataque")) return "Armadura";
-  return "Ajuste";
-}
-
-function costText(item) {
+function costText(item, build) {
   if (!item) return "";
+  if (item.needsSlot && number(build?.slot) >= (number(build?.slotCap) || 6)) return "Falta un hueco";
   if (item.affordable) return "Listo para comprar";
   return `Faltan ${formatGold(item.missingGold)}`;
 }
 
 function renderComplete(build) {
-  hasBuild = true;
-  lastSignature = "complete";
   overlay.classList.remove("waiting");
   overlay.classList.add("complete");
   pulse.classList.add("hidden");
@@ -120,36 +104,22 @@ function renderComplete(build) {
   const slots = number(build?.slotCap) || number(build?.slot) || 6;
   setText(hint, `${slots} objetos · reserva oro para consumibles`);
   setText(gold, formatGold(build?.gold));
-  setChip(bootsChip, "", "");
-  setChip(situationalChip, "", "");
+  setChip(optionOne, "", "");
+  setChip(optionTwo, "", "");
   showExtras(false);
 }
 
 function renderBuild(build) {
-  // La app muestra nextPurchase (el componente que puedes pagar ahora) antes
-  // que el primer legendario de la lista. El overlay debe usar la misma fuente.
-  const next =
-    build?.nextPurchase ||
-    (Array.isArray(build?.items) ? build.items[0] : null) ||
-    build?.nextLegendary ||
-    build?.nextComponent ||
-    null;
-  if (build?.mode === "complete" || (!next && build?.fullInventory)) {
+  const next = build?.nextLegendary || null;
+  if (!next && (build?.mode === "complete" || build?.fullInventory)) {
     renderComplete(build);
     return;
   }
   if (!next) {
-    waiting("Sin compra disponible", "El motor no encontró una opción ahora mismo");
+    waiting("Sin objetivo legendario", "El motor no encontró una opción ahora mismo");
     return;
   }
 
-  const signature = [
-    next.id,
-    Math.round(number(build?.gold)),
-    Math.round(number(next?.missingGold)),
-    build?.mode,
-  ].join(":");
-  hasBuild = true;
   overlay.classList.remove("waiting", "complete");
   art.classList.remove("empty", "done");
   pulse.classList.add("hidden");
@@ -157,81 +127,18 @@ function renderBuild(build) {
   const champion = build?.champion?.name || build?.champion || "";
   const role = ROLE_LABEL[build?.role] || build?.role || "";
   setImage(iconUrl("item", next.icon), next.name);
-  setText(eyebrow, next.upgrade ? "COMPLETAR OBJETIVO" : "SIGUIENTE COMPRA");
+  setText(eyebrow, "OBJETIVO LEGENDARIO");
   setText(champ, [champion, role].filter(Boolean).join(" · "));
   setText(itemName, next.name || String(next.id));
-  setText(hint, costText(next));
+  setText(hint, costText(next, build));
   setText(gold, formatGold(build?.gold));
-  lastSignature = signature;
 
-  const boots = build?.bootsRecommendation;
-  const showBoots = boots && boots.owned !== true && boots.id !== next.id;
-  if (showBoots) {
-    const price = boots.upgrade
-      ? "mejora gratis"
-      : boots.affordable
-        ? "listas"
-        : `faltan ${formatGold(boots.missingGold)}`;
-    setChip(bootsChip, "Botas", `${boots.name} · ${price}`);
-  } else {
-    setChip(bootsChip, "", "");
-  }
-
-  const situational = (build?.situationalItems || []).find(
-    (item) => item?.id && item.id !== next.id && item.id !== boots?.id
-  );
-  if (situational) {
-    const price = situational.affordable
-      ? "listo"
-      : `faltan ${formatGold(situational.missingGold)}`;
-    setChip(
-      situationalChip,
-      situationalLabel(situational.contextNote),
-      `${situational.name} · ${price}`,
-      true
-    );
-  } else {
-    setChip(situationalChip, "", "");
-  }
-  showExtras(Boolean(showBoots || situational));
-}
-
-function payload(state) {
-  return {
-    champion: state.champion,
-    mode: state.mode || "",
-    role: state.role || "MID",
-    side: state.side || "blue",
-    allies: Array.isArray(state.allies) ? state.allies : [],
-    enemies: Array.isArray(state.enemies) ? state.enemies : [],
-    owned: Array.isArray(state.owned) ? state.owned : [],
-    gold: number(state.gold),
-    minute: number(state.minute),
-    stable: true,
-    game: {
-      kills: number(state.kills),
-      deaths: number(state.deaths),
-      assists: number(state.assists),
-      cs: number(state.cs),
-      level: number(state.level) || 1,
-      gameTime: number(state.gameTime),
-      teamKills: number(state.teamKills),
-      enemyKills: number(state.enemyKills),
-      teamCs: number(state.teamCs),
-      enemyCs: number(state.enemyCs),
-      teamLevel: number(state.teamLevel),
-      enemyLevel: number(state.enemyLevel),
-      enemyFed: Array.isArray(state.enemyFed) ? state.enemyFed : [],
-      enemyBuilds: Array.isArray(state.enemyBuilds) ? state.enemyBuilds : [],
-      gameMode: state.gameMode || "",
-      mapName: state.mapName || "",
-      queueId: state.queueId ?? null,
-    },
-    targetItem: null,
-    bans: [],
-    limit: 5,
-    simulate: false,
-  };
+  const options = Array.isArray(build?.legendaryOptions) ? build.legendaryOptions.slice(0, 2) : [];
+  [optionOne, optionTwo].forEach((element, index) => {
+    const option = options[index];
+    setChip(element, option ? `Opción ${index + 1}` : "", option ? `${option.name} · ${costText(option, build)}` : "");
+  });
+  showExtras(options.length > 0);
 }
 
 async function request(url, options = {}, timeout = 6000) {
@@ -265,25 +172,15 @@ async function tick() {
   busy = true;
   try {
     await ensurePatch();
-    const live = await request("/api/client/live", {}, 5000);
-    if (!live?.available || !live.state?.champion) {
-      waiting();
+    const build = await request("/api/overlay/snapshot", {}, 5000);
+    if (!build) {
+      waiting("Esperando sincronización", "Abre En vivo en RiftSense");
       return;
     }
-    const build = await request(
-      "/api/build",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload(live.state)),
-      },
-      9000
-    );
     renderBuild(build);
   } catch {
-    if (!hasBuild || !lastSignature) {
-      waiting("Sin conexión con el juego", "RiftSense sigue intentando");
-    }
+    // Nunca conservar una compra antigua cuando no podemos verificarla.
+    waiting("Sin sincronización", "RiftSense sigue intentando");
   } finally {
     busy = false;
   }
